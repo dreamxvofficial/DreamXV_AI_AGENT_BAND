@@ -256,7 +256,7 @@ function initApp() {
     const prevBtn = document.getElementById("prev-question-btn");
 
     let currentStep = 1;
-    const totalSteps = 5;
+    const totalSteps = 4;
     const quizAnswers = {};
 
     if (onboardWelcomeBtn) {
@@ -289,21 +289,6 @@ function initApp() {
             radio.addEventListener("change", () => {
                 quizAnswers[`q${currentStep}`] = radio.value;
                 if (nextBtn) nextBtn.disabled = false;
-            });
-        });
-
-        // Handle checkboxes (multi-select for Q3)
-        const checkboxes = q.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => {
-            cb.addEventListener("change", () => {
-                const selectedCbs = Array.from(q.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
-                if (selectedCbs.length > 0) {
-                    quizAnswers[`q${currentStep}`] = selectedCbs;
-                    if (nextBtn) nextBtn.disabled = false;
-                } else {
-                    delete quizAnswers[`q${currentStep}`];
-                    if (nextBtn) nextBtn.disabled = true;
-                }
             });
         });
     });
@@ -472,36 +457,6 @@ function initDashboard() {
     }
     if (dbGreeting) dbGreeting.textContent = `Good ${greetTime}, ${user.name || "Dreamer"}`;
 
-    // Setup Connected AI Providers based on Onboarding selection (Q3)
-    if (onboardData && onboardData.q3) {
-        const chosenModels = Array.isArray(onboardData.q3) ? onboardData.q3 : [onboardData.q3];
-        
-        // Reset all
-        const providers = [
-            { id: "provider-featherless", name: "Featherless AI" },
-            { id: "provider-aimlapi", name: "AIMLAPI" },
-            { id: "provider-gemini", name: "Gemini" },
-            { id: "provider-openrouter", name: "OpenRouter" }
-        ];
-
-        providers.forEach(p => {
-            const element = document.getElementById(p.id);
-            if (element) {
-                const statusBadge = element.querySelector(".connection-status");
-                if (statusBadge) {
-                    // Check if user selected this model
-                    const isConnected = chosenModels.some(model => model && (model.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(model.toLowerCase())));
-                    if (isConnected) {
-                        statusBadge.textContent = "Connected";
-                        statusBadge.className = "connection-status status-connected";
-                    } else {
-                        statusBadge.textContent = "Inactive";
-                        statusBadge.className = "connection-status status-inactive";
-                    }
-                }
-            }
-        });
-    }
 }
 
 /* ==========================================
@@ -585,3 +540,51 @@ function handleCredentialResponse(response) {
         console.error("Failed to parse Google credentials:", e);
     }
 }
+
+/* ==========================================
+   INTERNAL AI PROVIDER ROUTER
+========================================== */
+
+window.AIRouter = {
+    providers: [
+        { name: "Featherless AI", isFallback: false },
+        { name: "AIMLAPI", isFallback: true }
+    ],
+    async generateContent(prompt, options = {}) {
+        console.log(`[AIRouter] Attempting generation with default provider: Featherless AI`);
+        try {
+            // Simulate Featherless AI call
+            const response = await this.callFeatherless(prompt, options);
+            console.log(`[AIRouter] Success with Featherless AI`);
+            return response;
+        } catch (error) {
+            console.warn(`[AIRouter] Featherless AI failed: ${error.message || error}. Automatically falling back to AIMLAPI...`);
+            try {
+                const response = await this.callAIMLAPI(prompt, options);
+                console.log(`[AIRouter] Success with fallback AIMLAPI`);
+                return response;
+            } catch (fallbackError) {
+                console.error(`[AIRouter] All AI providers failed.`, fallbackError);
+                throw new Error("All AI providers failed to respond.");
+            }
+        }
+    },
+    async callFeatherless(prompt, options) {
+        if (options.simulateFailure === "featherless" || options.simulateFailure === "both") {
+            throw new Error("Featherless AI connection timed out.");
+        }
+        return {
+            provider: "Featherless AI",
+            text: `[Featherless AI] Processed: "${prompt}"`
+        };
+    },
+    async callAIMLAPI(prompt, options) {
+        if (options.simulateFailure === "aimlapi" || options.simulateFailure === "both") {
+            throw new Error("AIMLAPI service unavailable.");
+        }
+        return {
+            provider: "AIMLAPI",
+            text: `[AIMLAPI (Fallback)] Processed: "${prompt}"`
+        };
+    }
+};

@@ -239,9 +239,9 @@
                 <!-- Question Container -->
                 <div id="onboard-quiz" class="onboard-step hidden">
                     <div class="quiz-progress-wrapper">
-                        <span class="progress-step-text" id="progress-step-indicator">Question 1 of 5</span>
+                        <span class="progress-step-text" id="progress-step-indicator">Question 1 of 4</span>
                         <div class="quiz-progress">
-                            <div class="progress-bar-fill" id="onboard-progress-bar" style="width: 20%;"></div>
+                            <div class="progress-bar-fill" id="onboard-progress-bar" style="width: 25%;"></div>
                         </div>
                     </div>
                     
@@ -271,35 +271,23 @@
 
                     <!-- Q3 -->
                     <div class="quiz-question hidden" data-step="3">
-                        <h3>Which AI models would you like to use?</h3>
-                        <p class="question-subtitle">Select all that apply</p>
-                        <div class="quiz-options select-multi">
-                            <label class="quiz-option checkbox"><input type="checkbox" name="q3" value="Featherless AI"><span>Featherless AI</span></label>
-                            <label class="quiz-option checkbox"><input type="checkbox" name="q3" value="AIMLAPI"><span>AIMLAPI</span></label>
-                            <label class="quiz-option checkbox"><input type="checkbox" name="q3" value="Gemini"><span>Gemini</span></label>
-                            <label class="quiz-option checkbox"><input type="checkbox" name="q3" value="OpenRouter"><span>OpenRouter</span></label>
+                        <h3>What type of experience do you prefer?</h3>
+                        <div class="quiz-options">
+                            <label class="quiz-option"><input type="radio" name="q3" value="Beginner"><span>Beginner</span></label>
+                            <label class="quiz-option"><input type="radio" name="q3" value="Intermediate"><span>Intermediate</span></label>
+                            <label class="quiz-option"><input type="radio" name="q3" value="Advanced"><span>Advanced</span></label>
                         </div>
                     </div>
 
                     <!-- Q4 -->
                     <div class="quiz-question hidden" data-step="4">
-                        <h3>What type of experience do you prefer?</h3>
-                        <div class="quiz-options">
-                            <label class="quiz-option"><input type="radio" name="q4" value="Beginner"><span>Beginner</span></label>
-                            <label class="quiz-option"><input type="radio" name="q4" value="Intermediate"><span>Intermediate</span></label>
-                            <label class="quiz-option"><input type="radio" name="q4" value="Advanced"><span>Advanced</span></label>
-                        </div>
-                    </div>
-
-                    <!-- Q5 -->
-                    <div class="quiz-question hidden" data-step="5">
                         <h3>What inspires you most?</h3>
                         <div class="quiz-options">
-                            <label class="quiz-option"><input type="radio" name="q5" value="Games"><span>Games</span></label>
-                            <label class="quiz-option"><input type="radio" name="q5" value="Artificial Intelligence"><span>Artificial Intelligence</span></label>
-                            <label class="quiz-option"><input type="radio" name="q5" value="Space"><span>Space</span></label>
-                            <label class="quiz-option"><input type="radio" name="q5" value="Creativity"><span>Creativity</span></label>
-                            <label class="quiz-option"><input type="radio" name="q5" value="Technology"><span>Technology</span></label>
+                            <label class="quiz-option"><input type="radio" name="q4" value="Games"><span>Games</span></label>
+                            <label class="quiz-option"><input type="radio" name="q4" value="Artificial Intelligence"><span>Artificial Intelligence</span></label>
+                            <label class="quiz-option"><input type="radio" name="q4" value="Space"><span>Space</span></label>
+                            <label class="quiz-option"><input type="radio" name="q4" value="Creativity"><span>Creativity</span></label>
+                            <label class="quiz-option"><input type="radio" name="q4" value="Technology"><span>Technology</span></label>
                         </div>
                     </div>
                     
@@ -369,31 +357,24 @@
                                 </div>
                                 <div class="action-card">
                                     <div class="action-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                    </div>
-                                    <h4>Launch AI Agents</h4>
-                                    <p>Activate and coordinate the band</p>
-                                </div>
-                                <div class="action-card">
-                                    <div class="action-icon">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                                     </div>
-                                    <h4>View Projects</h4>
+                                    <h4>Projects</h4>
                                     <p>Browse saved workspaces & outputs</p>
                                 </div>
-                                <div class="action-card">
-                                    <div class="action-icon">
+                                <div class="action-card" style="opacity: 0.6; cursor: not-allowed;">
+                                    <div class="action-icon" style="color: var(--starlight); opacity: 0.5;">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
                                     </div>
-                                    <h4>Explore Dream Atlas</h4>
+                                    <h4>Dream Atlas <span style="font-size: 9px; padding: 2px 6px; background: rgba(196, 125, 26, 0.15); color: var(--sunrise-amber); border-radius: 10px; margin-left: 4px; border: 1px solid rgba(196, 125, 26, 0.3); vertical-align: middle;">SOON</span></h4>
                                     <p>Inspect AI model landscapes & seeds</p>
                                 </div>
                                 <div class="action-card">
                                     <div class="action-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                                     </div>
-                                    <h4>CodePilot Remote</h4>
-                                    <p>Connect and control backend agents</p>
+                                    <h4>Settings</h4>
+                                    <p>Configure environment & API options</p>
                                 </div>
                             </div>
                         </div>
@@ -447,29 +428,7 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- AI Providers Panel -->
-                        <div class="dashboard-panel-card">
-                            <h3 class="dashboard-section-title">AI Providers</h3>
-                            <div class="providers-list">
-                                <div class="provider-item" id="provider-featherless">
-                                    <span class="provider-name font-code">Featherless AI</span>
-                                    <span class="connection-status status-inactive">Inactive</span>
-                                </div>
-                                <div class="provider-item" id="provider-aimlapi">
-                                    <span class="provider-name font-code">AIMLAPI</span>
-                                    <span class="connection-status status-inactive">Inactive</span>
-                                </div>
-                                <div class="provider-item" id="provider-gemini">
-                                    <span class="provider-name font-code">Google Gemini</span>
-                                    <span class="connection-status status-inactive">Inactive</span>
-                                </div>
-                                <div class="provider-item" id="provider-openrouter">
-                                    <span class="provider-name font-code">OpenRouter</span>
-                                    <span class="connection-status status-inactive">Inactive</span>
-                                </div>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
             </main>
@@ -517,9 +476,7 @@
                 <ul>
                     <li>Featherless AI</li>
                     <li>AIMLAPI</li>
-                    <li>OpenRouter</li>
-                    <li>Google Gemini</li>
-                    <li>Other supported AI services</li>
+                    <li>Other internally routed AI services</li>
                 </ul>
                 <p>Use of these services may be subject to their respective terms and policies.</p>
                 
