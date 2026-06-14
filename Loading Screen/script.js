@@ -1,47 +1,42 @@
 const video = document.getElementById("introVideo");
-const source = document.getElementById("videoSource");
 
 /* ==========================================
    LOAD CORRECT VIDEO
 ========================================== */
 
 function loadCorrectVideo() {
-
     const isMobile = window.innerWidth <= 768;
-
     const newSource = isMobile
         ? "DreamXV Intro Video_Mobile.mp4"
         : "DreamXV Intro Video_Desktop.mp4";
 
-    if (decodeURIComponent(source.src).includes(newSource)) {
+    // Compare against video.src directly for accuracy
+    if (video.src && decodeURIComponent(video.src).includes(newSource)) {
         return;
     }
 
-    source.src = newSource;
-
+    video.src = newSource;
     video.load();
-
-    video.play().catch(() => {});
+    video.play().catch((err) => {
+        console.log("Autoplay blocked or load issue: ", err);
+    });
 }
 
 /* ==========================================
-   INITIAL LOAD
+   INITIAL LOAD & EVENTS
 ========================================== */
 
-window.addEventListener("load", () => {
+// Run immediately to start buffering/playing
+loadCorrectVideo();
 
+// Run on DOMContentLoaded as a backup
+document.addEventListener("DOMContentLoaded", () => {
     loadCorrectVideo();
-
 });
 
-/* ==========================================
-   SCREEN ROTATION
-========================================== */
-
+// Run on window resize / orientation change
 window.addEventListener("resize", () => {
-
     loadCorrectVideo();
-
 });
 
 /* ==========================================
@@ -49,10 +44,22 @@ window.addEventListener("resize", () => {
 ========================================== */
 
 document.addEventListener("contextmenu", e => {
-
     e.preventDefault();
-
 });
+
+/* ==========================================
+   AUTOPLAY FALLBACK FOR USER INTERACTION
+========================================== */
+
+const playOnInteraction = () => {
+    if (video.paused) {
+        video.play().catch(() => {});
+    }
+    document.removeEventListener("click", playOnInteraction);
+    document.removeEventListener("touchstart", playOnInteraction);
+};
+document.addEventListener("click", playOnInteraction);
+document.addEventListener("touchstart", playOnInteraction);
 
 /* ==========================================
    TRANSITION TO MAIN SITE
@@ -88,9 +95,3 @@ video.addEventListener("ended", () => {
 setTimeout(() => {
     transitionToMainSite();
 }, 10000);
-
-/* ==========================================
-   FORCE AUTOPLAY
-========================================== */
-
-video.play().catch(() => {});
