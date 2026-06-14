@@ -156,16 +156,16 @@ function initApp() {
     if (launchBtn) launchBtn.addEventListener("click", handleLaunch);
     launchTriggers.forEach(btn => btn.addEventListener("click", handleLaunch));
 
-    // 2. Google OAuth Mock Flow
-    const googleBtn = document.getElementById("google-signin-btn");
+    // 2. Google OAuth & Mock Fallback Flow
+    const showTestBtn = document.getElementById("show-test-accounts-btn");
     const accountChooser = document.getElementById("account-chooser");
     const toggleCustomBtn = document.getElementById("toggle-custom-auth-btn");
     const customForm = document.getElementById("custom-account-form");
     const customSubmitBtn = document.getElementById("custom-signin-submit");
 
-    if (googleBtn) {
-        googleBtn.addEventListener("click", () => {
-            accountChooser.classList.remove("hidden");
+    if (showTestBtn) {
+        showTestBtn.addEventListener("click", () => {
+            accountChooser.classList.toggle("hidden");
         });
     }
 
@@ -182,7 +182,7 @@ function initApp() {
             const name = item.getAttribute("data-name");
             const email = item.getAttribute("data-email");
             const avatar = item.getAttribute("data-pic");
-            saveUser(name, email, avatar);
+            window.saveUserSession(name, email, avatar);
         });
     });
 
@@ -196,12 +196,15 @@ function initApp() {
             if (nameInput.value && emailInput.value) {
                 const seedName = encodeURIComponent(nameInput.value.trim());
                 const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${seedName}&backgroundColor=c47d1a&textColor=0c1a2e`;
-                saveUser(nameInput.value.trim(), emailInput.value.trim(), avatar);
+                window.saveUserSession(nameInput.value.trim(), emailInput.value.trim(), avatar);
             } else {
                 alert("Please fill in both Name and Email.");
             }
         });
     }
+
+    // Initialize real Google Auth
+    initGoogleAuth();
 
     // 3. Onboarding Quiz Interaction
     const onboardWelcomeBtn = document.getElementById("start-onboard-btn");
@@ -329,8 +332,8 @@ function initApp() {
         }
     }
 
-    // Save User Session helper
-    function saveUser(name, email, avatar) {
+    // Save User Session helper (Exposed globally for Google Sign-In Callback)
+    window.saveUserSession = function(name, email, avatar) {
         const user = {
             name: name,
             email: email,
@@ -339,7 +342,7 @@ function initApp() {
         };
         localStorage.setItem("dreamxv_user", JSON.stringify(user));
         startOnboarding();
-    }
+    };
 
     // 4. Dashboard Controls
     const profileTrigger = document.getElementById("profile-trigger");
@@ -473,4 +476,48 @@ if (closeTermsBtn && termsModal) {
             termsModal.classList.add("hidden");
         }
     });
+}
+
+/* ==========================================
+   GOOGLE OAUTH SIGN-IN
+========================================== */
+
+function initGoogleAuth() {
+    if (typeof google === "undefined" || typeof google.accounts === "undefined") {
+        setTimeout(initGoogleAuth, 500);
+        return;
+    }
+    
+    google.accounts.id.initialize({
+        client_id: "122741106854-2pjjbguicplm05iurfcsog0uipr0nn74.apps.googleusercontent.com",
+        callback: handleCredentialResponse
+    });
+    
+    google.accounts.id.renderButton(
+        document.getElementById("google-signin-btn"),
+        { 
+            theme: "filled_blue", 
+            size: "large", 
+            width: 320,
+            text: "signin_with",
+            shape: "rectangular"
+        }
+    );
+}
+
+function handleCredentialResponse(response) {
+    try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const googleUser = JSON.parse(jsonPayload);
+        
+        // Save user session and direct to onboarding
+        window.saveUserSession(googleUser.name, googleUser.email, googleUser.picture);
+    } catch (e) {
+        console.error("Failed to parse Google credentials:", e);
+    }
 }
