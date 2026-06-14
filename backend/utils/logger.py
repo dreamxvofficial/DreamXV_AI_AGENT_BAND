@@ -2,17 +2,20 @@
 DreamXV AI Studio — Structured Logger
 ======================================
 Dream XV branded logging using loguru.
+Vercel Serverless Compatible.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from loguru import logger
 
-# ─── Remove default handler ────────────────────────────────────────────────
+# Remove default logger
 logger.remove()
 
-# ─── Console handler with Dream XV formatting ─────────────────────────────
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
 _FORMAT = (
     "<level>{level: <8}</level> | "
     "<cyan>DreamXV</cyan> | "
@@ -20,27 +23,17 @@ _FORMAT = (
     "<level>{message}</level>"
 )
 
+# Vercel-compatible console logger
 logger.add(
-    sys.stderr,
+    sys.stdout,
     format=_FORMAT,
-    level="DEBUG",
+    level=LOG_LEVEL,
     colorize=True,
     backtrace=True,
     diagnose=False,
-)
-
-# ─── File handler for persistent logs ──────────────────────────────────────
-logger.add(
-    "logs/dreamxv_{time:YYYY-MM-DD}.log",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
-    level="INFO",
-    rotation="10 MB",
-    retention="30 days",
-    compression="zip",
     enqueue=True,
 )
 
-
 def get_logger(name: str = "dreamxv"):
-    """Return a contextual logger bound with a module name."""
+    """Return contextual DreamXV logger."""
     return logger.bind(module=name)
