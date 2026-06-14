@@ -1,6 +1,48 @@
 const video = document.getElementById("introVideo");
 
 /* ==========================================
+   SAFE STORAGE & PARSING UTILITIES
+========================================== */
+
+const safeStorage = {
+    fallbackStore: {},
+    getItem(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            console.warn("Storage read blocked, using fallback memory store:", e);
+            return this.fallbackStore[key] || null;
+        }
+    },
+    setItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (e) {
+            console.warn("Storage write blocked, saving to fallback memory store:", e);
+            this.fallbackStore[key] = value;
+        }
+    },
+    removeItem(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.warn("Storage remove blocked, clearing fallback memory store:", e);
+            delete this.fallbackStore[key];
+        }
+    }
+};
+
+function safeJsonParse(str) {
+    if (!str) return null;
+    try {
+        return JSON.parse(str);
+    } catch (e) {
+        console.error("JSON parse exception:", e);
+        return null;
+    }
+}
+
+/* ==========================================
    LOAD CORRECT VIDEO
 ========================================== */
 
@@ -83,8 +125,8 @@ function transitionToMainSite() {
     if (mainContent) {
         mainContent.classList.remove("hidden");
         // Check session and route to the correct screen
-        const user = localStorage.getItem("dreamxv_user");
-        const onboarded = localStorage.getItem("dreamxv_onboarded");
+        const user = safeStorage.getItem("dreamxv_user");
+        const onboarded = safeStorage.getItem("dreamxv_onboarded");
         
         if (user && onboarded) {
             showView("dashboard-view");
@@ -140,8 +182,8 @@ function initApp() {
     
     const handleLaunch = (e) => {
         if (e) e.preventDefault();
-        const user = localStorage.getItem("dreamxv_user");
-        const onboarded = localStorage.getItem("dreamxv_onboarded");
+        const user = safeStorage.getItem("dreamxv_user");
+        const onboarded = safeStorage.getItem("dreamxv_onboarded");
 
         if (user && onboarded) {
             showView("dashboard-view");
@@ -226,7 +268,7 @@ function initApp() {
     }
 
     function startOnboarding() {
-        const user = JSON.parse(localStorage.getItem("dreamxv_user"));
+        const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
         const greetText = document.getElementById("onboard-greet");
         if (greetText && user) {
             greetText.textContent = `Welcome, ${user.name}.`;
@@ -246,7 +288,7 @@ function initApp() {
         radios.forEach(radio => {
             radio.addEventListener("change", () => {
                 quizAnswers[`q${currentStep}`] = radio.value;
-                nextBtn.disabled = false;
+                if (nextBtn) nextBtn.disabled = false;
             });
         });
 
@@ -257,10 +299,10 @@ function initApp() {
                 const selectedCbs = Array.from(q.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
                 if (selectedCbs.length > 0) {
                     quizAnswers[`q${currentStep}`] = selectedCbs;
-                    nextBtn.disabled = false;
+                    if (nextBtn) nextBtn.disabled = false;
                 } else {
                     delete quizAnswers[`q${currentStep}`];
-                    nextBtn.disabled = true;
+                    if (nextBtn) nextBtn.disabled = true;
                 }
             });
         });
@@ -273,8 +315,8 @@ function initApp() {
                 updateQuizUI();
             } else {
                 // Save onboarding choices and complete
-                localStorage.setItem("dreamxv_onboarding_data", JSON.stringify(quizAnswers));
-                localStorage.setItem("dreamxv_onboarded", "true");
+                safeStorage.setItem("dreamxv_onboarding_data", JSON.stringify(quizAnswers));
+                safeStorage.setItem("dreamxv_onboarded", "true");
                 showView("dashboard-view");
                 initDashboard();
             }
@@ -304,17 +346,21 @@ function initApp() {
         });
 
         // Toggle back button
-        if (currentStep === 1) {
-            prevBtn.classList.add("hidden");
-        } else {
-            prevBtn.classList.remove("hidden");
+        if (prevBtn) {
+            if (currentStep === 1) {
+                prevBtn.classList.add("hidden");
+            } else {
+                prevBtn.classList.remove("hidden");
+            }
         }
 
         // Change Next button text at final step
-        if (currentStep === totalSteps) {
-            nextBtn.textContent = "FINISH";
-        } else {
-            nextBtn.textContent = "NEXT";
+        if (nextBtn) {
+            if (currentStep === totalSteps) {
+                nextBtn.textContent = "FINISH";
+            } else {
+                nextBtn.textContent = "NEXT";
+            }
         }
 
         // Update progress indicators
@@ -324,11 +370,13 @@ function initApp() {
         if (progressBar) progressBar.style.width = `${(currentStep / totalSteps) * 100}%`;
 
         // Check if current step has an answer saved to enable/disable Next button
-        const currentAnswer = quizAnswers[`q${currentStep}`];
-        if (currentAnswer && (Array.isArray(currentAnswer) ? currentAnswer.length > 0 : true)) {
-            nextBtn.disabled = false;
-        } else {
-            nextBtn.disabled = true;
+        if (nextBtn) {
+            const currentAnswer = quizAnswers[`q${currentStep}`];
+            if (currentAnswer && (Array.isArray(currentAnswer) ? currentAnswer.length > 0 : true)) {
+                nextBtn.disabled = false;
+            } else {
+                nextBtn.disabled = true;
+            }
         }
     }
 
@@ -340,7 +388,7 @@ function initApp() {
             avatar: avatar,
             created: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         };
-        localStorage.setItem("dreamxv_user", JSON.stringify(user));
+        safeStorage.setItem("dreamxv_user", JSON.stringify(user));
         startOnboarding();
     };
 
@@ -363,16 +411,16 @@ function initApp() {
     if (logoutBtn) {
         logoutBtn.addEventListener("click", (e) => {
             e.preventDefault();
-            localStorage.removeItem("dreamxv_user");
-            localStorage.removeItem("dreamxv_onboarded");
-            localStorage.removeItem("dreamxv_onboarding_data");
+            safeStorage.removeItem("dreamxv_user");
+            safeStorage.removeItem("dreamxv_onboarded");
+            safeStorage.removeItem("dreamxv_onboarding_data");
             showView("landing-view");
         });
     }
 
     // Initial Dashboard call if user is already logged in
-    const user = localStorage.getItem("dreamxv_user");
-    const onboarded = localStorage.getItem("dreamxv_onboarded");
+    const user = safeStorage.getItem("dreamxv_user");
+    const onboarded = safeStorage.getItem("dreamxv_onboarded");
     if (user && onboarded) {
         initDashboard();
     }
@@ -380,10 +428,14 @@ function initApp() {
 
 // 5. Initialize Dashboard Data
 function initDashboard() {
-    const user = JSON.parse(localStorage.getItem("dreamxv_user"));
-    const onboardData = JSON.parse(localStorage.getItem("dreamxv_onboarding_data"));
+    const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
+    const onboardData = safeJsonParse(safeStorage.getItem("dreamxv_onboarding_data"));
 
-    if (!user) return;
+    if (!user) {
+        console.warn("Dashboard initialized without user session. Redirecting to login.");
+        showView("auth-view");
+        return;
+    }
 
     // Update Avatar & Names
     const navAvatar = document.getElementById("nav-user-avatar-placeholder");
@@ -394,7 +446,7 @@ function initDashboard() {
     const dbAvatar = document.getElementById("dashboard-user-avatar-placeholder");
 
     // Assign initials/pics
-    const initials = user.name.charAt(0).toUpperCase();
+    const initials = (user.name || "U").charAt(0).toUpperCase();
     if (navAvatar) {
         navAvatar.textContent = initials;
         navAvatar.style.background = "var(--lunar-gold)";
@@ -406,9 +458,9 @@ function initDashboard() {
         dbAvatar.style.color = "var(--void-navy)";
     }
 
-    if (navName) navName.textContent = user.name;
-    if (dropEmail) dropEmail.textContent = user.email;
-    if (dropCreated) dropCreated.textContent = `Created ${user.created}`;
+    if (navName) navName.textContent = user.name || "Dreamer";
+    if (dropEmail) dropEmail.textContent = user.email || "";
+    if (dropCreated) dropCreated.textContent = `Created ${user.created || "Recently"}`;
 
     // Get time-based greeting
     const hour = new Date().getHours();
@@ -418,7 +470,7 @@ function initDashboard() {
     } else if (hour < 18) {
         greetTime = "Afternoon";
     }
-    if (dbGreeting) dbGreeting.textContent = `Good ${greetTime}, ${user.name}`;
+    if (dbGreeting) dbGreeting.textContent = `Good ${greetTime}, ${user.name || "Dreamer"}`;
 
     // Setup Connected AI Providers based on Onboarding selection (Q3)
     if (onboardData && onboardData.q3) {
@@ -436,14 +488,16 @@ function initDashboard() {
             const element = document.getElementById(p.id);
             if (element) {
                 const statusBadge = element.querySelector(".connection-status");
-                // Check if user selected this model
-                const isConnected = chosenModels.some(model => model.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(model.toLowerCase()));
-                if (isConnected) {
-                    statusBadge.textContent = "Connected";
-                    statusBadge.className = "connection-status status-connected";
-                } else {
-                    statusBadge.textContent = "Inactive";
-                    statusBadge.className = "connection-status status-inactive";
+                if (statusBadge) {
+                    // Check if user selected this model
+                    const isConnected = chosenModels.some(model => model && (model.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(model.toLowerCase())));
+                    if (isConnected) {
+                        statusBadge.textContent = "Connected";
+                        statusBadge.className = "connection-status status-connected";
+                    } else {
+                        statusBadge.textContent = "Inactive";
+                        statusBadge.className = "connection-status status-inactive";
+                    }
                 }
             }
         });
@@ -482,9 +536,19 @@ if (closeTermsBtn && termsModal) {
    GOOGLE OAUTH SIGN-IN
 ========================================== */
 
+let googleAuthRetries = 0;
 function initGoogleAuth() {
     if (typeof google === "undefined" || typeof google.accounts === "undefined") {
-        setTimeout(initGoogleAuth, 500);
+        if (googleAuthRetries < 10) {
+            googleAuthRetries++;
+            setTimeout(initGoogleAuth, 500);
+        } else {
+            console.warn("Google Sign-In SDK failed to load. Falling back to test accounts only.");
+            const googleContainer = document.getElementById("google-signin-btn");
+            if (googleContainer) {
+                googleContainer.innerHTML = "<p style='color: var(--lunar-gold); font-size: 13px; text-align: center; margin: 10px 0;'>Google Sign-In unavailable (SDK Blocked)</p>";
+            }
+        }
         return;
     }
     
