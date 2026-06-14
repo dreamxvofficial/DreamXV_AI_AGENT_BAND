@@ -34,6 +34,7 @@
     { "src": "/api/projects", "dest": "api/projects.py" },
     { "src": "/api/atlas", "dest": "api/atlas.py" },
     { "src": "/atlas", "dest": "api/atlas.py" },
+    { "src": "/videos/(.*)", "dest": "public/videos/$1" },
     { "src": "/(.*)", "dest": "$1" }
   ]
 }

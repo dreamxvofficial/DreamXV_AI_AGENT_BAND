@@ -12,6 +12,7 @@ Or:
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -42,11 +43,17 @@ async def lifespan(app: FastAPI):
     logger.info("  Born at 15. Built for Infinity.")
     logger.info("=" * 60)
 
-    # Ensure output directories exist
-    settings.outputs_dir.mkdir(parents=True, exist_ok=True)
-    settings.images_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Output directory: {settings.outputs_dir}")
-    logger.info(f"Images directory: {settings.images_dir}")
+    # Ensure output directories exist (skip or handle gracefully on Vercel)
+    if not os.getenv("VERCEL"):
+        try:
+            settings.outputs_dir.mkdir(parents=True, exist_ok=True)
+            settings.images_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Output directory: {settings.outputs_dir}")
+            logger.info(f"Images directory: {settings.images_dir}")
+        except Exception as e:
+            logger.warning(f"Could not create output directories: {e}")
+    else:
+        logger.info("Running on Vercel: skipped output directories creation.")
 
     # Initialize BandManager
     _band_manager = BandManager()

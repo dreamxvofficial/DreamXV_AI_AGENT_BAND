@@ -49,32 +49,39 @@ function safeJsonParse(str) {
 function loadCorrectVideo() {
     const isMobile = window.innerWidth <= 768;
     const newSource = isMobile
-        ? "public/videos/DreamXV Intro Video_Mobile.mp4"
-        : "public/videos/DreamXV Intro Video_Desktop.mp4";
+        ? "/videos/DreamXV Intro Video_Mobile.mp4"
+        : "/videos/DreamXV Intro Video_Desktop.mp4";
 
     if (video && video.src && decodeURIComponent(video.src).includes(newSource)) {
         return;
     }
 
     if (video) {
-        video.onerror = () => {
-            console.warn("Video failed to load:", newSource);
-            transitionToMainSite();
+        const handleError = () => {
+            console.error("Video failed to load:", newSource);
+            const fallbackImg = document.getElementById("videoFallbackImage");
+            if (fallbackImg) {
+                fallbackImg.style.display = "block";
+            }
+            setTimeout(transitionToMainSite, 2000);
         };
+
+        video.onerror = handleError;
 
         const sources = video.getElementsByTagName("source");
         for (let i = 0; i < sources.length; i++) {
-            sources[i].onerror = () => {
-                console.warn("Video source failed to load:", sources[i].src);
-                transitionToMainSite();
-            };
+            sources[i].onerror = handleError;
         }
 
         video.src = newSource;
         video.load();
         video.play().catch((err) => {
-            console.log("Autoplay blocked or load issue, transitioning to main content: ", err);
-            transitionToMainSite();
+            console.log("Autoplay blocked or load issue, transitioning to fallback image: ", err);
+            const fallbackImg = document.getElementById("videoFallbackImage");
+            if (fallbackImg) {
+                fallbackImg.style.display = "block";
+            }
+            setTimeout(transitionToMainSite, 2000);
         });
     }
 }
@@ -694,6 +701,27 @@ function handleCredentialResponse(response) {
             updateModalAgentStatus(initialStatuses);
             updateAgentStatusPanel(initialStatuses);
 
+            // Progress bar and percentage text elements
+            const progressIndicator = document.getElementById("generation-progress-indicator");
+            const progressPercent = document.getElementById("generation-progress-percent");
+
+            if (progressPercent) progressPercent.textContent = "0%";
+            if (progressIndicator) progressIndicator.style.width = "0%";
+
+            let progressVal = 0;
+            let progressInterval = setInterval(() => {
+                if (progressVal < 95) {
+                    progressVal += Math.random() * 2 + 1; // Increment by 1-3%
+                    if (progressVal > 95) progressVal = 95;
+                    updateProgressBar(progressVal);
+                }
+            }, 150);
+
+            function updateProgressBar(val) {
+                if (progressIndicator) progressIndicator.style.width = `${val}%`;
+                if (progressPercent) progressPercent.textContent = `${Math.floor(val)}%`;
+            }
+
             // Simulation setup
             let simTimeout = null;
             let simIndex = 0;
@@ -762,20 +790,25 @@ function handleCredentialResponse(response) {
                 });
 
                 if (simTimeout) clearTimeout(simTimeout);
+                if (progressInterval) clearInterval(progressInterval);
+                updateProgressBar(100);
 
                 if (!response.ok) {
                     let errMsg = "";
                     try {
                         const errData = await response.json();
-                        errMsg = errData.detail;
+                        errMsg = errData.error || errData.detail;
                     } catch (_) {
                         errMsg = `Server error: ${response.status}`;
                     }
                     throw new Error(errMsg || `Server error: ${response.status}`);
                 }
-
-                const projectDetail = await response.json();
-                console.log("[DreamXV] Project generation completed:", projectDetail);
+                const responseData = await response.json();
+                if (!responseData.success) {
+                    throw new Error(responseData.error || "Generation failed.");
+                }
+                const projectObj = responseData.data || {};
+                console.log("[DreamXV] Project generation completed:", projectObj);
 
                 // Force all simulated statuses to completed
                 activeStatuses.forEach(s => s.status = "completed");
@@ -786,12 +819,15 @@ function handleCredentialResponse(response) {
                 const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
                 const localProjects = safeJsonParse(localProjectsStr) || [];
                 
-                projectDetail.status = "completed";
-                if (!projectDetail.created_at) {
-                    projectDetail.created_at = new Date().toISOString();
+                projectObj.status = "completed";
+                if (!projectObj.project_id) {
+                    projectObj.project_id = "dxv_" + Math.random().toString(36).substring(2, 11);
+                }
+                if (!projectObj.created_at) {
+                    projectObj.created_at = new Date().toISOString();
                 }
                 
-                localProjects.push(projectDetail);
+                localProjects.push(projectObj);
                 safeStorage.setItem("dreamxv_projects", JSON.stringify(localProjects));
 
                 showToast("Project generation complete!", "success");
@@ -812,6 +848,9 @@ function handleCredentialResponse(response) {
 
             } catch (err) {
                 if (simTimeout) clearTimeout(simTimeout);
+                if (progressInterval) clearInterval(progressInterval);
+                if (progressIndicator) progressIndicator.style.width = "0%";
+                if (progressPercent) progressPercent.textContent = "0%";
                 console.error("[DreamXV] Generation failed:", err);
                 resetSubmitButton();
 
@@ -1039,10 +1078,7 @@ function showProjectDetails(projectId) {
         if (characters.length > 0) {
             characters.forEach(char => {
                 const charCard = document.createElement("div");
-                charCard.style.padding = "var(--space-4)";
-                charCard.style.background = "rgba(26, 48, 72, 0.2)";
-                charCard.style.border = "1px solid rgba(26, 48, 72, 0.4)";
-                charCard.style.borderRadius = "8px";
+                charCard.className = "character-card";
                 
                 charCard.innerHTML = `
                     <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">

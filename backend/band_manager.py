@@ -114,6 +114,7 @@ class BandManager:
 
         # ── Phase 1: Chief Agent Breakdown ──────────────────────────────
         self._update_status(project_id, "Chief Agent", AgentStatus.RUNNING)
+        breakdown = None
         try:
             breakdown = await chief.run(user_prompt, room)
             self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
@@ -122,7 +123,18 @@ class BandManager:
             self._update_status(
                 project_id, "Chief Agent", AgentStatus.ERROR, str(exc)
             )
-            raise
+            # Create a default fallback breakdown structure so specialists can run
+            from backend.models.output_models import ChiefTaskBreakdown
+            breakdown = ChiefTaskBreakdown(
+                story_directive=f"Create a game story based on: {user_prompt}",
+                character_directive=f"Generate characters for: {user_prompt}",
+                world_directive=f"Build the world setting for: {user_prompt}",
+                gameplay_directive=f"Design gameplay mechanics for: {user_prompt}",
+                art_directive=f"Define visual direction and style for: {user_prompt}",
+                qa_directive=f"Assess consistency and quality for: {user_prompt}",
+                genre="Role-Playing Game",
+                tone="Epic"
+            )
 
         # ── Phase 2: Parallel Specialist Agents ─────────────────────────
         # Story, Character, World, and Gameplay can run in parallel
@@ -239,9 +251,20 @@ class BandManager:
         )
 
         # Persist and clean up
-        self._export.save_project(project)
-        self._memory.store_completed_project(project)
-        self._band_service.close_room(project_id)
+        try:
+            self._export.save_project(project)
+        except Exception as e:
+            logger.warning(f"Failed to save project export: {e}")
+
+        try:
+            self._memory.store_completed_project(project)
+        except Exception as e:
+            logger.warning(f"Failed to store project in memory: {e}")
+
+        try:
+            self._band_service.close_room(project_id)
+        except Exception as e:
+            logger.warning(f"Failed to close band room: {e}")
 
         logger.info(f"Project completed: {project_id} — '{project.title}'")
         return project

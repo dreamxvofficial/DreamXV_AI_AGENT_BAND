@@ -12,7 +12,9 @@ app = FastAPI()
 @app.get("/api/health")
 @app.get("/")
 async def health():
+    settings = get_settings()
     return {
         "status": "ok",
-        "platform": "DreamXV AI Studio"
+        "platform": "DreamXV AI Studio",
+        "google_client_id": settings.google_client_id
     }

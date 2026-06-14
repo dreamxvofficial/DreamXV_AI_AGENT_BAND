@@ -3,12 +3,13 @@ DreamXV AI Studio — Image Generation Service
 =============================================
 Generates images using AIMLAPI's /v1/images/generations/ endpoint.
 Featherless AI does not support image generation, so AIMLAPI is used directly.
-Images are saved to outputs/images/.
+Images are saved to outputs/images/ (or returned inline on Vercel).
 """
 
 from __future__ import annotations
 
 import base64
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -36,8 +37,12 @@ class ImageService:
         self._featherless_base_url = settings.featherless_base_url
         self._images_dir = settings.images_dir
 
-        # Ensure output directory exists
-        self._images_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure output directory exists (skip on Vercel)
+        if not os.getenv("VERCEL"):
+            try:
+                self._images_dir.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                logger.warning(f"Could not create images dir: {e}")
 
     async def generate_image(
         self,
@@ -48,7 +53,7 @@ class ImageService:
         filename: Optional[str] = None,
     ) -> str:
         """
-        Generate an image from a text prompt and save it to disk.
+        Generate an image from a text prompt and save it to disk (or return base64 on Vercel).
 
         Args:
             prompt: Text description for image generation.
@@ -57,36 +62,43 @@ class ImageService:
             filename: Override output filename (auto-generated if None).
 
         Returns:
-            Absolute file path of the saved image.
+            Absolute file path of the saved image, or base64 data URL.
         """
-        # Build project-specific subdirectory
-        project_dir = self._images_dir / sanitize_filename(project_id)
-        project_dir.mkdir(parents=True, exist_ok=True)
+        existing = []
+        output_path = None
+        
+        if not os.getenv("VERCEL"):
+            # Build project-specific subdirectory
+            project_dir = self._images_dir / sanitize_filename(project_id)
+            try:
+                project_dir.mkdir(parents=True, exist_ok=True)
+                existing = list(project_dir.glob("*.png")) + list(project_dir.glob("*.jpg"))
+            except Exception as e:
+                logger.warning(f"Could not create project images dir: {e}")
 
-        # Check image limit
-        existing = list(project_dir.glob("*.png")) + list(project_dir.glob("*.jpg"))
-        if len(existing) >= MAX_IMAGES_PER_PROJECT:
-            logger.warning(
-                f"Image limit reached for project {project_id} "
-                f"({len(existing)}/{MAX_IMAGES_PER_PROJECT}). Skipping."
-            )
-            raise ValueError(
-                f"Maximum of {MAX_IMAGES_PER_PROJECT} images per project reached."
-            )
+            if len(existing) >= MAX_IMAGES_PER_PROJECT:
+                logger.warning(
+                    f"Image limit reached for project {project_id} "
+                    f"({len(existing)}/{MAX_IMAGES_PER_PROJECT}). Skipping."
+                )
+                raise ValueError(
+                    f"Maximum of {MAX_IMAGES_PER_PROJECT} images per project reached."
+                )
 
-        # Determine output filename
-        if filename is None:
-            index = len(existing) + 1
-            safe_type = sanitize_filename(image_type)
-            filename = f"{safe_type}_{index:02d}.png"
+            # Determine output filename
+            if filename is None:
+                index = len(existing) + 1
+                safe_type = sanitize_filename(image_type)
+                filename = f"{safe_type}_{index:02d}.png"
 
-        output_path = project_dir / filename
+            output_path = project_dir / filename
 
         logger.info(f"Generating image: type={image_type}, model={self._model}")
         logger.debug(f"Image prompt: {prompt[:100]}...")
 
         # Call image generation endpoint (Featherless AI first, then fallback to AIMLAPI)
         image_generated = False
+        img_bytes = None
         
         # 1. Try Featherless AI if supported/available
         if self._featherless_api_key and self._featherless_api_key != "your_key_here" and not self._featherless_api_key.startswith("your_"):
@@ -112,15 +124,14 @@ class ImageService:
                             image_data = data["data"][0]
                             if "b64_json" in image_data:
                                 img_bytes = base64.b64decode(image_data["b64_json"])
-                                output_path.write_bytes(img_bytes)
-                                logger.info(f"Image saved via Featherless AI: {output_path}")
+                                logger.info(f"Image generated via Featherless AI")
                                 image_generated = True
                             elif "url" in image_data:
                                 async with httpx.AsyncClient(timeout=30.0) as dl_client:
                                     img_response = await dl_client.get(image_data["url"])
                                     img_response.raise_for_status()
-                                    output_path.write_bytes(img_response.content)
-                                    logger.info(f"Image saved via Featherless AI (URL): {output_path}")
+                                    img_bytes = img_response.content
+                                    logger.info(f"Image generated via Featherless AI (URL)")
                                     image_generated = True
                     else:
                         logger.warning(f"Featherless image generation returned status code: {response.status_code}")
@@ -156,16 +167,15 @@ class ImageService:
                     if "b64_json" in image_data:
                         # Base64-encoded image
                         img_bytes = base64.b64decode(image_data["b64_json"])
-                        output_path.write_bytes(img_bytes)
-                        logger.info(f"Image saved: {output_path}")
+                        logger.info(f"Image generated via AIMLAPI")
                         image_generated = True
                     elif "url" in image_data:
                         # URL-based response — download the image
                         async with httpx.AsyncClient(timeout=60.0) as dl_client:
                             img_response = await dl_client.get(image_data["url"])
                             img_response.raise_for_status()
-                            output_path.write_bytes(img_response.content)
-                            logger.info(f"Image downloaded and saved: {output_path}")
+                            img_bytes = img_response.content
+                            logger.info(f"Image downloaded via AIMLAPI")
                             image_generated = True
                     else:
                         raise ValueError("Unexpected image response format from AIMLAPI")
@@ -180,10 +190,22 @@ class ImageService:
                     "QmCC"
                 )
                 img_bytes = base64.b64decode(tiny_png)
-                output_path.write_bytes(img_bytes)
-                logger.info(f"Mock placeholder image saved: {output_path}")
 
-        return str(output_path)
+        if img_bytes:
+            if os.getenv("VERCEL"):
+                img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                return f"data:image/png;base64,{img_b64}"
+            elif output_path:
+                try:
+                    output_path.write_bytes(img_bytes)
+                    logger.info(f"Image saved: {output_path}")
+                    return str(output_path)
+                except Exception as w_exc:
+                    logger.error(f"Failed to write image to disk: {w_exc}")
+                    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                    return f"data:image/png;base64,{img_b64}"
+        
+        return ""
 
     async def generate_project_images(
         self,
@@ -201,7 +223,7 @@ class ImageService:
             image_types: Optional list of types matching prompts.
 
         Returns:
-            List of saved file paths.
+            List of saved file paths (or base64 strings).
         """
         if image_types is None:
             image_types = ["concept"] * len(prompts)
@@ -218,10 +240,10 @@ class ImageService:
                     project_id=project_id,
                     image_type=img_type,
                 )
-                paths.append(path)
+                if path:
+                    paths.append(path)
             except Exception as exc:
                 logger.error(f"Image generation failed for type={img_type}: {exc}")
-                # Continue with remaining images
                 continue
 
         return paths

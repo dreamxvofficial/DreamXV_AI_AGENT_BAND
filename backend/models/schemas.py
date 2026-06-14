@@ -33,9 +33,8 @@ class GenerateProjectRequest(BaseModel):
         max_length=5000,
         description="User's creative prompt describing the desired game/project",
     )
-    user_id: str = Field(
-        ...,
-        min_length=1,
+    user_id: Optional[str] = Field(
+        default="anonymous",
         description="Authenticated user identifier",
     )
 
