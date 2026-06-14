@@ -32,6 +32,8 @@ class ImageService:
         self._api_key = settings.aiml_api_key
         self._base_url = settings.aiml_base_url
         self._model = settings.aiml_image_model
+        self._featherless_api_key = settings.featherless_api_key
+        self._featherless_base_url = settings.featherless_base_url
         self._images_dir = settings.images_dir
 
         # Ensure output directory exists
@@ -83,57 +85,103 @@ class ImageService:
         logger.info(f"Generating image: type={image_type}, model={self._model}")
         logger.debug(f"Image prompt: {prompt[:100]}...")
 
-        # Call AIMLAPI image generation endpoint
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    f"{self._base_url}/images/generations",
-                    headers={
-                        "Authorization": f"Bearer {self._api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": self._model,
-                        "prompt": prompt,
-                        "n": 1,
-                        "response_format": "b64_json",
-                    },
-                )
-                response.raise_for_status()
+        # Call image generation endpoint (Featherless AI first, then fallback to AIMLAPI)
+        image_generated = False
+        
+        # 1. Try Featherless AI if supported/available
+        if self._featherless_api_key and self._featherless_api_key != "your_key_here" and not self._featherless_api_key.startswith("your_"):
+            try:
+                logger.info(f"Attempting image generation via Featherless AI...")
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{self._featherless_base_url}/images/generations",
+                        headers={
+                            "Authorization": f"Bearer {self._featherless_api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": "flux/schnell",
+                            "prompt": prompt,
+                            "n": 1,
+                            "response_format": "b64_json",
+                        },
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        if "data" in data and len(data["data"]) > 0:
+                            image_data = data["data"][0]
+                            if "b64_json" in image_data:
+                                img_bytes = base64.b64decode(image_data["b64_json"])
+                                output_path.write_bytes(img_bytes)
+                                logger.info(f"Image saved via Featherless AI: {output_path}")
+                                image_generated = True
+                            elif "url" in image_data:
+                                async with httpx.AsyncClient(timeout=30.0) as dl_client:
+                                    img_response = await dl_client.get(image_data["url"])
+                                    img_response.raise_for_status()
+                                    output_path.write_bytes(img_response.content)
+                                    logger.info(f"Image saved via Featherless AI (URL): {output_path}")
+                                    image_generated = True
+                    else:
+                        logger.warning(f"Featherless image generation returned status code: {response.status_code}")
+            except Exception as f_exc:
+                logger.info(f"Featherless image generation not supported or failed: {f_exc}")
 
-            data = response.json()
+        # 2. Fallback to AIMLAPI
+        if not image_generated:
+            try:
+                logger.info(f"Attempting image generation via AIMLAPI...")
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    response = await client.post(
+                        f"{self._base_url}/images/generations",
+                        headers={
+                            "Authorization": f"Bearer {self._api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": self._model,
+                            "prompt": prompt,
+                            "n": 1,
+                            "response_format": "b64_json",
+                        },
+                    )
+                    response.raise_for_status()
 
-            # Extract and save image
-            if "data" in data and len(data["data"]) > 0:
-                image_data = data["data"][0]
+                data = response.json()
 
-                if "b64_json" in image_data:
-                    # Base64-encoded image
-                    img_bytes = base64.b64decode(image_data["b64_json"])
-                    output_path.write_bytes(img_bytes)
-                    logger.info(f"Image saved: {output_path}")
-                elif "url" in image_data:
-                    # URL-based response — download the image
-                    async with httpx.AsyncClient(timeout=60.0) as dl_client:
-                        img_response = await dl_client.get(image_data["url"])
-                        img_response.raise_for_status()
-                        output_path.write_bytes(img_response.content)
-                        logger.info(f"Image downloaded and saved: {output_path}")
+                # Extract and save image
+                if "data" in data and len(data["data"]) > 0:
+                    image_data = data["data"][0]
+
+                    if "b64_json" in image_data:
+                        # Base64-encoded image
+                        img_bytes = base64.b64decode(image_data["b64_json"])
+                        output_path.write_bytes(img_bytes)
+                        logger.info(f"Image saved: {output_path}")
+                        image_generated = True
+                    elif "url" in image_data:
+                        # URL-based response — download the image
+                        async with httpx.AsyncClient(timeout=60.0) as dl_client:
+                            img_response = await dl_client.get(image_data["url"])
+                            img_response.raise_for_status()
+                            output_path.write_bytes(img_response.content)
+                            logger.info(f"Image downloaded and saved: {output_path}")
+                            image_generated = True
+                    else:
+                        raise ValueError("Unexpected image response format from AIMLAPI")
                 else:
-                    raise ValueError("Unexpected image response format from AIMLAPI")
-            else:
-                raise ValueError("No image data returned from AIMLAPI")
-        except Exception as exc:
-            logger.warning(f"Image generation failed for {image_type} ({type(exc).__name__}: {exc}). Using mock fallback image.")
-            # Solid dark green/gold themed placeholder PNG (base64)
-            tiny_png = (
-                "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"
-                "H0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSu"
-                "QmCC"
-            )
-            img_bytes = base64.b64decode(tiny_png)
-            output_path.write_bytes(img_bytes)
-            logger.info(f"Mock placeholder image saved: {output_path}")
+                    raise ValueError("No image data returned from AIMLAPI")
+            except Exception as exc:
+                logger.warning(f"Image generation failed for {image_type} ({type(exc).__name__}: {exc}). Using mock fallback image.")
+                # Solid dark green/gold themed placeholder PNG (base64)
+                tiny_png = (
+                    "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"
+                    "H0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSu"
+                    "QmCC"
+                )
+                img_bytes = base64.b64decode(tiny_png)
+                output_path.write_bytes(img_bytes)
+                logger.info(f"Mock placeholder image saved: {output_path}")
 
         return str(output_path)
 

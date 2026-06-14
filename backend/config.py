@@ -71,6 +71,16 @@ class Settings(BaseSettings):
         description="Band SDK base URL",
     )
 
+    # --- Google OAuth Credentials ---
+    google_client_id: str = Field(
+        default="",
+        description="Google Client ID",
+    )
+    google_client_secret: str = Field(
+        default="",
+        description="Google Client Secret",
+    )
+
     # --- Application Paths ---
     project_root: Path = _PROJECT_ROOT
     outputs_dir: Path = _PROJECT_ROOT / "outputs"
@@ -90,6 +100,13 @@ class Settings(BaseSettings):
         env_file = str(_ENV_PATH)
         env_file_encoding = "utf-8"
         case_sensitive = False
+
+    def __init__(self, **values):
+        super().__init__(**values)
+        # Dynamically redirect directories to /tmp under Vercel Serverless
+        if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+            self.outputs_dir = Path("/tmp/outputs")
+            self.images_dir = Path("/tmp/outputs/images")
 
 
 @lru_cache()

@@ -1,0 +1,32 @@
+{
+  "builds": [
+    {
+      "src": "api/*.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "script.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "style.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/generate-project", "dest": "api/generate-project.py" },
+    { "src": "/api/agent-status", "dest": "api/agents.py" },
+    { "src": "/api/health", "dest": "api/health.py" },
+    { "src": "/api/image", "dest": "api/image.py" },
+    { "src": "/api/projects", "dest": "api/projects.py" },
+    { "src": "/(.*)", "dest": "$1" }
+  ]
+}

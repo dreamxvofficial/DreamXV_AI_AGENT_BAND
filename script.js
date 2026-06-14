@@ -494,7 +494,7 @@ if (closeTermsBtn && termsModal) {
 ========================================== */
 
 let googleAuthRetries = 0;
-function initGoogleAuth() {
+async function initGoogleAuth() {
     if (typeof google === "undefined" || typeof google.accounts === "undefined") {
         if (googleAuthRetries < 10) {
             googleAuthRetries++;
@@ -509,8 +509,21 @@ function initGoogleAuth() {
         return;
     }
     
+    let clientId = "122741106854-2pjjbguicplm05iurfcsog0uipr0nn74.apps.googleusercontent.com"; // Fallback Client ID
+    try {
+        const response = await fetch("/api/health");
+        if (response.ok) {
+            const data = await response.json();
+            if (data.google_client_id) {
+                clientId = data.google_client_id;
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to dynamically load Google Client ID, using default.", e);
+    }
+    
     google.accounts.id.initialize({
-        client_id: "122741106854-2pjjbguicplm05iurfcsog0uipr0nn74.apps.googleusercontent.com",
+        client_id: clientId,
         callback: handleCredentialResponse
     });
     
@@ -548,13 +561,10 @@ function handleCredentialResponse(response) {
 ========================================== */
 
 const API_CONFIG = {
-    // Loaded dynamically from localStorage if present
-    baseUrl: safeStorage.getItem("dreamxv_backend_url") || "",
-    
+    // Always use relative paths for Vercel Serverless
     getUrl(path) {
-        const base = this.baseUrl ? this.baseUrl.replace(/\/$/, "") : "";
         const cleanPath = path.startsWith("/") ? path : `/${path}`;
-        return base ? `${base}${cleanPath}` : cleanPath;
+        return cleanPath;
     }
 };
 
@@ -660,6 +670,80 @@ const API_CONFIG = {
             if (errorBox) errorBox.style.display = "none";
             setSubmitLoading();
 
+            // Show progress section immediately
+            if (progressSection) {
+                progressSection.style.display = "block";
+            }
+
+            const initialStatuses = [
+                { agent_name: "Chief Agent", status: "ready" },
+                { agent_name: "Story Agent", status: "ready" },
+                { agent_name: "Character Agent", status: "ready" },
+                { agent_name: "World Agent", status: "ready" },
+                { agent_name: "Gameplay Agent", status: "ready" },
+                { agent_name: "Art Agent", status: "ready" },
+                { agent_name: "QA Agent", status: "ready" },
+            ];
+
+            updateModalAgentStatus(initialStatuses);
+            updateAgentStatusPanel(initialStatuses);
+
+            // Simulation setup
+            let simTimeout = null;
+            let simIndex = 0;
+            const simSteps = [
+                {
+                    updates: [
+                        { agent_name: "Chief Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Chief Agent", status: "completed" },
+                        { agent_name: "Story Agent", status: "running" },
+                        { agent_name: "Character Agent", status: "running" },
+                        { agent_name: "World Agent", status: "running" },
+                        { agent_name: "Gameplay Agent", status: "running" }
+                    ],
+                    delay: 3000
+                },
+                {
+                    updates: [
+                        { agent_name: "Story Agent", status: "completed" },
+                        { agent_name: "Character Agent", status: "completed" },
+                        { agent_name: "World Agent", status: "completed" },
+                        { agent_name: "Gameplay Agent", status: "completed" },
+                        { agent_name: "Art Agent", status: "running" }
+                    ],
+                    delay: 2000
+                },
+                {
+                    updates: [
+                        { agent_name: "Art Agent", status: "completed" },
+                        { agent_name: "QA Agent", status: "running" }
+                    ],
+                    delay: 1500
+                }
+            ];
+
+            let activeStatuses = JSON.parse(JSON.stringify(initialStatuses));
+            function runSimulationStep() {
+                if (simIndex < simSteps.length) {
+                    const step = simSteps[simIndex];
+                    step.updates.forEach(up => {
+                        const existing = activeStatuses.find(s => s.agent_name === up.agent_name);
+                        if (existing) existing.status = up.status;
+                    });
+                    updateModalAgentStatus(activeStatuses);
+                    updateAgentStatusPanel(activeStatuses);
+                    
+                    simIndex++;
+                    simTimeout = setTimeout(runSimulationStep, step.delay);
+                }
+            }
+            runSimulationStep();
+
             // Get user from session
             const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
             const userId = user ? user.email : "anonymous";
@@ -671,60 +755,69 @@ const API_CONFIG = {
                     body: JSON.stringify({ prompt: prompt, user_id: userId }),
                 });
 
+                if (simTimeout) clearTimeout(simTimeout);
+
                 if (!response.ok) {
                     let errMsg = "";
                     try {
                         const errData = await response.json();
                         errMsg = errData.detail;
                     } catch (_) {
-                        if (response.status === 404) {
-                            errMsg = "Endpoint not found (404). If you are running on Vercel, click 'Settings' in Quick Actions and specify your persistent Backend API URL (e.g. http://localhost:8000 or Railway URL).";
-                        } else {
-                            errMsg = `Server error: ${response.status}`;
-                        }
+                        errMsg = `Server error: ${response.status}`;
                     }
                     throw new Error(errMsg || `Server error: ${response.status}`);
                 }
 
-                const data = await response.json();
-                console.log("[DreamXV] Project generation started:", data);
+                const projectDetail = await response.json();
+                console.log("[DreamXV] Project generation completed:", projectDetail);
 
-                // Show progress section
-                if (progressSection) {
-                    progressSection.style.display = "block";
-                    updateModalAgentStatus([
-                        { agent_name: "Chief Agent", status: "running" },
-                        { agent_name: "Story Agent", status: "ready" },
-                        { agent_name: "Character Agent", status: "ready" },
-                        { agent_name: "World Agent", status: "ready" },
-                        { agent_name: "Gameplay Agent", status: "ready" },
-                        { agent_name: "Art Agent", status: "ready" },
-                        { agent_name: "QA Agent", status: "ready" },
-                    ]);
+                // Force all simulated statuses to completed
+                activeStatuses.forEach(s => s.status = "completed");
+                updateModalAgentStatus(activeStatuses);
+                updateAgentStatusPanel(activeStatuses);
+
+                // Add to local projects
+                const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+                const localProjects = safeJsonParse(localProjectsStr) || [];
+                
+                projectDetail.status = "completed";
+                if (!projectDetail.created_at) {
+                    projectDetail.created_at = new Date().toISOString();
                 }
+                
+                localProjects.push(projectDetail);
+                safeStorage.setItem("dreamxv_projects", JSON.stringify(localProjects));
 
-                showToast("Project generation started! Agents are working...", "success");
+                showToast("Project generation complete!", "success");
 
-                // Start polling agent status
-                startStatusPolling();
+                // Close modal after a short delay
+                setTimeout(() => {
+                    if (modal) modal.classList.add("hidden");
+                    resetSubmitButton();
+                    
+                    // Reset statuses back to ready
+                    const readyStatuses = initialStatuses.map(s => ({ ...s, status: "ready" }));
+                    updateModalAgentStatus(readyStatuses);
+                    updateAgentStatusPanel(readyStatuses);
+                }, 2000);
 
-                // Update dashboard agent status panel
-                updateAgentStatusPanel([
-                    { agent_name: "Chief Agent", status: "running" },
-                    { agent_name: "Story Agent", status: "ready" },
-                    { agent_name: "Character Agent", status: "ready" },
-                    { agent_name: "World Agent", status: "ready" },
-                    { agent_name: "Gameplay Agent", status: "ready" },
-                    { agent_name: "Art Agent", status: "ready" },
-                    { agent_name: "QA Agent", status: "ready" },
-                ]);
+                // Refresh project list
+                fetchAndRenderProjects();
 
             } catch (err) {
+                if (simTimeout) clearTimeout(simTimeout);
                 console.error("[DreamXV] Generation failed:", err);
                 resetSubmitButton();
 
+                // Show error state on active running agents
+                activeStatuses.forEach(s => {
+                    if (s.status === "running") s.status = "error";
+                });
+                updateModalAgentStatus(activeStatuses);
+                updateAgentStatusPanel(activeStatuses);
+
                 if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-                    showError("Cannot reach the backend server. Make sure the API is running and the URL is configured in API_CONFIG.");
+                    showError("Cannot reach the backend server. Make sure the API is running and configured correctly.");
                 } else {
                     showError(err.message || "Generation failed. Please try again.");
                 }
@@ -833,41 +926,277 @@ async function fetchAndRenderProjects() {
     const emptyState = document.getElementById("projects-empty-state");
     if (!container) return;
 
+    // Load local projects from localStorage
+    const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+    const localProjects = safeJsonParse(localProjectsStr) || [];
+
+    let mergedProjects = [...localProjects];
+
     try {
         const response = await fetch(API_CONFIG.getUrl("/projects"));
-        if (!response.ok) return;
-
-        const data = await response.json();
-
-        if (data.projects && data.projects.length > 0) {
-            // Hide empty state, show project cards
-            if (emptyState) emptyState.style.display = "none";
-
-            // Remove any existing project cards (but keep empty state in DOM)
-            container.querySelectorAll(".project-list-card").forEach(c => c.remove());
-
-            data.projects.forEach(p => {
-                const card = document.createElement("div");
-                card.className = "project-list-card";
-                card.innerHTML = `
-                    <div>
-                        <div class="project-title">${escapeHtml(p.title || "Untitled")}</div>
-                        <div class="project-date">${formatDate(p.created_at)}</div>
-                    </div>
-                    <span class="project-status">${p.status || "completed"}</span>
-                `;
-                container.appendChild(card);
-            });
-        } else {
-            // Show empty state
-            if (emptyState) emptyState.style.display = "flex";
+        if (response.ok) {
+            const data = await response.json();
+            if (data.projects && data.projects.length > 0) {
+                data.projects.forEach(bp => {
+                    // Avoid duplicates
+                    if (!mergedProjects.some(lp => lp.project_id === bp.project_id)) {
+                        mergedProjects.push(bp);
+                    }
+                });
+            }
         }
     } catch (err) {
-        // Backend not available — show empty state silently
-        console.log("[DreamXV] Projects fetch skipped (backend unavailable)");
+        console.log("[DreamXV] Projects fetch from server skipped or failed:", err.message);
+    }
+
+    // Sort by created_at descending
+    mergedProjects.sort((a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB - dateA;
+    });
+
+    if (mergedProjects.length > 0) {
+        if (emptyState) emptyState.style.display = "none";
+        
+        // Remove existing project list cards
+        container.querySelectorAll(".project-list-card").forEach(c => c.remove());
+
+        mergedProjects.forEach(p => {
+            const card = document.createElement("div");
+            card.className = "project-list-card";
+            card.style.cursor = "pointer";
+            card.innerHTML = `
+                <div>
+                    <div class="project-title">${escapeHtml(p.title || "Untitled")}</div>
+                    <div class="project-date">${formatDate(p.created_at)}</div>
+                </div>
+                <span class="project-status">${p.status || "completed"}</span>
+            `;
+            card.addEventListener("click", () => {
+                showProjectDetails(p.project_id);
+            });
+            container.appendChild(card);
+        });
+    } else {
         if (emptyState) emptyState.style.display = "flex";
     }
 }
+
+function showProjectDetails(projectId) {
+    const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+    const localProjects = safeJsonParse(localProjectsStr) || [];
+    const project = localProjects.find(p => p.project_id === projectId);
+    
+    if (!project) {
+        showToast("Project details not found in local storage.", "error");
+        return;
+    }
+    
+    const modal = document.getElementById("project-details-modal");
+    if (!modal) return;
+    
+    const titleEl = document.getElementById("details-project-title");
+    if (titleEl) titleEl.textContent = project.title || "Untitled Project";
+    
+    // 1. Narrative Tab
+    const story = project.story || {};
+    const loreEl = document.getElementById("details-lore");
+    if (loreEl) loreEl.textContent = story.lore || "No lore generated.";
+    
+    const summaryEl = document.getElementById("details-summary");
+    if (summaryEl) summaryEl.textContent = story.summary || "No story synopsis generated.";
+    
+    const actsEl = document.getElementById("details-acts");
+    if (actsEl) {
+        actsEl.innerHTML = "";
+        const acts = story.acts || [];
+        if (acts.length > 0) {
+            acts.forEach(act => {
+                const li = document.createElement("li");
+                li.textContent = act;
+                actsEl.appendChild(li);
+            });
+        } else {
+            actsEl.innerHTML = "<li>No story acts generated.</li>";
+        }
+    }
+    
+    const themesEl = document.getElementById("details-themes");
+    if (themesEl) {
+        themesEl.innerHTML = "";
+        const themes = story.themes || [];
+        if (themes.length > 0) {
+            themes.forEach(theme => {
+                const tag = document.createElement("div");
+                tag.className = "feature-tag";
+                tag.style.margin = "4px";
+                tag.textContent = theme;
+                themesEl.appendChild(tag);
+            });
+        } else {
+            themesEl.innerHTML = "<span style='color: rgba(240, 232, 208, 0.4); font-size: 13px;'>No thematic focus points generated.</span>";
+        }
+    }
+    
+    // 2. Characters Tab
+    const charListEl = document.getElementById("details-character-list");
+    if (charListEl) {
+        charListEl.innerHTML = "";
+        const characters = project.characters || [];
+        if (characters.length > 0) {
+            characters.forEach(char => {
+                const charCard = document.createElement("div");
+                charCard.style.padding = "var(--space-4)";
+                charCard.style.background = "rgba(26, 48, 72, 0.2)";
+                charCard.style.border = "1px solid rgba(26, 48, 72, 0.4)";
+                charCard.style.borderRadius = "8px";
+                
+                charCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+                        <strong style="color: var(--lunar-gold); font-size: 16px;">${escapeHtml(char.name)}</strong>
+                        <span style="font-family: var(--font-code); font-size: 11px; padding: 2px 8px; border: 1px solid var(--earth-teal); color: var(--earth-teal); border-radius: 12px; height: fit-content;">${escapeHtml(char.role)}</span>
+                    </div>
+                    <p style="font-size: 13px; color: rgba(240, 232, 208, 0.8); line-height: 1.5; margin-bottom: var(--space-3);">${escapeHtml(char.backstory)}</p>
+                    
+                    <div style="margin-bottom: var(--space-2);">
+                        <span style="font-size: 11px; color: var(--lunar-gold); font-family: var(--font-code); display: block; margin-bottom: 2px;">ABILITIES & POWERS</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            ${(char.abilities || []).map(ab => `<span class="feature-tag" style="font-size: 10px; padding: 2px 6px;">${escapeHtml(ab)}</span>`).join("") || `<span style="color: rgba(240, 232, 208, 0.4); font-size: 11px;">None</span>`}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span style="font-size: 11px; color: var(--lunar-gold); font-family: var(--font-code); display: block; margin-bottom: 2px;">PERSONALITY TRAITS</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            ${(char.personality_traits || []).map(t => `<span class="feature-tag" style="font-size: 10px; padding: 2px 6px; background: rgba(27, 138, 122, 0.1); border-color: rgba(27, 138, 122, 0.2);">${escapeHtml(t)}</span>`).join("") || `<span style="color: rgba(240, 232, 208, 0.4); font-size: 11px;">None</span>`}
+                        </div>
+                    </div>
+                `;
+                charListEl.appendChild(charCard);
+            });
+        } else {
+            charListEl.innerHTML = "<p style='color: rgba(240, 232, 208, 0.4); font-size: 14px;'>No characters generated.</p>";
+        }
+    }
+    
+    // 3. Gameplay & World Tab
+    const world = project.world || {};
+    const worldDescEl = document.getElementById("details-world-desc");
+    if (worldDescEl) worldDescEl.textContent = world.description || "No world setting generated.";
+    
+    const worldAtmosphereEl = document.getElementById("details-world-atmosphere");
+    if (worldAtmosphereEl) worldAtmosphereEl.textContent = world.atmosphere || "No atmosphere details generated.";
+    
+    const gameplay = project.gameplay || {};
+    const coreLoopEl = document.getElementById("details-core-loop");
+    if (coreLoopEl) coreLoopEl.textContent = gameplay.core_loop || "No core loop design generated.";
+    
+    const progressionEl = document.getElementById("details-progression");
+    if (progressionEl) progressionEl.textContent = gameplay.progression_system || "No progression system details generated.";
+    
+    const difficultyEl = document.getElementById("details-difficulty");
+    if (difficultyEl) difficultyEl.textContent = gameplay.difficulty_curve || "No difficulty curve details generated.";
+    
+    // 4. Visuals & QA Tab
+    const art = project.art || {};
+    const styleGuideEl = document.getElementById("details-style-guide");
+    if (styleGuideEl) styleGuideEl.textContent = art.style_guide || "No visual style guide generated.";
+    
+    const galleryEl = document.getElementById("details-gallery");
+    if (galleryEl) {
+        galleryEl.innerHTML = "";
+        const imagePaths = art.image_paths || [];
+        if (imagePaths.length > 0) {
+            imagePaths.forEach((path, idx) => {
+                const img = document.createElement("img");
+                img.src = path;
+                img.alt = `Concept Art ${idx + 1}`;
+                img.style.width = "100%";
+                img.style.height = "160px";
+                img.style.objectFit = "cover";
+                img.style.borderRadius = "6px";
+                img.style.border = "1px solid rgba(26, 48, 72, 0.5)";
+                galleryEl.appendChild(img);
+            });
+        } else {
+            galleryEl.innerHTML = "<div style='grid-column: span 3; text-align: center; color: rgba(240, 232, 208, 0.4); font-size: 13px; padding: 20px 0;'>No concept art generated.</div>";
+        }
+    }
+    
+    const qa = project.qa || {};
+    const qaScoreEl = document.getElementById("details-qa-score");
+    if (qaScoreEl) qaScoreEl.textContent = `SCORE: ${qa.consistency_score != null ? qa.consistency_score.toFixed(1) : "--"}/10`;
+    
+    const qaAssessmentEl = document.getElementById("details-qa-assessment");
+    if (qaAssessmentEl) qaAssessmentEl.textContent = qa.overall_assessment || "No QA overall assessment generated.";
+    
+    const qaIssuesEl = document.getElementById("details-qa-issues");
+    if (qaIssuesEl) {
+        qaIssuesEl.innerHTML = "";
+        const issues = qa.issues || [];
+        if (issues.length > 0) {
+            issues.forEach(issue => {
+                const li = document.createElement("li");
+                li.textContent = issue;
+                qaIssuesEl.appendChild(li);
+            });
+        } else {
+            qaIssuesEl.innerHTML = "<li style='color: var(--earth-teal); list-style-type: none;'>No consistency issues found.</li>";
+        }
+    }
+    
+    const qaSuggestionsEl = document.getElementById("details-qa-suggestions");
+    if (qaSuggestionsEl) {
+        qaSuggestionsEl.innerHTML = "";
+        const suggestions = qa.suggestions || [];
+        if (suggestions.length > 0) {
+            suggestions.forEach(sug => {
+                const li = document.createElement("li");
+                li.textContent = sug;
+                qaSuggestionsEl.appendChild(li);
+            });
+        } else {
+            qaSuggestionsEl.innerHTML = "<li style='list-style-type: none; color: rgba(240, 232, 208, 0.4);'>No improvement suggestions.</li>";
+        }
+    }
+    
+    const firstTabBtn = document.querySelector(".details-tabs button[data-tab='details-narrative']");
+    if (firstTabBtn) firstTabBtn.click();
+    
+    modal.classList.remove("hidden");
+}
+
+(function initDetailsModalEvents() {
+    const closeBtn = document.getElementById("close-details-btn");
+    const modal = document.getElementById("project-details-modal");
+    
+    if (closeBtn && modal) {
+        closeBtn.addEventListener("click", () => {
+            modal.classList.add("hidden");
+        });
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) modal.classList.add("hidden");
+        });
+    }
+    
+    const tabBtns = document.querySelectorAll(".details-tabs .tab-btn");
+    tabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            tabBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            
+            const contents = document.querySelectorAll(".details-content-wrapper .tab-content");
+            contents.forEach(c => c.classList.add("hidden"));
+            
+            const targetId = btn.getAttribute("data-tab");
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.remove("hidden");
+            }
+        });
+    });
+})();
 
 function escapeHtml(text) {
     const div = document.createElement("div");
@@ -962,6 +1291,13 @@ let _activeWebSocket = null;
 let _wsReconnectTimeout = null;
 
 function connectWebSocket() {
+    // Under Vercel Serverless, WebSockets are not supported. Check hostname.
+    const isVercel = window.location.hostname.includes("vercel.app") || (!API_CONFIG.baseUrl && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
+    if (isVercel) {
+        console.log("[DreamXV] Vercel Serverless environment detected. Real-time WebSockets bypassed.");
+        return;
+    }
+
     // Clear any pending reconnects
     if (_wsReconnectTimeout) {
         clearTimeout(_wsReconnectTimeout);

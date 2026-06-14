@@ -561,13 +561,131 @@
                 
                 <div style="margin-bottom: var(--space-6);">
                     <label for="settings-backend-url" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">BACKEND API URL</label>
-                    <input type="url" id="settings-backend-url" placeholder="http://localhost:8000" style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 12px; color: var(--starlight); font-family: var(--font-body); font-size: 14px; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--lunar-gold)'" onblur="this.style.borderColor='rgba(26, 48, 72, 0.8)'">
-                    <p style="font-size: 11px; color: rgba(240, 232, 208, 0.4); margin-top: var(--space-2);">Leave empty to use relative paths (same host). Change this if your backend is hosted separately (e.g. Railway, Render, or localhost).</p>
+                    <input type="url" id="settings-backend-url" placeholder="Serverless Managed API" disabled style="width: 100%; background: rgba(12, 26, 46, 0.6); border: 1px solid rgba(26, 48, 72, 0.4); border-radius: 6px; padding: 12px; color: rgba(240, 232, 208, 0.5); font-family: var(--font-body); font-size: 14px; outline: none; cursor: not-allowed;">
+                    <p style="font-size: 11px; color: rgba(240, 232, 208, 0.4); margin-top: var(--space-2);">This application is configured for Vercel Serverless Architecture. API calls are automatically routed to relative endpoints (same host).</p>
                 </div>
                 
                 <div style="display: flex; gap: var(--space-4); justify-content: flex-end; margin-top: var(--space-6);">
                     <button class="btn btn-secondary" id="cancel-settings-btn" style="padding: 10px 20px; font-size: 13px;">Cancel</button>
                     <button class="btn btn-primary" id="save-settings-btn" style="padding: 10px 24px; font-size: 13px;">SAVE SETTINGS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+       PROJECT DETAILS MODAL
+    ========================================== -->
+    <div id="project-details-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 800px; max-height: 85vh; height: 750px;">
+            <div class="modal-header" style="background: rgba(17, 34, 64, 0.85); backdrop-filter: blur(10px);">
+                <h3 id="details-project-title" style="color: var(--lunar-gold); font-family: var(--font-display); letter-spacing: 0.05em;">Project Details</h3>
+                <button class="modal-close" id="close-details-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 100%;">
+                <!-- Tabs Navigation -->
+                <div class="details-tabs" style="display: flex; background: rgba(12, 26, 46, 0.8); border-bottom: 1px solid rgba(26, 48, 72, 0.4); padding: 0 var(--space-4); flex-shrink: 0;">
+                    <button class="tab-btn active" data-tab="details-narrative">Narrative</button>
+                    <button class="tab-btn" data-tab="details-characters">Characters</button>
+                    <button class="tab-btn" data-tab="details-gameplay">Gameplay & World</button>
+                    <button class="tab-btn" data-tab="details-art">Visuals & QA</button>
+                </div>
+                
+                <!-- Tab contents -->
+                <div class="details-content-wrapper" style="flex: 1; overflow-y: auto; padding: var(--space-6); background: radial-gradient(circle at bottom right, rgba(12, 26, 46, 0.4), transparent 70%);">
+                    <!-- Tab: Narrative -->
+                    <div id="details-narrative" class="tab-content">
+                        <div style="margin-bottom: var(--space-6); background: rgba(26, 48, 72, 0.2); border: 1px solid rgba(26, 48, 72, 0.4); padding: var(--space-4); border-radius: 8px;">
+                            <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-1);">LORE BACKSTORY</span>
+                            <p id="details-lore" style="font-size: 14px; line-height: 1.7; color: rgba(240, 232, 208, 0.85); font-style: italic;"></p>
+                        </div>
+                        
+                        <div style="margin-bottom: var(--space-6);">
+                            <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">SUMMARY SYNOPSIS</span>
+                            <p id="details-summary" style="font-size: 15px; line-height: 1.7; color: var(--starlight);"></p>
+                        </div>
+                        
+                        <div style="margin-bottom: var(--space-6);">
+                            <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">STORY ACTS</span>
+                            <ul id="details-acts" style="line-height: 1.8; padding-left: var(--space-6); color: var(--starlight); list-style-type: decimal;"></ul>
+                        </div>
+                        
+                        <div>
+                            <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">THEMATIC FOCUS</span>
+                            <div id="details-themes" style="display: flex; gap: var(--space-2); flex-wrap: wrap;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab: Characters -->
+                    <div id="details-characters" class="tab-content hidden">
+                        <div id="details-character-list" style="display: flex; flex-direction: column; gap: var(--space-4);"></div>
+                    </div>
+                    
+                    <!-- Tab: Gameplay & World -->
+                    <div id="details-gameplay" class="tab-content hidden">
+                        <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-6);">
+                            <div>
+                                <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">WORLD SETTING</span>
+                                <p id="details-world-desc" style="font-size: 15px; line-height: 1.7; color: var(--starlight); margin-bottom: var(--space-4);"></p>
+                                <span style="font-size: 12px; color: var(--lunar-gold); font-family: var(--font-code); display: block; margin-bottom: var(--space-1);">ATMOSPHERE & MOOD</span>
+                                <p id="details-world-atmosphere" style="font-size: 14px; font-style: italic; color: rgba(240, 232, 208, 0.7);"></p>
+                            </div>
+                            
+                            <hr style="border: 0; border-top: 1px solid rgba(26, 48, 72, 0.4);">
+                            
+                            <div>
+                                <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">CORE GAMEPLAY LOOP</span>
+                                <p id="details-core-loop" style="font-size: 15px; line-height: 1.7; color: var(--starlight);"></p>
+                            </div>
+                            
+                            <hr style="border: 0; border-top: 1px solid rgba(26, 48, 72, 0.4);">
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+                                <div>
+                                    <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-1);">PROGRESSION & SYSTEMS</span>
+                                    <p id="details-progression" style="font-size: 14px; color: rgba(240, 232, 208, 0.85); line-height: 1.6;"></p>
+                                </div>
+                                <div>
+                                    <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-1);">DIFFICULTY CURVE</span>
+                                    <p id="details-difficulty" style="font-size: 14px; color: rgba(240, 232, 208, 0.85); line-height: 1.6;"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab: Art & Quality -->
+                    <div id="details-art" class="tab-content hidden">
+                        <div style="margin-bottom: var(--space-6);">
+                            <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">VISUAL STYLE GUIDE</span>
+                            <p id="details-style-guide" style="font-size: 15px; line-height: 1.7; color: rgba(240, 232, 208, 0.85);"></p>
+                        </div>
+                        
+                        <div style="margin-bottom: var(--space-6);">
+                            <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-4);">ART CONCEPT GALLERY</span>
+                            <div id="details-gallery" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4);"></div>
+                        </div>
+                        
+                        <hr style="border: 0; border-top: 1px solid rgba(26, 48, 72, 0.4); margin: var(--space-6) 0;">
+                        
+                        <div style="background: rgba(17, 34, 64, 0.4); border: 1px solid rgba(26, 48, 72, 0.6); padding: var(--space-4) var(--space-6); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                                <h4 style="color: var(--sunrise-amber); margin: 0; font-size: 18px;">QA Integrity Report</h4>
+                                <span id="details-qa-score" style="font-family: var(--font-code); padding: 4px 12px; background: var(--lunar-gold); color: var(--void-navy); font-weight: 700; border-radius: 20px; font-size: 12px;">SCORE: --</span>
+                            </div>
+                            <p id="details-qa-assessment" style="font-size: 14px; margin-bottom: var(--space-4); line-height: 1.6; color: var(--starlight);"></p>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+                                <div>
+                                    <span style="font-size: 12px; color: #f87171; font-family: var(--font-code); display: block; margin-bottom: var(--space-1);">CONSISTENCY ISSUES</span>
+                                    <ul id="details-qa-issues" style="font-size: 13px; color: #f87171; padding-left: var(--space-4); line-height: 1.5;"></ul>
+                                </div>
+                                <div>
+                                    <span style="font-size: 12px; color: var(--earth-teal); font-family: var(--font-code); display: block; margin-bottom: var(--space-1);">IMPROVEMENT SUGGESTIONS</span>
+                                    <ul id="details-qa-suggestions" style="font-size: 13px; color: rgba(240, 232, 208, 0.85); padding-left: var(--space-4); line-height: 1.5;"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
