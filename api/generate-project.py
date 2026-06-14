@@ -131,7 +131,8 @@ async def generate_project(request: GenerateProjectRequest):
         
         base64_images = []
         # Convert any saved image files to inline base64 data URLs
-        if project.art and project.art.image_paths:
+        from backend.models.output_models import ArtOutput
+        if project.art and isinstance(project.art, ArtOutput) and project.art.image_paths:
             for path_str in project.art.image_paths:
                 try:
                     # If it's already a base64 inline string, use it directly
@@ -203,9 +204,9 @@ async def generate_project(request: GenerateProjectRequest):
                     "difficulty_curve": project.gameplay.difficulty_curve if project.gameplay else ""
                 } if project.gameplay else None,
                 "art": {
-                    "prompts": project.art.prompts if project.art else [],
+                    "prompts": project.art.prompts if isinstance(project.art, ArtOutput) else [],
                     "image_paths": base64_images,
-                    "style_guide": project.art.style_guide if project.art else ""
+                    "style_guide": project.art.style_guide if isinstance(project.art, ArtOutput) else f"Warning: {project.art.get('warning', '')}" if isinstance(project.art, dict) else ""
                 } if project.art else None,
                 "qa": {
                     "consistency_score": project.qa.consistency_score if project.qa else 0.0,

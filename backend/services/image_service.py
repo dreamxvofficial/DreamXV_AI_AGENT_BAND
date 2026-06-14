@@ -103,7 +103,8 @@ class ImageService:
         # 1. Try Featherless AI if supported/available
         if self._featherless_api_key and self._featherless_api_key != "your_key_here" and not self._featherless_api_key.startswith("your_"):
             try:
-                logger.info(f"Attempting image generation via Featherless AI...")
+                logger.info("IMAGE_PROVIDER: Featherless AI")
+                logger.info("MODEL_NAME: flux/schnell")
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(
                         f"{self._featherless_base_url}/images/generations",
@@ -118,6 +119,7 @@ class ImageService:
                             "response_format": "b64_json",
                         },
                     )
+                    logger.info(f"HTTP_STATUS: {response.status_code}")
                     if response.status_code == 200:
                         data = response.json()
                         if "data" in data and len(data["data"]) > 0:
@@ -134,14 +136,15 @@ class ImageService:
                                     logger.info(f"Image generated via Featherless AI (URL)")
                                     image_generated = True
                     else:
-                        logger.warning(f"Featherless image generation returned status code: {response.status_code}")
+                        logger.warning(f"ERROR_MESSAGE: Featherless image generation returned status code: {response.status_code} - {response.text}")
             except Exception as f_exc:
-                logger.info(f"Featherless image generation not supported or failed: {f_exc}")
+                logger.info(f"ERROR_MESSAGE: Featherless image generation failed: {f_exc}")
 
         # 2. Fallback to AIMLAPI
         if not image_generated:
             try:
-                logger.info(f"Attempting image generation via AIMLAPI...")
+                logger.info("IMAGE_PROVIDER: AIMLAPI")
+                logger.info(f"MODEL_NAME: {self._model}")
                 async with httpx.AsyncClient(timeout=120.0) as client:
                     response = await client.post(
                         f"{self._base_url}/images/generations",
@@ -156,6 +159,9 @@ class ImageService:
                             "response_format": "b64_json",
                         },
                     )
+                    logger.info(f"HTTP_STATUS: {response.status_code}")
+                    if response.status_code != 200:
+                        logger.warning(f"ERROR_MESSAGE: AIMLAPI image generation returned status code: {response.status_code} - {response.text}")
                     response.raise_for_status()
 
                 data = response.json()
@@ -182,7 +188,7 @@ class ImageService:
                 else:
                     raise ValueError("No image data returned from AIMLAPI")
             except Exception as exc:
-                logger.warning(f"Image generation failed for {image_type} ({type(exc).__name__}: {exc}). Using mock fallback image.")
+                logger.warning(f"ERROR_MESSAGE: AIMLAPI image generation failed: {exc}")
                 # Solid dark green/gold themed placeholder PNG (base64)
                 tiny_png = (
                     "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"

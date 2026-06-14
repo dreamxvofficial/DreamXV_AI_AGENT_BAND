@@ -59,6 +59,7 @@ class ArtAgent:
         Returns:
             ArtOutput with prompts, image paths, and style guide.
         """
+        logger.info("ART_AGENT_START")
         logger.info("Art Agent starting visual production...")
 
         room.add_participant(AGENT_NAME)

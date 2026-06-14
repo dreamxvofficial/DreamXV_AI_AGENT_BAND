@@ -220,11 +220,20 @@ class BandManager:
             )
             self._update_status(project_id, "Art Agent", AgentStatus.COMPLETED)
         except Exception as e:
-            status = "Error"
             error_message = str(e)
             logger.error(f"Art Agent failed: {error_message}")
-            self._update_status(project_id, "Art Agent", AgentStatus.ERROR, error_message)
-            art = None
+            self._update_status(
+                project_id,
+                "Art Agent",
+                AgentStatus.COMPLETED,
+                f"Completed with warning: {error_message}"
+            )
+            from backend.models.output_models import ArtOutput
+            art = ArtOutput(
+                prompts=[],
+                image_paths=[],
+                style_guide=f"Warning: {error_message}"
+            )
 
         # ── Phase 4: QA Agent (reviews everything) ─────────────────────
         self._update_status(project_id, "QA Agent", AgentStatus.RUNNING)

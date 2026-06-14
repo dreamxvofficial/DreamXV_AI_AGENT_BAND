@@ -8,7 +8,7 @@ Used with PydanticAI-style structured generation.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 from pydantic import BaseModel, Field
 
 
@@ -154,6 +154,6 @@ class ProjectOutput(BaseModel):
     characters: list[CharacterOutput] = Field(default_factory=list)
     world: Optional[WorldOutput] = None
     gameplay: Optional[GameplayOutput] = None
-    art: Optional[ArtOutput] = None
+    art: Optional[Union[ArtOutput, dict]] = None
     qa: Optional[QAOutput] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
