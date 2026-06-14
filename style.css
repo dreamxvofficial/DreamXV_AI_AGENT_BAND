@@ -649,3 +649,158 @@ h4 {
         width: 158px;
     }
 }
+
+/* ==========================================================
+   TERMS & CONDITIONS MODAL
+   ========================================================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 14, 26, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-medium);
+}
+
+.modal-overlay:not(.hidden) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background: var(--cosmos);
+    border: 1px solid rgba(26, 48, 72, 0.8);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    animation: modal-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-slide-in {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: var(--space-4) var(--space-6);
+    border-bottom: 1px solid rgba(26, 48, 72, 0.5);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(12, 26, 46, 0.5);
+}
+
+.modal-header h3 {
+    font-size: 20px;
+    color: var(--sunrise-amber);
+    margin: 0;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--starlight);
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+    transition: var(--transition-fast);
+}
+
+.modal-close:hover {
+    color: var(--lunar-gold);
+}
+
+.modal-body {
+    padding: var(--space-6);
+    overflow-y: auto;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(240, 232, 208, 0.8);
+    scrollbar-width: thin;
+    scrollbar-color: var(--lunar-gold) var(--cosmos);
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: var(--cosmos);
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background-color: var(--lunar-gold);
+    border-radius: 3px;
+}
+
+.modal-body h4 {
+    color: var(--starlight);
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-2);
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.modal-body p {
+    margin-bottom: var(--space-4);
+}
+
+.modal-body ul {
+    margin-bottom: var(--space-6);
+    padding-left: var(--space-6);
+}
+
+.modal-body li {
+    margin-bottom: var(--space-2);
+}
+
+.modal-body hr {
+    border: 0;
+    border-top: 1px solid rgba(26, 48, 72, 0.5);
+    margin: var(--space-6) 0;
+}
+
+.meta-date {
+    font-family: var(--font-code);
+    font-size: 12px;
+    color: var(--earth-teal);
+    margin-bottom: var(--space-6) !important;
+}
+
+.modal-body a {
+    color: var(--sunrise-amber);
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+
+.modal-body a:hover {
+    text-decoration: underline;
+    color: var(--lunar-gold);
+}
+
+.footer-note {
+    font-style: italic;
+    text-align: center;
+    color: var(--starlight);
+    margin-top: var(--space-4);
+    font-size: 14px;
+}

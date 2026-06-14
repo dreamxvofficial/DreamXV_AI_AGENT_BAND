@@ -95,3 +95,31 @@ video.addEventListener("ended", () => {
 setTimeout(() => {
     transitionToMainSite();
 }, 10000);
+
+/* ==========================================
+   TERMS & CONDITIONS MODAL
+========================================== */
+
+const termsModal = document.getElementById("terms-modal");
+const openTermsBtn = document.getElementById("open-terms-btn");
+const closeTermsBtn = document.getElementById("close-terms-btn");
+
+if (openTermsBtn && termsModal) {
+    openTermsBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        termsModal.classList.remove("hidden");
+    });
+}
+
+if (closeTermsBtn && termsModal) {
+    closeTermsBtn.addEventListener("click", () => {
+        termsModal.classList.add("hidden");
+    });
+
+    // Close when clicking outside of modal content
+    termsModal.addEventListener("click", (e) => {
+        if (e.target === termsModal) {
+            termsModal.classList.add("hidden");
+        }
+    });
+}
