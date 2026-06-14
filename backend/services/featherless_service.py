@@ -60,6 +60,7 @@ class FeatherlessService:
             messages=messages,
             temperature=temperature or self._default_temperature,
             max_tokens=max_tokens or self._default_max_tokens,
+            timeout=5.0,
         )
 
         content = response.choices[0].message.content or ""

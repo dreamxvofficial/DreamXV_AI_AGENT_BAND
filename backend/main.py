@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.config import get_settings
 from backend.api.routes import router as api_router, init_band_manager
@@ -84,6 +85,28 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# ─── Request/Response Logging Middleware ──────────────────────────────────
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    try:
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code} for {request.method} {request.url.path}")
+        return response
+    except Exception as exc:
+        logger.error(f"Request failed: {request.method} {request.url.path} - {exc}")
+        raise exc
+
+# ─── Custom 404 Exception Handler ─────────────────────────────────────────
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc):
+    detail = f"Endpoint '{request.url.path}' not found. Please ensure the backend is running and your routes match."
+    logger.warning(f"404 Error: {detail}")
+    return JSONResponse(
+        status_code=404,
+        content={"detail": detail}
+    )
 
 # ─── CORS Middleware ──────────────────────────────────────────────────────
 settings = get_settings()

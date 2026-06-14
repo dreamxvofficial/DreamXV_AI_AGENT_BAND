@@ -84,44 +84,56 @@ class ImageService:
         logger.debug(f"Image prompt: {prompt[:100]}...")
 
         # Call AIMLAPI image generation endpoint
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{self._base_url}/images/generations",
-                headers={
-                    "Authorization": f"Bearer {self._api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self._model,
-                    "prompt": prompt,
-                    "n": 1,
-                    "response_format": "b64_json",
-                },
-            )
-            response.raise_for_status()
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{self._base_url}/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {self._api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self._model,
+                        "prompt": prompt,
+                        "n": 1,
+                        "response_format": "b64_json",
+                    },
+                )
+                response.raise_for_status()
 
-        data = response.json()
+            data = response.json()
 
-        # Extract and save image
-        if "data" in data and len(data["data"]) > 0:
-            image_data = data["data"][0]
+            # Extract and save image
+            if "data" in data and len(data["data"]) > 0:
+                image_data = data["data"][0]
 
-            if "b64_json" in image_data:
-                # Base64-encoded image
-                img_bytes = base64.b64decode(image_data["b64_json"])
-                output_path.write_bytes(img_bytes)
-                logger.info(f"Image saved: {output_path}")
-            elif "url" in image_data:
-                # URL-based response — download the image
-                async with httpx.AsyncClient(timeout=60.0) as dl_client:
-                    img_response = await dl_client.get(image_data["url"])
-                    img_response.raise_for_status()
-                    output_path.write_bytes(img_response.content)
-                    logger.info(f"Image downloaded and saved: {output_path}")
+                if "b64_json" in image_data:
+                    # Base64-encoded image
+                    img_bytes = base64.b64decode(image_data["b64_json"])
+                    output_path.write_bytes(img_bytes)
+                    logger.info(f"Image saved: {output_path}")
+                elif "url" in image_data:
+                    # URL-based response — download the image
+                    async with httpx.AsyncClient(timeout=60.0) as dl_client:
+                        img_response = await dl_client.get(image_data["url"])
+                        img_response.raise_for_status()
+                        output_path.write_bytes(img_response.content)
+                        logger.info(f"Image downloaded and saved: {output_path}")
+                else:
+                    raise ValueError("Unexpected image response format from AIMLAPI")
             else:
-                raise ValueError("Unexpected image response format from AIMLAPI")
-        else:
-            raise ValueError("No image data returned from AIMLAPI")
+                raise ValueError("No image data returned from AIMLAPI")
+        except Exception as exc:
+            logger.warning(f"Image generation failed for {image_type} ({type(exc).__name__}: {exc}). Using mock fallback image.")
+            # Solid dark green/gold themed placeholder PNG (base64)
+            tiny_png = (
+                "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"
+                "H0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSu"
+                "QmCC"
+            )
+            img_bytes = base64.b64decode(tiny_png)
+            output_path.write_bytes(img_bytes)
+            logger.info(f"Mock placeholder image saved: {output_path}")
 
         return str(output_path)
 

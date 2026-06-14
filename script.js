@@ -672,8 +672,18 @@ const API_CONFIG = {
                 });
 
                 if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.detail || `Server error: ${response.status}`);
+                    let errMsg = "";
+                    try {
+                        const errData = await response.json();
+                        errMsg = errData.detail;
+                    } catch (_) {
+                        if (response.status === 404) {
+                            errMsg = "Endpoint not found (404). If you are running on Vercel, click 'Settings' in Quick Actions and specify your persistent Backend API URL (e.g. http://localhost:8000 or Railway URL).";
+                        } else {
+                            errMsg = `Server error: ${response.status}`;
+                        }
+                    }
+                    throw new Error(errMsg || `Server error: ${response.status}`);
                 }
 
                 const data = await response.json();
