@@ -215,7 +215,7 @@ class ImageService:
         image_types: Optional[list[str]] = None,
     ) -> list[str]:
         """
-        Generate multiple images for a project (up to MAX_IMAGES_PER_PROJECT).
+        Generate multiple images for a project (up to MAX_IMAGES_PER_PROJECT) in parallel.
 
         Args:
             prompts: List of image generation prompts.
@@ -225,6 +225,7 @@ class ImageService:
         Returns:
             List of saved file paths (or base64 strings).
         """
+        import asyncio
         if image_types is None:
             image_types = ["concept"] * len(prompts)
 
@@ -232,18 +233,21 @@ class ImageService:
         prompts = prompts[:MAX_IMAGES_PER_PROJECT]
         image_types = image_types[:MAX_IMAGES_PER_PROJECT]
 
-        paths: list[str] = []
+        tasks = []
         for prompt, img_type in zip(prompts, image_types):
-            try:
-                path = await self.generate_image(
-                    prompt,
-                    project_id=project_id,
-                    image_type=img_type,
-                )
-                if path:
-                    paths.append(path)
-            except Exception as exc:
-                logger.error(f"Image generation failed for type={img_type}: {exc}")
-                continue
+            tasks.append(self.generate_image(
+                prompt,
+                project_id=project_id,
+                image_type=img_type,
+            ))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        paths: list[str] = []
+        for res, img_type in zip(results, image_types):
+            if isinstance(res, Exception):
+                logger.error(f"Image generation failed for type={img_type}: {res}")
+            elif res:
+                paths.append(res)
 
         return paths

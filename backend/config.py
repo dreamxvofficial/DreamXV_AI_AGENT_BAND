@@ -42,7 +42,7 @@ class Settings(BaseSettings):
         description="Featherless AI base URL",
     )
     featherless_model: str = Field(
-        default="Qwen/Qwen2.5-72B-Instruct",
+        default="Qwen/Qwen2.5-14B-Instruct",
         description="Default Featherless model identifier",
     )
 
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
         description="AIMLAPI base URL",
     )
     aiml_model: str = Field(
-        default="Qwen/Qwen2.5-72B-Instruct",
+        default="qwen-plus",
         description="Default AIMLAPI model identifier",
     )
     aiml_image_model: str = Field(

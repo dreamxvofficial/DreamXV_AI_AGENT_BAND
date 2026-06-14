@@ -60,7 +60,7 @@ class FeatherlessService:
             messages=messages,
             temperature=temperature or self._default_temperature,
             max_tokens=max_tokens or self._default_max_tokens,
-            timeout=5.0,
+            timeout=30.0,
         )
 
         content = response.choices[0].message.content or ""
@@ -90,13 +90,43 @@ class FeatherlessService:
         Returns:
             Validated Pydantic model instance.
         """
+        import typing
+        from pydantic import BaseModel
+
+        def generate_example_dict(model_cls) -> dict:
+            example = {}
+            for name, field in model_cls.model_fields.items():
+                desc = field.description or ""
+                annotation = field.annotation
+                origin = typing.get_origin(annotation)
+                args = typing.get_args(annotation)
+
+                if origin is list:
+                    item_type = args[0] if args else str
+                    if isinstance(item_type, type) and issubclass(item_type, BaseModel):
+                        example[name] = [generate_example_dict(item_type)]
+                    else:
+                        type_name = getattr(item_type, "__name__", str(item_type))
+                        example[name] = [f"<{type_name}: {desc}>"]
+                elif isinstance(annotation, type) and issubclass(annotation, BaseModel):
+                    example[name] = generate_example_dict(annotation)
+                else:
+                    type_name = getattr(annotation, "__name__", str(annotation)) if annotation else "string"
+                    example[name] = f"<{type_name}: {desc}>"
+            return example
+
+        example_dict = generate_example_dict(response_model)
+        example_json = json.dumps(example_dict, indent=2)
         schema_json = json.dumps(response_model.model_json_schema(), indent=2)
 
         # Inject structured output instruction into the last system message
         structured_instruction = (
             "\n\n[STRUCTURED OUTPUT REQUIREMENT]\n"
-            "You MUST respond with ONLY valid JSON matching this schema:\n"
+            "You MUST respond with ONLY a valid JSON object matching this example structure:\n"
+            f"```json\n{example_json}\n```\n"
+            "Here is the formal Pydantic schema for validation:\n"
             f"```json\n{schema_json}\n```\n"
+            "Do NOT return the schema definition itself. Replace all placeholders (like <type: description>) with your actual, generated content.\n"
             "Do NOT include any text before or after the JSON. "
             "Do NOT wrap in markdown code fences."
         )

@@ -101,9 +101,16 @@ class ArtAgent:
 
         logger.info(f"Art Agent complete: {len(image_paths)} images generated")
 
+        # Clean up massive base64 strings before broadcasting to the room to protect other agents' context windows
+        room_art_output = art_output.model_copy(deep=True)
+        room_art_output.image_paths = [
+            f"[Base64 Image Data - Length {len(p)}]" if p.startswith("data:") else p
+            for p in room_art_output.image_paths
+        ]
+
         room.send_message(
             AGENT_NAME,
-            art_output.model_dump_json(),
+            room_art_output.model_dump_json(),
             msg_type="result",
         )
 
