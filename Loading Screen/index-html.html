@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dream XV Loading Screen</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="loading-container">
+
+        <video
+            id="introVideo"
+            preload="auto"
+            autoplay
+            muted
+            playsinline
+            disablePictureInPicture
+            controlsList="nodownload nofullscreen noremoteplayback">
+
+            <source
+                id="videoSource"
+                src="DreamXV Intro Video_Desktop.mp4"
+                type="video/mp4">
+
+        </video>
+
+        <div class="overlay-elements">
+
+            <div
+                id="loadingIndicator"
+                class="loading-indicator active">
+
+                <div class="loading-bar"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
