@@ -188,12 +188,8 @@ h4 {
    ========================================================== */
 
 #main-content {
-    opacity: 0;
-    transition: opacity 1s ease-in-out;
-}
-
-#main-content.visible {
-    opacity: 1;
+    position: relative;
+    width: 100%;
 }
 
 .container {
