@@ -125,32 +125,33 @@ h4 {
    CINEMATIC LOADING SCREEN
    ========================================================== */
 
+.loading-screen,
 .loading-container {
     position: fixed;
     inset: 0;
     width: 100vw;
-    height: 100dvh;
+    height: 100vh;
     overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: var(--deep-space);
-    z-index: 9999;
-    transition: opacity var(--transition-slow);
+    background: #000000;
+    z-index: 99999;
+    transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.loading-screen.fade-out,
 .loading-container.fade-out {
     opacity: 0;
     pointer-events: none;
 }
 
+.loading-video,
 .loading-container video {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100vw;
-    height: 100dvh;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     z-index: 1;
     pointer-events: none;

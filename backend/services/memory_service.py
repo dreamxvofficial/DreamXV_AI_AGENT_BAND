@@ -96,7 +96,7 @@ class MemoryService:
             item.completed_at = now
 
         self._agent_statuses[project_id][agent_name] = item
-        logger.debug(f"[{project_id}] {agent_name} → {status.value}")
+        logger.debug(f"[{project_id}] {agent_name} -> {status.value}")
         return item
 
     def get_agent_statuses(self, project_id: str) -> list[AgentStatusItem]:

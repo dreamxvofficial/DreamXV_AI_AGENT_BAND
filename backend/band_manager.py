@@ -118,11 +118,11 @@ class BandManager:
         try:
             breakdown = await chief.run(user_prompt, room)
             self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
-        except Exception as exc:
-            logger.error(f"Chief Agent failed: {exc}")
-            self._update_status(
-                project_id, "Chief Agent", AgentStatus.ERROR, str(exc)
-            )
+        except Exception as e:
+            status = "Error"
+            error_message = str(e)
+            logger.error(f"Chief Agent failed: {error_message}")
+            self._update_status(project_id, "Chief Agent", AgentStatus.ERROR, error_message)
             # Create a default fallback breakdown structure so specialists can run
             from backend.models.output_models import ChiefTaskBreakdown
             breakdown = ChiefTaskBreakdown(
@@ -147,11 +147,11 @@ class BandManager:
                 )
                 self._update_status(project_id, "Story Agent", AgentStatus.COMPLETED)
                 return result
-            except Exception as exc:
-                logger.error(f"Story Agent failed: {exc}")
-                self._update_status(
-                    project_id, "Story Agent", AgentStatus.ERROR, str(exc)
-                )
+            except Exception as e:
+                status = "Error"
+                error_message = str(e)
+                logger.error(f"Story Agent failed: {error_message}")
+                self._update_status(project_id, "Story Agent", AgentStatus.ERROR, error_message)
                 return None
 
         async def run_characters():
@@ -163,11 +163,11 @@ class BandManager:
                 )
                 self._update_status(project_id, "Character Agent", AgentStatus.COMPLETED)
                 return result
-            except Exception as exc:
-                logger.error(f"Character Agent failed: {exc}")
-                self._update_status(
-                    project_id, "Character Agent", AgentStatus.ERROR, str(exc)
-                )
+            except Exception as e:
+                status = "Error"
+                error_message = str(e)
+                logger.error(f"Character Agent failed: {error_message}")
+                self._update_status(project_id, "Character Agent", AgentStatus.ERROR, error_message)
                 return []
 
         async def run_world():
@@ -179,11 +179,11 @@ class BandManager:
                 )
                 self._update_status(project_id, "World Agent", AgentStatus.COMPLETED)
                 return result
-            except Exception as exc:
-                logger.error(f"World Agent failed: {exc}")
-                self._update_status(
-                    project_id, "World Agent", AgentStatus.ERROR, str(exc)
-                )
+            except Exception as e:
+                status = "Error"
+                error_message = str(e)
+                logger.error(f"World Agent failed: {error_message}")
+                self._update_status(project_id, "World Agent", AgentStatus.ERROR, error_message)
                 return None
 
         async def run_gameplay():
@@ -195,11 +195,11 @@ class BandManager:
                 )
                 self._update_status(project_id, "Gameplay Agent", AgentStatus.COMPLETED)
                 return result
-            except Exception as exc:
-                logger.error(f"Gameplay Agent failed: {exc}")
-                self._update_status(
-                    project_id, "Gameplay Agent", AgentStatus.ERROR, str(exc)
-                )
+            except Exception as e:
+                status = "Error"
+                error_message = str(e)
+                logger.error(f"Gameplay Agent failed: {error_message}")
+                self._update_status(project_id, "Gameplay Agent", AgentStatus.ERROR, error_message)
                 return None
 
         # Run story, character, world, gameplay in parallel
@@ -219,11 +219,11 @@ class BandManager:
                 genre=breakdown.genre, tone=breakdown.tone,
             )
             self._update_status(project_id, "Art Agent", AgentStatus.COMPLETED)
-        except Exception as exc:
-            logger.error(f"Art Agent failed: {exc}")
-            self._update_status(
-                project_id, "Art Agent", AgentStatus.ERROR, str(exc)
-            )
+        except Exception as e:
+            status = "Error"
+            error_message = str(e)
+            logger.error(f"Art Agent failed: {error_message}")
+            self._update_status(project_id, "Art Agent", AgentStatus.ERROR, error_message)
             art = None
 
         # ── Phase 4: QA Agent (reviews everything) ─────────────────────
@@ -231,11 +231,11 @@ class BandManager:
         try:
             qa = await qa_agent.run(breakdown.qa_directive, room)
             self._update_status(project_id, "QA Agent", AgentStatus.COMPLETED)
-        except Exception as exc:
-            logger.error(f"QA Agent failed: {exc}")
-            self._update_status(
-                project_id, "QA Agent", AgentStatus.ERROR, str(exc)
-            )
+        except Exception as e:
+            status = "Error"
+            error_message = str(e)
+            logger.error(f"QA Agent failed: {error_message}")
+            self._update_status(project_id, "QA Agent", AgentStatus.ERROR, error_message)
             qa = None
 
         # ── Assemble Final Output ──────────────────────────────────────

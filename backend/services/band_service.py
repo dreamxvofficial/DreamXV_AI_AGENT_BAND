@@ -66,7 +66,7 @@ class BandRoom:
         }
         self.messages.append(message)
         logger.debug(
-            f"[Room {self.room_id}] {sender} → {recipient}: "
+            f"[Room {self.room_id}] {sender} -> {recipient}: "
             f"{content[:80]}{'...' if len(content) > 80 else ''}"
         )
         return message

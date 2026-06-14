@@ -133,7 +133,7 @@ function transitionToMainSite() {
     if (transitioned) return;
     transitioned = true;
 
-    const container = document.querySelector(".loading-container");
+    const container = document.querySelector(".loading-screen") || document.querySelector(".loading-container");
     const mainContent = document.getElementById("main-content");
 
     if (container) {

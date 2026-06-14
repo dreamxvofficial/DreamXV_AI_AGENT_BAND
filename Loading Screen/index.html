@@ -17,20 +17,19 @@
 <body>
 
     <!-- Cinematic Preloader -->
-    <div id="loadingContainer" class="fixed inset-0 z-[9999] bg-black loading-container" className="fixed inset-0 z-[9999] bg-black" style="position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9999; background-color: black;">
+    <div id="loadingContainer" class="loading-screen" className="loading-screen" style="position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 99999; background-color: black;">
         <video
             id="introVideo"
             autoPlay
             muted
             playsInline
             preload="auto"
-            class="absolute inset-0 w-full h-full object-cover"
-            className="absolute inset-0 w-full h-full object-cover"
-            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+            class="loading-video"
+            className="loading-video"
             disablePictureInPicture
             controlsList="nodownload nofullscreen noremoteplayback"
             onerror="console.error('Video load failed:', event)"
-            onError={(e) => console.error("Video load failed:", e)}>
+            onError={(e) => console.error(e)}>
             <source
                 id="videoSource"
                 src="/videos/DreamXV Intro Video_Desktop.mp4"
@@ -42,11 +41,11 @@
             id="videoFallbackImage" 
             src="/assets/logo/logo.jpg" 
             alt="DreamXV Fallback"
-            class="absolute inset-0 w-full h-full object-cover"
-            className="absolute inset-0 w-full h-full object-cover"
-            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none;">
+            class="loading-video"
+            className="loading-video"
+            style="display: none;">
 
-        <div class="overlay-elements" style="z-index: 10000; position: absolute; bottom: 10vh; width: 100%; display: flex; justify-content: center;">
+        <div class="overlay-elements" style="z-index: 100000; position: absolute; bottom: 10vh; width: 100%; display: flex; justify-content: center;">
             <div id="loadingIndicator" class="loading-indicator active">
                 <div class="loading-bar"></div>
             </div>

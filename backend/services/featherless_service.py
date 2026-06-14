@@ -53,7 +53,7 @@ class FeatherlessService:
         Returns:
             The assistant's response text.
         """
-        logger.info(f"Featherless generate → model={model or self._default_model}")
+        logger.info(f"Featherless generate -> model={model or self._default_model}")
 
         response = await self._client.chat.completions.create(
             model=model or self._default_model,

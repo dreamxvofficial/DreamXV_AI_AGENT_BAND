@@ -53,7 +53,7 @@ class AIMLService:
         Returns:
             The assistant's response text.
         """
-        logger.info(f"AIMLAPI generate (fallback) → model={model or self._default_model}")
+        logger.info(f"AIMLAPI generate (fallback) -> model={model or self._default_model}")
 
         response = await self._client.chat.completions.create(
             model=model or self._default_model,

@@ -26,11 +26,6 @@ class ExportService:
     def __init__(self) -> None:
         settings = get_settings()
         self._outputs_dir = settings.outputs_dir
-        if not os.getenv("VERCEL"):
-            try:
-                self._outputs_dir.mkdir(parents=True, exist_ok=True)
-            except Exception as e:
-                logger.warning(f"Could not create outputs dir: {e}")
 
     def save_project(self, project: ProjectOutput) -> str:
         """
@@ -42,23 +37,8 @@ class ExportService:
         Returns:
             File path of the saved project.
         """
-        if os.getenv("VERCEL"):
-            logger.info("Running on Vercel: skipped saving project to file system.")
-            return ""
-
-        filename = f"{sanitize_filename(project.project_id)}.json"
-        output_path = self._outputs_dir / filename
-
-        try:
-            output_path.write_text(
-                project.model_dump_json(indent=2),
-                encoding="utf-8",
-            )
-            logger.info(f"Project exported: {output_path}")
-            return str(output_path)
-        except Exception as e:
-            logger.error(f"Failed to write project JSON to disk: {e}")
-            return ""
+        logger.info("Skipped saving project to file system (Suppressed globally).")
+        return ""
 
     def load_project(self, project_id: str) -> Optional[ProjectOutput]:
         """
