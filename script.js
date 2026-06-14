@@ -49,18 +49,32 @@ function safeJsonParse(str) {
 function loadCorrectVideo() {
     const isMobile = window.innerWidth <= 768;
     const newSource = isMobile
-        ? "DreamXV Intro Video_Mobile.mp4"
-        : "DreamXV Intro Video_Desktop.mp4";
+        ? "public/videos/DreamXV Intro Video_Mobile.mp4"
+        : "public/videos/DreamXV Intro Video_Desktop.mp4";
 
     if (video && video.src && decodeURIComponent(video.src).includes(newSource)) {
         return;
     }
 
     if (video) {
+        video.onerror = () => {
+            console.warn("Video failed to load:", newSource);
+            transitionToMainSite();
+        };
+
+        const sources = video.getElementsByTagName("source");
+        for (let i = 0; i < sources.length; i++) {
+            sources[i].onerror = () => {
+                console.warn("Video source failed to load:", sources[i].src);
+                transitionToMainSite();
+            };
+        }
+
         video.src = newSource;
         video.load();
         video.play().catch((err) => {
-            console.log("Autoplay blocked or load issue: ", err);
+            console.log("Autoplay blocked or load issue, transitioning to main content: ", err);
+            transitionToMainSite();
         });
     }
 }
@@ -557,16 +571,8 @@ function handleCredentialResponse(response) {
 }
 
 /* ==========================================
-   BACKEND API CONFIGURATION
+   BACKEND API CONFIGURATION (Relative Paths only)
 ========================================== */
-
-const API_CONFIG = {
-    // Always use relative paths for Vercel Serverless
-    getUrl(path) {
-        const cleanPath = path.startsWith("/") ? path : `/${path}`;
-        return cleanPath;
-    }
-};
 
 /* ==========================================
    CREATE PROJECT MODAL
@@ -749,7 +755,7 @@ const API_CONFIG = {
             const userId = user ? user.email : "anonymous";
 
             try {
-                const response = await fetch(API_CONFIG.getUrl("/generate-project"), {
+                const response = await fetch("/api/generate-project", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ prompt: prompt, user_id: userId }),
@@ -877,7 +883,7 @@ function startStatusPolling() {
 
     _statusPollInterval = setInterval(async () => {
         try {
-            const response = await fetch(API_CONFIG.getUrl("/agent-status"));
+            const response = await fetch("/api/agents");
             if (!response.ok) return;
 
             const data = await response.json();
@@ -932,23 +938,6 @@ async function fetchAndRenderProjects() {
 
     let mergedProjects = [...localProjects];
 
-    try {
-        const response = await fetch(API_CONFIG.getUrl("/projects"));
-        if (response.ok) {
-            const data = await response.json();
-            if (data.projects && data.projects.length > 0) {
-                data.projects.forEach(bp => {
-                    // Avoid duplicates
-                    if (!mergedProjects.some(lp => lp.project_id === bp.project_id)) {
-                        mergedProjects.push(bp);
-                    }
-                });
-            }
-        }
-    } catch (err) {
-        console.log("[DreamXV] Projects fetch from server skipped or failed:", err.message);
-    }
-
     // Sort by created_at descending
     mergedProjects.sort((a, b) => {
         const dateA = new Date(a.created_at || 0);
@@ -1000,9 +989,12 @@ function showProjectDetails(projectId) {
     if (titleEl) titleEl.textContent = project.title || "Untitled Project";
     
     // 1. Narrative Tab
-    const story = project.story || {};
+    let story = project.story || {};
+    if (typeof story === "string") {
+        story = { summary: story, lore: story, acts: [], themes: [] };
+    }
     const loreEl = document.getElementById("details-lore");
-    if (loreEl) loreEl.textContent = story.lore || "No lore generated.";
+    if (loreEl) loreEl.textContent = story.lore || story.summary || "No lore generated.";
     
     const summaryEl = document.getElementById("details-summary");
     if (summaryEl) summaryEl.textContent = story.summary || "No story synopsis generated.";
@@ -1081,14 +1073,20 @@ function showProjectDetails(projectId) {
     }
     
     // 3. Gameplay & World Tab
-    const world = project.world || {};
+    let world = project.world || {};
+    if (typeof world === "string") {
+        world = { description: world, atmosphere: "" };
+    }
     const worldDescEl = document.getElementById("details-world-desc");
     if (worldDescEl) worldDescEl.textContent = world.description || "No world setting generated.";
     
     const worldAtmosphereEl = document.getElementById("details-world-atmosphere");
     if (worldAtmosphereEl) worldAtmosphereEl.textContent = world.atmosphere || "No atmosphere details generated.";
     
-    const gameplay = project.gameplay || {};
+    let gameplay = project.gameplay || {};
+    if (typeof gameplay === "string") {
+        gameplay = { core_loop: gameplay, progression_system: "", difficulty_curve: "" };
+    }
     const coreLoopEl = document.getElementById("details-core-loop");
     if (coreLoopEl) coreLoopEl.textContent = gameplay.core_loop || "No core loop design generated.";
     
@@ -1099,7 +1097,12 @@ function showProjectDetails(projectId) {
     if (difficultyEl) difficultyEl.textContent = gameplay.difficulty_curve || "No difficulty curve details generated.";
     
     // 4. Visuals & QA Tab
-    const art = project.art || {};
+    let art = project.art || {};
+    if (typeof art === "string") {
+        art = { style_guide: art, image_paths: project.images || [] };
+    } else if (project.images && (!art.image_paths || art.image_paths.length === 0)) {
+        art.image_paths = project.images;
+    }
     const styleGuideEl = document.getElementById("details-style-guide");
     if (styleGuideEl) styleGuideEl.textContent = art.style_guide || "No visual style guide generated.";
     
@@ -1241,14 +1244,7 @@ function formatDate(dateStr) {
    SETTINGS ACTION CARD
 ========================================== */
 
-(function initSettings() {
-    const settingsCard = document.getElementById("action-settings");
-    if (settingsCard) {
-        settingsCard.addEventListener("click", () => {
-            showToast("Settings panel coming soon. Configure API keys in the backend .env file.", "info");
-        });
-    }
-})();
+// Settings action card removed
 
 /* ==========================================
    TOAST NOTIFICATIONS
@@ -1284,157 +1280,51 @@ function showToast(message, type = "info") {
 }
 
 /* ==========================================
-   WEBSOCKET CONNECTION (REAL-TIME STATUS)
+   GLOBAL ERROR BOUNDARY
 ========================================== */
 
-let _activeWebSocket = null;
-let _wsReconnectTimeout = null;
-
-function connectWebSocket() {
-    // Under Vercel Serverless, WebSockets are not supported. Check hostname.
-    const isVercel = window.location.hostname.includes("vercel.app") || (!API_CONFIG.baseUrl && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
-    if (isVercel) {
-        console.log("[DreamXV] Vercel Serverless environment detected. Real-time WebSockets bypassed.");
-        return;
-    }
-
-    // Clear any pending reconnects
-    if (_wsReconnectTimeout) {
-        clearTimeout(_wsReconnectTimeout);
-        _wsReconnectTimeout = null;
-    }
-
-    // Close existing connection
-    if (_activeWebSocket) {
-        try {
-            _activeWebSocket.onclose = null; // Prevent reconnect loop from old socket closing
-            _activeWebSocket.close();
-        } catch (e) {
-            console.error("[DreamXV] Error closing old WebSocket:", e);
+function showErrorBoundary(error) {
+    console.error("[Global Error Boundary] Caught exception:", error);
+    
+    const boundary = document.getElementById("global-error-boundary");
+    const details = document.getElementById("global-error-details");
+    
+    if (boundary) {
+        if (details) {
+            details.textContent = error && error.stack 
+                ? error.stack 
+                : (error && error.message ? error.message : String(error));
         }
-        _activeWebSocket = null;
-    }
-
-    let wsUrl = "";
-    if (!API_CONFIG.baseUrl) {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        wsUrl = `${wsProtocol}//${window.location.host}/ws/status`;
-    } else {
-        const wsBase = API_CONFIG.baseUrl.replace(/^http/, "ws");
-        wsUrl = `${wsBase}/ws/status`;
-    }
-
-    try {
-        console.log(`[DreamXV] Attempting WebSocket connection to: ${wsUrl}`);
-        const ws = new WebSocket(wsUrl);
-        _activeWebSocket = ws;
-
-        ws.onopen = () => {
-            console.log("[DreamXV] WebSocket connected for real-time status");
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === "agent_status") {
-                    const panel = document.getElementById("agent-status-list");
-                    if (panel) {
-                        const items = panel.querySelectorAll(".agent-status-item");
-                        items.forEach(item => {
-                            const nameEl = item.querySelector(".agent-role");
-                            if (nameEl && nameEl.textContent.trim() === data.agent_name) {
-                                const badge = item.querySelector(".status-badge");
-                                if (badge) {
-                                    badge.className = `status-badge ${STATUS_COLORS[data.status] || "status-ready"}`;
-                                    badge.textContent = capitalize(data.status);
-                                }
-                            }
-                        });
-                    }
-                }
-            } catch (err) {
-                // Non-JSON message, ignore
-            }
-        };
-
-        ws.onerror = () => {
-            console.log("[DreamXV] WebSocket error (backend may not be running or domain mismatch)");
-        };
-
-        ws.onclose = () => {
-            console.log("[DreamXV] WebSocket closed. Reconnecting in 10 seconds...");
-            _wsReconnectTimeout = setTimeout(() => connectWebSocket(), 10000);
-        };
-    } catch (err) {
-        console.log("[DreamXV] WebSocket connection failed:", err);
+        boundary.classList.remove("hidden");
     }
 }
 
-// Initial connection
-connectWebSocket();
+// Bind global unhandled runtime exceptions
+window.addEventListener("error", (event) => {
+    showErrorBoundary(event.error || new Error(event.message));
+});
 
-/* ==========================================
-   SETTINGS MODAL CONTROLLER
-========================================== */
+window.addEventListener("unhandledrejection", (event) => {
+    showErrorBoundary(event.reason || new Error("Unhandled promise rejection"));
+});
 
-(function initSettingsModal() {
-    const modal = document.getElementById("settings-modal");
-    const settingsCard = document.getElementById("action-settings");
-    const closeBtn = document.getElementById("close-settings-btn");
-    const cancelBtn = document.getElementById("cancel-settings-btn");
-    const saveBtn = document.getElementById("save-settings-btn");
-    const backendUrlInput = document.getElementById("settings-backend-url");
-
-    if (!modal) return;
-
-    function openSettingsModal() {
-        if (backendUrlInput) {
-            backendUrlInput.value = safeStorage.getItem("dreamxv_backend_url") || "";
-        }
-        modal.classList.remove("hidden");
-    }
-
-    function closeSettingsModal() {
-        modal.classList.add("hidden");
-    }
-
-    if (settingsCard) {
-        settingsCard.addEventListener("click", openSettingsModal);
-    }
-
-    if (closeBtn) closeBtn.addEventListener("click", closeSettingsModal);
-    if (cancelBtn) cancelBtn.addEventListener("click", closeSettingsModal);
-    
-    modal.addEventListener("click", (e) => {
-        if (e.target === modal) closeSettingsModal();
-    });
-
-    if (saveBtn) {
-        saveBtn.addEventListener("click", () => {
-            const url = backendUrlInput ? backendUrlInput.value.trim() : "";
-            
-            // Validate URL format (if not empty)
-            if (url) {
-                try {
-                    new URL(url);
-                } catch (_) {
-                    showToast("Please enter a valid URL (e.g. http://localhost:8000)", "error");
-                    return;
-                }
+// Wire the Reset App button inside the error boundary modal
+document.addEventListener("DOMContentLoaded", () => {
+    const resetBtn = document.getElementById("reset-boundary-btn");
+    if (resetBtn) {
+        resetBtn.addEventListener("click", () => {
+            try {
+                localStorage.clear();
+                showToast("Application cache reset. Reloading...", "success");
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } catch (e) {
+                location.reload();
             }
-
-            safeStorage.setItem("dreamxv_backend_url", url);
-            API_CONFIG.baseUrl = url;
-            
-            showToast("Settings saved successfully!", "success");
-            closeSettingsModal();
-
-            // Refresh projects and reconnect websocket
-            fetchAndRenderProjects();
-            connectWebSocket();
         });
     }
-})();
+});
 
 /* ==========================================
    INTERNAL AI PROVIDER ROUTER (FALLBACK)

@@ -27,6 +27,7 @@
   ],
   "routes": [
     { "src": "/api/generate-project", "dest": "api/generate-project.py" },
+    { "src": "/api/agents", "dest": "api/agents.py" },
     { "src": "/api/agent-status", "dest": "api/agents.py" },
     { "src": "/api/health", "dest": "api/health.py" },
     { "src": "/api/image", "dest": "api/image.py" },

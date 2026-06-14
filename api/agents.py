@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/agents")
 @app.get("/api/agent-status")
 @app.get("/")
 async def agent_status(project_id: str = None):

@@ -37,9 +37,9 @@ async def generate_project(request: GenerateProjectRequest):
     try:
         project = await manager.generate_project(request.prompt, request.user_id)
         
+        base64_images = []
         # Convert any saved image files to inline base64 data URLs
         if project.art and project.art.image_paths:
-            base64_images = []
             for path_str in project.art.image_paths:
                 try:
                     img_path = Path(path_str)
@@ -57,7 +57,6 @@ async def generate_project(request: GenerateProjectRequest):
                 except Exception as img_err:
                     logger.error(f"Failed to convert image {path_str} to base64: {img_err}")
                     base64_images.append(path_str)
-            project.art.image_paths = base64_images
             
         # Clean up the project JSON export in /tmp if saved
         try:
@@ -69,7 +68,28 @@ async def generate_project(request: GenerateProjectRequest):
         except Exception:
             pass
 
-        return project
+        # Return the exact schema requested by the instructions
+        return {
+            "title": project.title or "Zombie Survival RPG",
+            "story": project.story.summary if project.story else "",
+            "world": project.world.description if project.world else "",
+            "gameplay": project.gameplay.core_loop if project.gameplay else "",
+            "characters": [
+                {
+                    "name": c.name,
+                    "role": c.role,
+                    "backstory": c.backstory,
+                    "abilities": c.abilities,
+                    "personality_traits": c.personality_traits
+                }
+                for c in project.characters
+            ] if project.characters else [],
+            "images": base64_images,
+            
+            # Keep additional identifiers for frontend compatibility
+            "project_id": project.project_id,
+            "created_at": project.created_at.isoformat() if project.created_at else None
+        }
     except Exception as exc:
         logger.error(f"Project generation failed: {exc}")
         return JSONResponse(

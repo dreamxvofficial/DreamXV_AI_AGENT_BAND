@@ -370,13 +370,7 @@
                                     <h4>DreamXV Atlas <span style="font-size: 9px; padding: 2px 6px; background: rgba(196, 125, 26, 0.15); color: var(--sunrise-amber); border-radius: 10px; margin-left: 4px; border: 1px solid rgba(196, 125, 26, 0.3); vertical-align: middle;">SOON</span></h4>
                                     <p>Explore worlds, ideas, lore, and inspiration. Coming Soon.</p>
                                 </div>
-                                <div class="action-card" id="action-settings">
-                                    <div class="action-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                                    </div>
-                                    <h4>Settings</h4>
-                                    <p>Configure environment & API options</p>
-                                </div>
+
                             </div>
                         </div>
                         
@@ -548,31 +542,7 @@
         </div>
     </div>
 
-    <!-- ==========================================
-       SETTINGS MODAL
-    ========================================== -->
-    <div id="settings-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>Settings</h3>
-                <button class="modal-close" id="close-settings-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: var(--space-4); color: rgba(240, 232, 208, 0.75);">Configure your DreamXV AI Studio frontend settings. Backend credentials must be configured securely on the server side.</p>
-                
-                <div style="margin-bottom: var(--space-6);">
-                    <label for="settings-backend-url" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">BACKEND API URL</label>
-                    <input type="url" id="settings-backend-url" placeholder="Serverless Managed API" disabled style="width: 100%; background: rgba(12, 26, 46, 0.6); border: 1px solid rgba(26, 48, 72, 0.4); border-radius: 6px; padding: 12px; color: rgba(240, 232, 208, 0.5); font-family: var(--font-body); font-size: 14px; outline: none; cursor: not-allowed;">
-                    <p style="font-size: 11px; color: rgba(240, 232, 208, 0.4); margin-top: var(--space-2);">This application is configured for Vercel Serverless Architecture. API calls are automatically routed to relative endpoints (same host).</p>
-                </div>
-                
-                <div style="display: flex; gap: var(--space-4); justify-content: flex-end; margin-top: var(--space-6);">
-                    <button class="btn btn-secondary" id="cancel-settings-btn" style="padding: 10px 20px; font-size: 13px;">Cancel</button>
-                    <button class="btn btn-primary" id="save-settings-btn" style="padding: 10px 24px; font-size: 13px;">SAVE SETTINGS</button>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- ==========================================
        PROJECT DETAILS MODAL
