@@ -1541,3 +1541,82 @@ h4 {
         font-size: 28px;
     }
 }
+
+/* ==========================================================
+   SPINNER & PROJECT LIST STYLES
+   ========================================================== */
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.project-list-card {
+    background: rgba(17, 34, 64, 0.4);
+    border: 1px solid rgba(26, 48, 72, 0.6);
+    border-radius: 8px;
+    padding: var(--space-4) var(--space-6);
+    margin-bottom: var(--space-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition-medium);
+    cursor: pointer;
+}
+
+.project-list-card:hover {
+    border-color: var(--lunar-gold);
+    transform: translateX(4px);
+    background: rgba(17, 34, 64, 0.6);
+}
+
+.project-list-card .project-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--starlight);
+}
+
+.project-list-card .project-date {
+    font-family: var(--font-code);
+    font-size: 11px;
+    color: rgba(240, 232, 208, 0.5);
+}
+
+.project-list-card .project-status {
+    font-family: var(--font-code);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(27, 138, 122, 0.15);
+    color: var(--earth-teal);
+    border: 1px solid rgba(27, 138, 122, 0.3);
+}
+
+/* Settings toast notification */
+.toast-notification {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--cosmos);
+    border: 1px solid rgba(26, 48, 72, 0.8);
+    border-radius: 8px;
+    padding: var(--space-4) var(--space-6);
+    color: var(--starlight);
+    font-family: var(--font-body);
+    font-size: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 10001;
+    animation: toast-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toast-in {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

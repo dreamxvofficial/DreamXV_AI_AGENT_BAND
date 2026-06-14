@@ -457,6 +457,8 @@ function initDashboard() {
     }
     if (dbGreeting) dbGreeting.textContent = `Good ${greetTime}, ${user.name || "Dreamer"}`;
 
+    // Fetch projects from backend
+    fetchAndRenderProjects();
 }
 
 /* ==========================================
@@ -542,7 +544,554 @@ function handleCredentialResponse(response) {
 }
 
 /* ==========================================
-   INTERNAL AI PROVIDER ROUTER
+   BACKEND API CONFIGURATION
+========================================== */
+
+const API_CONFIG = {
+    // Loaded dynamically from localStorage if present
+    baseUrl: safeStorage.getItem("dreamxv_backend_url") || "",
+    
+    getUrl(path) {
+        const base = this.baseUrl ? this.baseUrl.replace(/\/$/, "") : "";
+        const cleanPath = path.startsWith("/") ? path : `/${path}`;
+        return base ? `${base}${cleanPath}` : cleanPath;
+    }
+};
+
+/* ==========================================
+   CREATE PROJECT MODAL
+========================================== */
+
+(function initCreateProjectModal() {
+    const modal = document.getElementById("create-project-modal");
+    const promptInput = document.getElementById("project-prompt-input");
+    const charCount = document.getElementById("prompt-char-count");
+    const errorBox = document.getElementById("create-project-error");
+    const submitBtn = document.getElementById("submit-create-project-btn");
+    const submitText = document.getElementById("submit-btn-text");
+    const submitSpinner = document.getElementById("submit-btn-spinner");
+    const closeBtn = document.getElementById("close-create-project-btn");
+    const cancelBtn = document.getElementById("cancel-create-project-btn");
+    const progressSection = document.getElementById("generation-progress");
+
+    if (!modal) return;
+
+    // --- Open modal triggers ---
+    function openCreateModal() {
+        modal.classList.remove("hidden");
+        if (promptInput) {
+            promptInput.value = "";
+            promptInput.focus();
+        }
+        if (charCount) charCount.textContent = "0 / 5000";
+        if (errorBox) errorBox.style.display = "none";
+        if (progressSection) progressSection.style.display = "none";
+        resetSubmitButton();
+    }
+
+    // Wire all "create" triggers
+    const createStudioCard = document.getElementById("action-create-studio");
+    const createProjectEmpty = document.getElementById("btn-create-project-empty");
+
+    if (createStudioCard) createStudioCard.addEventListener("click", openCreateModal);
+    if (createProjectEmpty) createProjectEmpty.addEventListener("click", openCreateModal);
+
+    // --- Close modal ---
+    function closeCreateModal() {
+        modal.classList.add("hidden");
+    }
+
+    if (closeBtn) closeBtn.addEventListener("click", closeCreateModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeCreateModal);
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeCreateModal();
+    });
+
+    // --- Character count ---
+    if (promptInput && charCount) {
+        promptInput.addEventListener("input", () => {
+            const len = promptInput.value.length;
+            charCount.textContent = `${len} / 5000`;
+            if (len > 5000) {
+                charCount.style.color = "#f87171";
+            } else {
+                charCount.style.color = "rgba(240, 232, 208, 0.4)";
+            }
+        });
+    }
+
+    // --- Reset submit button ---
+    function resetSubmitButton() {
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitText) submitText.textContent = "GENERATE PROJECT";
+        if (submitSpinner) submitSpinner.style.display = "none";
+    }
+
+    // --- Show loading state ---
+    function setSubmitLoading() {
+        if (submitBtn) submitBtn.disabled = true;
+        if (submitText) submitText.textContent = "GENERATING...";
+        if (submitSpinner) submitSpinner.style.display = "inline-block";
+    }
+
+    // --- Show error ---
+    function showError(msg) {
+        if (errorBox) {
+            errorBox.textContent = msg;
+            errorBox.style.display = "block";
+        }
+    }
+
+    // --- Submit handler ---
+    if (submitBtn) {
+        submitBtn.addEventListener("click", async () => {
+            const prompt = promptInput ? promptInput.value.trim() : "";
+
+            // Client-side validation
+            if (prompt.length < 10) {
+                showError("Prompt must be at least 10 characters. Describe your game idea!");
+                return;
+            }
+            if (prompt.length > 5000) {
+                showError("Prompt exceeds 5,000 character limit.");
+                return;
+            }
+
+            if (errorBox) errorBox.style.display = "none";
+            setSubmitLoading();
+
+            // Get user from session
+            const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
+            const userId = user ? user.email : "anonymous";
+
+            try {
+                const response = await fetch(API_CONFIG.getUrl("/generate-project"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: prompt, user_id: userId }),
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.detail || `Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("[DreamXV] Project generation started:", data);
+
+                // Show progress section
+                if (progressSection) {
+                    progressSection.style.display = "block";
+                    updateModalAgentStatus([
+                        { agent_name: "Chief Agent", status: "running" },
+                        { agent_name: "Story Agent", status: "ready" },
+                        { agent_name: "Character Agent", status: "ready" },
+                        { agent_name: "World Agent", status: "ready" },
+                        { agent_name: "Gameplay Agent", status: "ready" },
+                        { agent_name: "Art Agent", status: "ready" },
+                        { agent_name: "QA Agent", status: "ready" },
+                    ]);
+                }
+
+                showToast("Project generation started! Agents are working...", "success");
+
+                // Start polling agent status
+                startStatusPolling();
+
+                // Update dashboard agent status panel
+                updateAgentStatusPanel([
+                    { agent_name: "Chief Agent", status: "running" },
+                    { agent_name: "Story Agent", status: "ready" },
+                    { agent_name: "Character Agent", status: "ready" },
+                    { agent_name: "World Agent", status: "ready" },
+                    { agent_name: "Gameplay Agent", status: "ready" },
+                    { agent_name: "Art Agent", status: "ready" },
+                    { agent_name: "QA Agent", status: "ready" },
+                ]);
+
+            } catch (err) {
+                console.error("[DreamXV] Generation failed:", err);
+                resetSubmitButton();
+
+                if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+                    showError("Cannot reach the backend server. Make sure the API is running and the URL is configured in API_CONFIG.");
+                } else {
+                    showError(err.message || "Generation failed. Please try again.");
+                }
+            }
+        });
+    }
+})();
+
+/* ==========================================
+   AGENT STATUS PANEL UPDATES
+========================================== */
+
+const STATUS_COLORS = {
+    ready: "status-ready",
+    running: "status-running",
+    completed: "status-completed",
+    error: "status-error",
+};
+
+function updateAgentStatusPanel(agents) {
+    const panel = document.getElementById("agent-status-list");
+    if (!panel || !agents || agents.length === 0) return;
+
+    panel.innerHTML = agents.map(a => `
+        <div class="agent-status-item">
+            <span class="agent-role font-code">${a.agent_name}</span>
+            <span class="status-badge ${STATUS_COLORS[a.status] || 'status-ready'}">${capitalize(a.status)}</span>
+        </div>
+    `).join("");
+}
+
+function updateModalAgentStatus(agents) {
+    const container = document.getElementById("modal-agent-status");
+    if (!container || !agents) return;
+
+    container.innerHTML = agents.map(a => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(26, 48, 72, 0.3);">
+            <span style="font-family: var(--font-code); font-size: 13px; color: var(--starlight);">${a.agent_name}</span>
+            <span class="status-badge ${STATUS_COLORS[a.status] || 'status-ready'}" style="font-size: 11px;">${capitalize(a.status)}</span>
+        </div>
+    `).join("");
+}
+
+function capitalize(str) {
+    if (!str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/* ==========================================
+   STATUS POLLING
+========================================== */
+
+let _statusPollInterval = null;
+
+function startStatusPolling() {
+    stopStatusPolling();
+
+    _statusPollInterval = setInterval(async () => {
+        try {
+            const response = await fetch(API_CONFIG.getUrl("/agent-status"));
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (data.agents && data.agents.length > 0) {
+                updateAgentStatusPanel(data.agents);
+                updateModalAgentStatus(data.agents);
+
+                // Check if all completed
+                const allDone = data.agents.every(
+                    a => a.status === "completed" || a.status === "error"
+                );
+
+                if (allDone) {
+                    stopStatusPolling();
+                    showToast("Project generation complete!", "success");
+
+                    // Close modal after a short delay
+                    setTimeout(() => {
+                        const modal = document.getElementById("create-project-modal");
+                        if (modal) modal.classList.add("hidden");
+                    }, 2000);
+
+                    // Refresh project list
+                    fetchAndRenderProjects();
+                }
+            }
+        } catch (err) {
+            console.warn("[DreamXV] Status poll failed:", err.message);
+        }
+    }, 3000); // Poll every 3 seconds
+}
+
+function stopStatusPolling() {
+    if (_statusPollInterval) {
+        clearInterval(_statusPollInterval);
+        _statusPollInterval = null;
+    }
+}
+
+/* ==========================================
+   PROJECTS LIST
+========================================== */
+
+async function fetchAndRenderProjects() {
+    const container = document.getElementById("projects-list-container");
+    const emptyState = document.getElementById("projects-empty-state");
+    if (!container) return;
+
+    try {
+        const response = await fetch(API_CONFIG.getUrl("/projects"));
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        if (data.projects && data.projects.length > 0) {
+            // Hide empty state, show project cards
+            if (emptyState) emptyState.style.display = "none";
+
+            // Remove any existing project cards (but keep empty state in DOM)
+            container.querySelectorAll(".project-list-card").forEach(c => c.remove());
+
+            data.projects.forEach(p => {
+                const card = document.createElement("div");
+                card.className = "project-list-card";
+                card.innerHTML = `
+                    <div>
+                        <div class="project-title">${escapeHtml(p.title || "Untitled")}</div>
+                        <div class="project-date">${formatDate(p.created_at)}</div>
+                    </div>
+                    <span class="project-status">${p.status || "completed"}</span>
+                `;
+                container.appendChild(card);
+            });
+        } else {
+            // Show empty state
+            if (emptyState) emptyState.style.display = "flex";
+        }
+    } catch (err) {
+        // Backend not available — show empty state silently
+        console.log("[DreamXV] Projects fetch skipped (backend unavailable)");
+        if (emptyState) emptyState.style.display = "flex";
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return "";
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    } catch {
+        return dateStr;
+    }
+}
+
+/* ==========================================
+   BROWSE PROJECTS ACTION CARD
+========================================== */
+
+(function initBrowseProjects() {
+    const browseCard = document.getElementById("action-browse-projects");
+    if (browseCard) {
+        browseCard.addEventListener("click", () => {
+            // Scroll to the Recent Projects section
+            const projectsSection = document.getElementById("projects-list-container");
+            if (projectsSection) {
+                projectsSection.scrollIntoView({ behavior: "smooth", block: "center" });
+                // Flash highlight
+                projectsSection.parentElement.style.boxShadow = "0 0 20px rgba(196, 125, 26, 0.3)";
+                setTimeout(() => {
+                    projectsSection.parentElement.style.boxShadow = "";
+                }, 1500);
+            }
+            fetchAndRenderProjects();
+        });
+    }
+})();
+
+/* ==========================================
+   SETTINGS ACTION CARD
+========================================== */
+
+(function initSettings() {
+    const settingsCard = document.getElementById("action-settings");
+    if (settingsCard) {
+        settingsCard.addEventListener("click", () => {
+            showToast("Settings panel coming soon. Configure API keys in the backend .env file.", "info");
+        });
+    }
+})();
+
+/* ==========================================
+   TOAST NOTIFICATIONS
+========================================== */
+
+function showToast(message, type = "info") {
+    // Remove existing toasts
+    document.querySelectorAll(".toast-notification").forEach(t => t.remove());
+
+    const toast = document.createElement("div");
+    toast.className = "toast-notification";
+
+    const icon = type === "success" ? "✓" : type === "error" ? "✕" : "ℹ";
+    const borderColor = type === "success"
+        ? "var(--earth-teal)"
+        : type === "error"
+            ? "#f87171"
+            : "var(--lunar-gold)";
+
+    toast.style.borderLeftWidth = "3px";
+    toast.style.borderLeftColor = borderColor;
+    toast.innerHTML = `<span style="margin-right: 8px;">${icon}</span> ${escapeHtml(message)}`;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(10px)";
+        toast.style.transition = "all 0.3s ease";
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
+/* ==========================================
+   WEBSOCKET CONNECTION (REAL-TIME STATUS)
+========================================== */
+
+let _activeWebSocket = null;
+let _wsReconnectTimeout = null;
+
+function connectWebSocket() {
+    // Clear any pending reconnects
+    if (_wsReconnectTimeout) {
+        clearTimeout(_wsReconnectTimeout);
+        _wsReconnectTimeout = null;
+    }
+
+    // Close existing connection
+    if (_activeWebSocket) {
+        try {
+            _activeWebSocket.onclose = null; // Prevent reconnect loop from old socket closing
+            _activeWebSocket.close();
+        } catch (e) {
+            console.error("[DreamXV] Error closing old WebSocket:", e);
+        }
+        _activeWebSocket = null;
+    }
+
+    let wsUrl = "";
+    if (!API_CONFIG.baseUrl) {
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        wsUrl = `${wsProtocol}//${window.location.host}/ws/status`;
+    } else {
+        const wsBase = API_CONFIG.baseUrl.replace(/^http/, "ws");
+        wsUrl = `${wsBase}/ws/status`;
+    }
+
+    try {
+        console.log(`[DreamXV] Attempting WebSocket connection to: ${wsUrl}`);
+        const ws = new WebSocket(wsUrl);
+        _activeWebSocket = ws;
+
+        ws.onopen = () => {
+            console.log("[DreamXV] WebSocket connected for real-time status");
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === "agent_status") {
+                    const panel = document.getElementById("agent-status-list");
+                    if (panel) {
+                        const items = panel.querySelectorAll(".agent-status-item");
+                        items.forEach(item => {
+                            const nameEl = item.querySelector(".agent-role");
+                            if (nameEl && nameEl.textContent.trim() === data.agent_name) {
+                                const badge = item.querySelector(".status-badge");
+                                if (badge) {
+                                    badge.className = `status-badge ${STATUS_COLORS[data.status] || "status-ready"}`;
+                                    badge.textContent = capitalize(data.status);
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                // Non-JSON message, ignore
+            }
+        };
+
+        ws.onerror = () => {
+            console.log("[DreamXV] WebSocket error (backend may not be running or domain mismatch)");
+        };
+
+        ws.onclose = () => {
+            console.log("[DreamXV] WebSocket closed. Reconnecting in 10 seconds...");
+            _wsReconnectTimeout = setTimeout(() => connectWebSocket(), 10000);
+        };
+    } catch (err) {
+        console.log("[DreamXV] WebSocket connection failed:", err);
+    }
+}
+
+// Initial connection
+connectWebSocket();
+
+/* ==========================================
+   SETTINGS MODAL CONTROLLER
+========================================== */
+
+(function initSettingsModal() {
+    const modal = document.getElementById("settings-modal");
+    const settingsCard = document.getElementById("action-settings");
+    const closeBtn = document.getElementById("close-settings-btn");
+    const cancelBtn = document.getElementById("cancel-settings-btn");
+    const saveBtn = document.getElementById("save-settings-btn");
+    const backendUrlInput = document.getElementById("settings-backend-url");
+
+    if (!modal) return;
+
+    function openSettingsModal() {
+        if (backendUrlInput) {
+            backendUrlInput.value = safeStorage.getItem("dreamxv_backend_url") || "";
+        }
+        modal.classList.remove("hidden");
+    }
+
+    function closeSettingsModal() {
+        modal.classList.add("hidden");
+    }
+
+    if (settingsCard) {
+        settingsCard.addEventListener("click", openSettingsModal);
+    }
+
+    if (closeBtn) closeBtn.addEventListener("click", closeSettingsModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeSettingsModal);
+    
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeSettingsModal();
+    });
+
+    if (saveBtn) {
+        saveBtn.addEventListener("click", () => {
+            const url = backendUrlInput ? backendUrlInput.value.trim() : "";
+            
+            // Validate URL format (if not empty)
+            if (url) {
+                try {
+                    new URL(url);
+                } catch (_) {
+                    showToast("Please enter a valid URL (e.g. http://localhost:8000)", "error");
+                    return;
+                }
+            }
+
+            safeStorage.setItem("dreamxv_backend_url", url);
+            API_CONFIG.baseUrl = url;
+            
+            showToast("Settings saved successfully!", "success");
+            closeSettingsModal();
+
+            // Refresh projects and reconnect websocket
+            fetchAndRenderProjects();
+            connectWebSocket();
+        });
+    }
+})();
+
+/* ==========================================
+   INTERNAL AI PROVIDER ROUTER (FALLBACK)
 ========================================== */
 
 window.AIRouter = {
@@ -553,7 +1102,6 @@ window.AIRouter = {
     async generateContent(prompt, options = {}) {
         console.log(`[AIRouter] Attempting generation with default provider: Featherless AI`);
         try {
-            // Simulate Featherless AI call
             const response = await this.callFeatherless(prompt, options);
             console.log(`[AIRouter] Success with Featherless AI`);
             return response;
