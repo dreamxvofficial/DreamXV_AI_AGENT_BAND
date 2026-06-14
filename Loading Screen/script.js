@@ -49,18 +49,39 @@ function safeJsonParse(str) {
 function loadCorrectVideo() {
     const isMobile = window.innerWidth <= 768;
     const newSource = isMobile
-        ? "DreamXV Intro Video_Mobile.mp4"
-        : "DreamXV Intro Video_Desktop.mp4";
+        ? "/videos/DreamXV Intro Video_Mobile.mp4"
+        : "/videos/DreamXV Intro Video_Desktop.mp4";
 
     if (video && video.src && decodeURIComponent(video.src).includes(newSource)) {
         return;
     }
 
     if (video) {
+        const handleError = () => {
+            console.error("Video failed to load:", newSource);
+            const fallbackImg = document.getElementById("videoFallbackImage");
+            if (fallbackImg) {
+                fallbackImg.style.display = "block";
+            }
+            setTimeout(transitionToMainSite, 2000);
+        };
+
+        video.onerror = handleError;
+
+        const sources = video.getElementsByTagName("source");
+        for (let i = 0; i < sources.length; i++) {
+            sources[i].onerror = handleError;
+        }
+
         video.src = newSource;
         video.load();
         video.play().catch((err) => {
-            console.log("Autoplay blocked or load issue: ", err);
+            console.log("Autoplay blocked or load issue, transitioning to fallback image: ", err);
+            const fallbackImg = document.getElementById("videoFallbackImage");
+            if (fallbackImg) {
+                fallbackImg.style.display = "block";
+            }
+            setTimeout(transitionToMainSite, 2000);
         });
     }
 }
@@ -119,11 +140,15 @@ function transitionToMainSite() {
         container.classList.add("fade-out");
         setTimeout(() => {
             container.style.display = "none";
-        }, 1000);
+        }, 800);
     }
 
     if (mainContent) {
         mainContent.classList.remove("hidden");
+        // Force reflow
+        mainContent.offsetHeight;
+        mainContent.classList.add("fade-in");
+        
         // Check session and route to the correct screen
         const user = safeStorage.getItem("dreamxv_user");
         const onboarded = safeStorage.getItem("dreamxv_onboarded");
@@ -134,6 +159,10 @@ function transitionToMainSite() {
             showView("landing-view");
         }
     }
+
+    // Restore scroll and prevent layout shift
+    document.body.style.overflow = "auto";
+    document.documentElement.style.overflow = "auto";
 }
 
 // Transition when video ends

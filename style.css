@@ -76,7 +76,10 @@ body {
     letter-spacing: -0.02em;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
     font-family: var(--font-display);
     color: var(--starlight);
 }
@@ -179,8 +182,13 @@ h4 {
 }
 
 @keyframes loading-fill {
-    from { width: 0%; }
-    to { width: 100%; }
+    from {
+        width: 0%;
+    }
+
+    to {
+        width: 100%;
+    }
 }
 
 /* ==========================================================
@@ -235,8 +243,15 @@ h4 {
 }
 
 @keyframes pulse-logo {
-    0% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(232, 160, 48, 0.2)); }
-    100% { transform: scale(1.05); filter: drop-shadow(0 0 15px rgba(232, 160, 48, 0.5)); }
+    0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 5px rgba(232, 160, 48, 0.2));
+    }
+
+    100% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 15px rgba(232, 160, 48, 0.5));
+    }
 }
 
 .logo-text {
@@ -277,7 +292,7 @@ h4 {
     display: flex;
     align-items: center;
     background: radial-gradient(circle at top right, rgba(27, 138, 122, 0.12), transparent 50%),
-                radial-gradient(circle at bottom left, rgba(12, 26, 46, 0.95), var(--deep-space));
+        radial-gradient(circle at bottom left, rgba(12, 26, 46, 0.95), var(--deep-space));
     padding-top: 100px;
     overflow: hidden;
 }
@@ -286,7 +301,7 @@ h4 {
     position: absolute;
     inset: 0;
     background-image: linear-gradient(rgba(26, 48, 72, 0.1) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(26, 48, 72, 0.1) 1px, transparent 1px);
+        linear-gradient(90deg, rgba(26, 48, 72, 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
 }
@@ -618,7 +633,8 @@ h4 {
     }
 
     .nav-links {
-        display: none; /* Can expand into hamburger menu if needed */
+        display: none;
+        /* Can expand into hamburger menu if needed */
     }
 
     .story-grid {
@@ -634,7 +650,7 @@ h4 {
     .story-lead {
         font-size: 22px;
     }
-    
+
     .loading-container video {
         width: 100%;
         height: 100%;
@@ -689,6 +705,7 @@ h4 {
         transform: translateY(20px);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -1065,9 +1082,17 @@ h4 {
     animation: fade-up-line 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.delay-1 { animation-delay: 0.8s; }
-.delay-2 { animation-delay: 2s; }
-.delay-3 { animation-delay: 3.2s; }
+.delay-1 {
+    animation-delay: 0.8s;
+}
+
+.delay-2 {
+    animation-delay: 2s;
+}
+
+.delay-3 {
+    animation-delay: 3.2s;
+}
 
 @keyframes fade-up-line {
     to {
@@ -1171,7 +1196,7 @@ h4 {
     transition: var(--transition-fast);
 }
 
-.quiz-option input:checked + span::before {
+.quiz-option input:checked+span::before {
     border-color: var(--sunrise-amber);
     background: var(--sunrise-amber);
     box-shadow: 0 0 10px rgba(232, 160, 48, 0.4);
@@ -1187,7 +1212,7 @@ h4 {
     background: rgba(17, 34, 64, 0.8);
 }
 
-.quiz-option input:checked + span {
+.quiz-option input:checked+span {
     color: var(--starlight);
 }
 
@@ -1547,8 +1572,13 @@ h4 {
    ========================================================== */
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .project-list-card {
@@ -1615,6 +1645,7 @@ h4 {
         transform: translateY(20px);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -1670,8 +1701,15 @@ h4 {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Character Cards styling */

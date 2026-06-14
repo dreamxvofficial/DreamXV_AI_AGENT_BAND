@@ -115,7 +115,7 @@ document.addEventListener("contextmenu", e => {
 
 const playOnInteraction = () => {
     if (video && video.paused) {
-        video.play().catch(() => {});
+        video.play().catch(() => { });
     }
     document.removeEventListener("click", playOnInteraction);
     document.removeEventListener("touchstart", playOnInteraction);
@@ -148,7 +148,7 @@ function transitionToMainSite() {
         // Check session and route to the correct screen
         const user = safeStorage.getItem("dreamxv_user");
         const onboarded = safeStorage.getItem("dreamxv_onboarded");
-        
+
         if (user && onboarded) {
             showView("dashboard-view");
         } else {
@@ -200,7 +200,7 @@ function initApp() {
     // 1. Landing Navigation to Auth
     const launchBtn = document.getElementById("launch-studio-btn");
     const launchTriggers = document.querySelectorAll(".launch-studio-trigger");
-    
+
     const handleLaunch = (e) => {
         if (e) e.preventDefault();
         const user = safeStorage.getItem("dreamxv_user");
@@ -387,7 +387,7 @@ function initApp() {
     }
 
     // Save User Session helper (Exposed globally for Google Sign-In Callback)
-    window.saveUserSession = function(name, email, avatar) {
+    window.saveUserSession = function (name, email, avatar) {
         const user = {
             name: name,
             email: email,
@@ -529,7 +529,7 @@ async function initGoogleAuth() {
         }
         return;
     }
-    
+
     let clientId = "122741106854-2pjjbguicplm05iurfcsog0uipr0nn74.apps.googleusercontent.com"; // Fallback Client ID
     try {
         const response = await fetch("/api/health");
@@ -542,17 +542,17 @@ async function initGoogleAuth() {
     } catch (e) {
         console.warn("Failed to dynamically load Google Client ID, using default.", e);
     }
-    
+
     google.accounts.id.initialize({
         client_id: clientId,
         callback: handleCredentialResponse
     });
-    
+
     google.accounts.id.renderButton(
         document.getElementById("google-signin-btn"),
-        { 
-            theme: "filled_blue", 
-            size: "large", 
+        {
+            theme: "filled_blue",
+            size: "large",
             width: 320,
             text: "signin_with",
             shape: "rectangular"
@@ -564,12 +564,12 @@ function handleCredentialResponse(response) {
     try {
         const base64Url = response.credential.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
 
         const googleUser = JSON.parse(jsonPayload);
-        
+
         // Save user session and direct to onboarding
         window.saveUserSession(googleUser.name, googleUser.email, googleUser.picture);
     } catch (e) {
@@ -771,7 +771,7 @@ function handleCredentialResponse(response) {
                     });
                     updateModalAgentStatus(activeStatuses);
                     updateAgentStatusPanel(activeStatuses);
-                    
+
                     simIndex++;
                     simTimeout = setTimeout(runSimulationStep, step.delay);
                 }
@@ -818,7 +818,7 @@ function handleCredentialResponse(response) {
                 // Add to local projects
                 const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
                 const localProjects = safeJsonParse(localProjectsStr) || [];
-                
+
                 projectObj.status = "completed";
                 if (!projectObj.project_id) {
                     projectObj.project_id = "dxv_" + Math.random().toString(36).substring(2, 11);
@@ -826,7 +826,7 @@ function handleCredentialResponse(response) {
                 if (!projectObj.created_at) {
                     projectObj.created_at = new Date().toISOString();
                 }
-                
+
                 localProjects.push(projectObj);
                 safeStorage.setItem("dreamxv_projects", JSON.stringify(localProjects));
 
@@ -836,7 +836,7 @@ function handleCredentialResponse(response) {
                 setTimeout(() => {
                     if (modal) modal.classList.add("hidden");
                     resetSubmitButton();
-                    
+
                     // Reset statuses back to ready
                     const readyStatuses = initialStatuses.map(s => ({ ...s, status: "ready" }));
                     updateModalAgentStatus(readyStatuses);
@@ -986,7 +986,7 @@ async function fetchAndRenderProjects() {
 
     if (mergedProjects.length > 0) {
         if (emptyState) emptyState.style.display = "none";
-        
+
         // Remove existing project list cards
         container.querySelectorAll(".project-list-card").forEach(c => c.remove());
 
@@ -1015,18 +1015,18 @@ function showProjectDetails(projectId) {
     const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
     const localProjects = safeJsonParse(localProjectsStr) || [];
     const project = localProjects.find(p => p.project_id === projectId);
-    
+
     if (!project) {
         showToast("Project details not found in local storage.", "error");
         return;
     }
-    
+
     const modal = document.getElementById("project-details-modal");
     if (!modal) return;
-    
+
     const titleEl = document.getElementById("details-project-title");
     if (titleEl) titleEl.textContent = project.title || "Untitled Project";
-    
+
     // 1. Narrative Tab
     let story = project.story || {};
     if (typeof story === "string") {
@@ -1034,10 +1034,10 @@ function showProjectDetails(projectId) {
     }
     const loreEl = document.getElementById("details-lore");
     if (loreEl) loreEl.textContent = story.lore || story.summary || "No lore generated.";
-    
+
     const summaryEl = document.getElementById("details-summary");
     if (summaryEl) summaryEl.textContent = story.summary || "No story synopsis generated.";
-    
+
     const actsEl = document.getElementById("details-acts");
     if (actsEl) {
         actsEl.innerHTML = "";
@@ -1052,7 +1052,7 @@ function showProjectDetails(projectId) {
             actsEl.innerHTML = "<li>No story acts generated.</li>";
         }
     }
-    
+
     const themesEl = document.getElementById("details-themes");
     if (themesEl) {
         themesEl.innerHTML = "";
@@ -1069,7 +1069,7 @@ function showProjectDetails(projectId) {
             themesEl.innerHTML = "<span style='color: rgba(240, 232, 208, 0.4); font-size: 13px;'>No thematic focus points generated.</span>";
         }
     }
-    
+
     // 2. Characters Tab
     const charListEl = document.getElementById("details-character-list");
     if (charListEl) {
@@ -1079,7 +1079,7 @@ function showProjectDetails(projectId) {
             characters.forEach(char => {
                 const charCard = document.createElement("div");
                 charCard.className = "character-card";
-                
+
                 charCard.innerHTML = `
                     <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
                         <strong style="color: var(--lunar-gold); font-size: 16px;">${escapeHtml(char.name)}</strong>
@@ -1107,7 +1107,7 @@ function showProjectDetails(projectId) {
             charListEl.innerHTML = "<p style='color: rgba(240, 232, 208, 0.4); font-size: 14px;'>No characters generated.</p>";
         }
     }
-    
+
     // 3. Gameplay & World Tab
     let world = project.world || {};
     if (typeof world === "string") {
@@ -1115,23 +1115,23 @@ function showProjectDetails(projectId) {
     }
     const worldDescEl = document.getElementById("details-world-desc");
     if (worldDescEl) worldDescEl.textContent = world.description || "No world setting generated.";
-    
+
     const worldAtmosphereEl = document.getElementById("details-world-atmosphere");
     if (worldAtmosphereEl) worldAtmosphereEl.textContent = world.atmosphere || "No atmosphere details generated.";
-    
+
     let gameplay = project.gameplay || {};
     if (typeof gameplay === "string") {
         gameplay = { core_loop: gameplay, progression_system: "", difficulty_curve: "" };
     }
     const coreLoopEl = document.getElementById("details-core-loop");
     if (coreLoopEl) coreLoopEl.textContent = gameplay.core_loop || "No core loop design generated.";
-    
+
     const progressionEl = document.getElementById("details-progression");
     if (progressionEl) progressionEl.textContent = gameplay.progression_system || "No progression system details generated.";
-    
+
     const difficultyEl = document.getElementById("details-difficulty");
     if (difficultyEl) difficultyEl.textContent = gameplay.difficulty_curve || "No difficulty curve details generated.";
-    
+
     // 4. Visuals & QA Tab
     let art = project.art || {};
     if (typeof art === "string") {
@@ -1141,7 +1141,7 @@ function showProjectDetails(projectId) {
     }
     const styleGuideEl = document.getElementById("details-style-guide");
     if (styleGuideEl) styleGuideEl.textContent = art.style_guide || "No visual style guide generated.";
-    
+
     const galleryEl = document.getElementById("details-gallery");
     if (galleryEl) {
         galleryEl.innerHTML = "";
@@ -1162,14 +1162,14 @@ function showProjectDetails(projectId) {
             galleryEl.innerHTML = "<div style='grid-column: span 3; text-align: center; color: rgba(240, 232, 208, 0.4); font-size: 13px; padding: 20px 0;'>No concept art generated.</div>";
         }
     }
-    
+
     const qa = project.qa || {};
     const qaScoreEl = document.getElementById("details-qa-score");
     if (qaScoreEl) qaScoreEl.textContent = `SCORE: ${qa.consistency_score != null ? qa.consistency_score.toFixed(1) : "--"}/10`;
-    
+
     const qaAssessmentEl = document.getElementById("details-qa-assessment");
     if (qaAssessmentEl) qaAssessmentEl.textContent = qa.overall_assessment || "No QA overall assessment generated.";
-    
+
     const qaIssuesEl = document.getElementById("details-qa-issues");
     if (qaIssuesEl) {
         qaIssuesEl.innerHTML = "";
@@ -1184,7 +1184,7 @@ function showProjectDetails(projectId) {
             qaIssuesEl.innerHTML = "<li style='color: var(--earth-teal); list-style-type: none;'>No consistency issues found.</li>";
         }
     }
-    
+
     const qaSuggestionsEl = document.getElementById("details-qa-suggestions");
     if (qaSuggestionsEl) {
         qaSuggestionsEl.innerHTML = "";
@@ -1199,17 +1199,17 @@ function showProjectDetails(projectId) {
             qaSuggestionsEl.innerHTML = "<li style='list-style-type: none; color: rgba(240, 232, 208, 0.4);'>No improvement suggestions.</li>";
         }
     }
-    
+
     const firstTabBtn = document.querySelector(".details-tabs button[data-tab='details-narrative']");
     if (firstTabBtn) firstTabBtn.click();
-    
+
     modal.classList.remove("hidden");
 }
 
 (function initDetailsModalEvents() {
     const closeBtn = document.getElementById("close-details-btn");
     const modal = document.getElementById("project-details-modal");
-    
+
     if (closeBtn && modal) {
         closeBtn.addEventListener("click", () => {
             modal.classList.add("hidden");
@@ -1218,16 +1218,16 @@ function showProjectDetails(projectId) {
             if (e.target === modal) modal.classList.add("hidden");
         });
     }
-    
+
     const tabBtns = document.querySelectorAll(".details-tabs .tab-btn");
     tabBtns.forEach(btn => {
         btn.addEventListener("click", () => {
             tabBtns.forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
-            
+
             const contents = document.querySelectorAll(".details-content-wrapper .tab-content");
             contents.forEach(c => c.classList.add("hidden"));
-            
+
             const targetId = btn.getAttribute("data-tab");
             const targetContent = document.getElementById(targetId);
             if (targetContent) {
@@ -1321,14 +1321,14 @@ function showToast(message, type = "info") {
 
 function showErrorBoundary(error) {
     console.error("[Global Error Boundary] Caught exception:", error);
-    
+
     const boundary = document.getElementById("global-error-boundary");
     const details = document.getElementById("global-error-details");
-    
+
     if (boundary) {
         if (details) {
-            details.textContent = error && error.stack 
-                ? error.stack 
+            details.textContent = error && error.stack
+                ? error.stack
                 : (error && error.message ? error.message : String(error));
         }
         boundary.classList.remove("hidden");

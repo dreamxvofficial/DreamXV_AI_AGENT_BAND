@@ -44,18 +44,19 @@
     padding: 0;
 }
 
-html {
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #070E1A;
     scroll-behavior: smooth;
-    background-color: var(--deep-space);
 }
 
 body {
-    background-color: var(--deep-space);
     color: var(--starlight);
     font-family: var(--font-body);
     font-size: 16px;
     line-height: 1.6;
-    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -131,9 +132,9 @@ h4 {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: var(--deep-space);
+    background: #000000;
     z-index: 9999;
-    transition: opacity var(--transition-slow);
+    transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .loading-container.fade-out {
@@ -142,12 +143,10 @@ h4 {
 }
 
 .loading-container video {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100vw;
-    height: 100dvh;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     z-index: 1;
     pointer-events: none;
@@ -190,6 +189,12 @@ h4 {
 #main-content {
     position: relative;
     width: 100%;
+    opacity: 0;
+    transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#main-content.fade-in {
+    opacity: 1;
 }
 
 .container {
@@ -638,7 +643,7 @@ h4 {
     .loading-container video {
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: cover;
     }
 
     .loading-indicator {

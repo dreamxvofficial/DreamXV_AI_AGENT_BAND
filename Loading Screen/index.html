@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream XV — Born at 15. Built for Infinity.</title>
+    <title>Dream XV AI Studio</title>
+    <link rel="icon" type="image/jpeg" href="/assets/logo/logo.jpg">
+    <link rel="shortcut icon" type="image/jpeg" href="/assets/logo/logo.jpg">
     <!-- Brand Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,22 +17,36 @@
 <body>
 
     <!-- Cinematic Preloader -->
-    <div class="loading-container">
+    <div id="loadingContainer" class="fixed inset-0 z-[9999] bg-black loading-container" className="fixed inset-0 z-[9999] bg-black" style="position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9999; background-color: black;">
         <video
             id="introVideo"
-            preload="auto"
-            autoplay
+            autoPlay
             muted
-            playsinline
+            playsInline
+            preload="auto"
+            class="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
             disablePictureInPicture
-            controlsList="nodownload nofullscreen noremoteplayback">
+            controlsList="nodownload nofullscreen noremoteplayback"
+            onerror="console.error('Video load failed:', event)"
+            onError={(e) => console.error("Video load failed:", e)}>
             <source
                 id="videoSource"
-                src="DreamXV Intro Video_Desktop.mp4"
+                src="/videos/DreamXV Intro Video_Desktop.mp4"
                 type="video/mp4">
         </video>
 
-        <div class="overlay-elements">
+        <!-- Fallback image initially hidden, styled exactly to cover the viewport -->
+        <img 
+            id="videoFallbackImage" 
+            src="/assets/logo/logo.jpg" 
+            alt="DreamXV Fallback"
+            class="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none;">
+
+        <div class="overlay-elements" style="z-index: 10000; position: absolute; bottom: 10vh; width: 100%; display: flex; justify-content: center;">
             <div id="loadingIndicator" class="loading-indicator active">
                 <div class="loading-bar"></div>
             </div>
