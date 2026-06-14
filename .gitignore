@@ -61,6 +61,10 @@ out/
 *.swp
 *.swo
 
+# Generated Outputs
+outputs/
+logs/
+
 # OS temporary files
 .DS_Store
 .DS_Store?

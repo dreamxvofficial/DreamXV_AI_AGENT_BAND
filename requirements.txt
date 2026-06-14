@@ -1,0 +1,28 @@
+# ============================================
+# DreamXV AI Studio — Python Dependencies
+# ============================================
+
+# --- Web Framework ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# --- Configuration ---
+python-dotenv>=1.0.0
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+
+# --- AI Providers (OpenAI-compatible SDK) ---
+openai>=1.50.0
+
+# --- HTTP & Async ---
+httpx>=0.27.0
+aiofiles>=24.1.0
+
+# --- Logging ---
+loguru>=0.7.0
+
+# --- Band SDK (Multi-Agent Rooms) ---
+band-sdk[pydantic-ai]>=0.1.0
+
+# --- WebSocket ---
+websockets>=13.0
