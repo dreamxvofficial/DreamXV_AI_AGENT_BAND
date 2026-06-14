@@ -18,15 +18,16 @@
     <div class="loading-container">
         <video
             id="introVideo"
-            preload="auto"
-            autoplay
+            autoPlay
             muted
-            playsinline
+            playsInline
+            preload="auto"
             disablePictureInPicture
-            controlsList="nodownload nofullscreen noremoteplayback">
+            controlsList="nodownload nofullscreen noremoteplayback"
+            poster="assets/logo/logo.jpg">
             <source
                 id="videoSource"
-                src="DreamXV Intro Video_Desktop.mp4"
+                src="public/videos/DreamXV Intro Video_Desktop.mp4"
                 type="video/mp4">
         </video>
 
@@ -362,12 +363,12 @@
                                     <h4>Projects</h4>
                                     <p>Browse saved workspaces & outputs</p>
                                 </div>
-                                <div class="action-card" style="opacity: 0.6; cursor: not-allowed;">
-                                    <div class="action-icon" style="color: var(--starlight); opacity: 0.5;">
+                                <div class="action-card" id="action-atlas" style="cursor: pointer;">
+                                    <div class="action-icon" style="color: var(--starlight);">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
                                     </div>
-                                    <h4>Dream Atlas <span style="font-size: 9px; padding: 2px 6px; background: rgba(196, 125, 26, 0.15); color: var(--sunrise-amber); border-radius: 10px; margin-left: 4px; border: 1px solid rgba(196, 125, 26, 0.3); vertical-align: middle;">SOON</span></h4>
-                                    <p>Inspect AI model landscapes & seeds</p>
+                                    <h4>DreamXV Atlas <span style="font-size: 9px; padding: 2px 6px; background: rgba(196, 125, 26, 0.15); color: var(--sunrise-amber); border-radius: 10px; margin-left: 4px; border: 1px solid rgba(196, 125, 26, 0.3); vertical-align: middle;">SOON</span></h4>
+                                    <p>Explore worlds, ideas, lore, and inspiration. Coming Soon.</p>
                                 </div>
                                 <div class="action-card" id="action-settings">
                                     <div class="action-icon">
@@ -687,6 +688,22 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Error Boundary UI Overlay -->
+    <div id="global-error-boundary" class="modal-overlay hidden" style="z-index: 9999; background: rgba(12, 26, 46, 0.95);">
+        <div class="modal-content" style="max-width: 500px; text-align: center; border-color: #f87171;">
+            <div style="font-size: 48px; color: #f87171; margin-bottom: var(--space-4);">⚠</div>
+            <h3 style="color: var(--starlight); margin-bottom: var(--space-2);">An Unexpected Error Occurred</h3>
+            <p style="color: rgba(240, 232, 208, 0.7); font-size: 14px; margin-bottom: var(--space-6); line-height: 1.6;">
+                DreamXV AI Studio encountered a runtime exception. You can reload the page or clear your cached session to try again.
+            </p>
+            <div id="global-error-details" style="font-family: var(--font-code); font-size: 11px; background: rgba(26, 48, 72, 0.4); padding: var(--space-3); border-radius: 6px; color: #f87171; text-align: left; overflow-x: auto; margin-bottom: var(--space-6); border: 1px solid rgba(220, 38, 38, 0.2); max-height: 150px; white-space: pre-wrap;"></div>
+            <div style="display: flex; gap: var(--space-4); justify-content: center;">
+                <button class="btn btn-secondary" onclick="location.reload()" style="padding: 10px 20px;">RELOAD</button>
+                <button class="btn btn-primary" id="reset-boundary-btn" style="padding: 10px 20px;">RESET APP</button>
             </div>
         </div>
     </div>
