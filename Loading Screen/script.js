@@ -55,20 +55,39 @@ document.addEventListener("contextmenu", e => {
 });
 
 /* ==========================================
-   KEEP FINAL FRAME
+   TRANSITION TO MAIN SITE
 ========================================== */
 
+let transitioned = false;
+
+function transitionToMainSite() {
+    if (transitioned) return;
+    transitioned = true;
+
+    const container = document.querySelector(".loading-container");
+    const mainContent = document.getElementById("main-content");
+
+    if (container) {
+        container.classList.add("fade-out");
+        setTimeout(() => {
+            container.style.display = "none";
+        }, 1000);
+    }
+
+    if (mainContent) {
+        mainContent.classList.add("visible");
+    }
+}
+
+// Transition when video ends
 video.addEventListener("ended", () => {
-
-    video.pause();
-
-    video.currentTime =
-        Math.max(
-            0,
-            video.duration - 0.05
-        );
-
+    transitionToMainSite();
 });
+
+// Fallback: Transition after 10s (matching the loading progress bar)
+setTimeout(() => {
+    transitionToMainSite();
+}, 10000);
 
 /* ==========================================
    FORCE AUTOPLAY
