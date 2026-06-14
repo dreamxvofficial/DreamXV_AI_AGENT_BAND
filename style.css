@@ -1,0 +1,254 @@
+/* ==========================================================
+   DREAM XV CINEMATIC LOADING SCREEN
+   ========================================================== */
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+
+    width: 100%;
+    height: 100dvh;
+
+    overflow: hidden;
+
+    background: #070E1A;
+
+    color: #F0E8D0;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    overscroll-behavior: none;
+}
+
+/* ==========================================================
+   MAIN CONTAINER
+   ========================================================== */
+
+.loading-container {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100vw;
+    height: 100dvh;
+
+    overflow: hidden;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    background:
+        radial-gradient(
+            circle at center,
+            #112240 0%,
+            #0C1A2E 55%,
+            #070E1A 100%
+        );
+
+}
+
+/* ==========================================================
+   VIDEO
+   ========================================================== */
+
+.loading-container video {
+
+    position: fixed;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: 100vw;
+    height: 100dvh;
+
+    object-fit: cover;
+
+    z-index: 1;
+
+    pointer-events: none;
+
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ==========================================================
+   OVERLAY
+   ========================================================== */
+
+.overlay-elements {
+
+    position: absolute;
+
+    bottom: 5vh;
+
+    width: 100%;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    z-index: 5;
+
+    pointer-events: none;
+}
+
+/* ==========================================================
+   LOADING BAR
+   ========================================================== */
+
+.loading-indicator {
+
+    width: 220px;
+
+    height: 3px;
+
+    background: rgba(240,232,208,.15);
+
+    border-radius: 10px;
+
+    overflow: hidden;
+}
+
+.loading-bar {
+
+    width: 0;
+
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            #C47D1A,
+            #E8A030
+        );
+
+    animation:
+        loading-fill 10s linear forwards;
+}
+
+@keyframes loading-fill {
+
+    from {
+        width: 0%;
+    }
+
+    to {
+        width: 100%;
+    }
+
+}
+
+/* ==========================================================
+   MOBILE
+   ========================================================== */
+
+@media (max-width:768px) {
+
+    .loading-container video {
+
+        width: 100%;
+        height: 100%;
+
+        object-fit: contain;
+    }
+
+    .loading-indicator {
+
+        width: 158px;
+    }
+
+}
+
+/* ==========================================================
+   TRANSITION & MAIN CONTENT
+   ========================================================== */
+
+.loading-container {
+    transition: opacity 1s ease-in-out;
+}
+
+.loading-container.fade-out {
+    opacity: 0 !important;
+    pointer-events: none;
+}
+
+#main-content {
+    display: none;
+    opacity: 0;
+    width: 100vw;
+    height: 100dvh;
+    justify-content: center;
+    align-items: center;
+    background: #070E1A;
+    transition: opacity 1.5s ease-in-out;
+    z-index: 10;
+    position: relative;
+}
+
+#main-content.visible {
+    display: flex;
+    opacity: 1;
+}
+
+.content-box {
+    text-align: center;
+    max-width: 600px;
+    padding: 2rem;
+}
+
+.glow-text {
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: 0.5rem;
+    color: #F0E8D0;
+    text-shadow: 0 0 10px rgba(240, 232, 208, 0.3), 0 0 20px rgba(196, 125, 26, 0.2);
+    margin-bottom: 1rem;
+    animation: text-glow 3s ease-in-out infinite alternate;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: rgba(240, 232, 208, 0.7);
+    margin-bottom: 2.5rem;
+    letter-spacing: 0.2rem;
+}
+
+.enter-btn {
+    background: transparent;
+    border: 2px solid #C47D1A;
+    color: #C47D1A;
+    padding: 0.8rem 2.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.15rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.enter-btn:hover {
+    background: #C47D1A;
+    color: #070E1A;
+    box-shadow: 0 0 15px rgba(196, 125, 26, 0.4);
+    transform: translateY(-2px);
+}
+
+@keyframes text-glow {
+    from {
+        text-shadow: 0 0 10px rgba(240, 232, 208, 0.3), 0 0 20px rgba(196, 125, 26, 0.2);
+    }
+    to {
+        text-shadow: 0 0 15px rgba(240, 232, 208, 0.5), 0 0 30px rgba(196, 125, 26, 0.4);
+    }
+}
