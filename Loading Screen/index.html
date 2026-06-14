@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream XV Loading Screen</title>
+    <title>Dream XV — Born at 15. Built for Infinity.</title>
+    <!-- Brand Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+    <!-- Cinematic Preloader -->
     <div class="loading-container">
-
         <video
             id="introVideo"
             preload="auto"
@@ -18,34 +22,158 @@
             playsinline
             disablePictureInPicture
             controlsList="nodownload nofullscreen noremoteplayback">
-
             <source
                 id="videoSource"
                 src="DreamXV Intro Video_Desktop.mp4"
                 type="video/mp4">
-
         </video>
 
         <div class="overlay-elements">
-
-            <div
-                id="loadingIndicator"
-                class="loading-indicator active">
-
+            <div id="loadingIndicator" class="loading-indicator active">
                 <div class="loading-bar"></div>
-
             </div>
-
         </div>
-
     </div>
     
+    <!-- Main Website Content -->
     <div id="main-content" class="hidden">
-        <div class="content-box">
-            <h1 class="glow-text">DREAMXV</h1>
-            <p class="subtitle">AI Agent Band Studio</p>
-            <button class="enter-btn">ENTER STUDIO</button>
-        </div>
+        
+        <!-- Header / Navigation -->
+        <header class="navbar">
+            <div class="nav-container">
+                <div class="logo-group">
+                    <svg class="brand-logo" width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M70 20C42.3858 20 20 42.3858 20 70C20 76.5 21.2 82.8 23.5 88.5C31.5 73.5 47.3 63.5 65.5 63.5C73.5 63.5 81 65.8 87.5 69.8C89 64 90 58 90 52C90 34.3 81 20.7 70 20Z" fill="url(#moon-gradient)"/>
+                        <circle cx="85" cy="25" r="3" fill="#FFD580"/>
+                        <circle cx="55" cy="15" r="1.5" fill="#F0E8D0"/>
+                        <defs>
+                            <linearGradient id="moon-gradient" x1="20" y1="20" x2="87.5" y2="88.5" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#FFD580"/>
+                                <stop offset="50%" stop-color="#E8A030"/>
+                                <stop offset="100%" stop-color="#C47D1A"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">DREAM <span class="accent-text">15</span></span>
+                </div>
+                <nav class="nav-links">
+                    <a href="#story" class="nav-link">Story</a>
+                    <a href="#principles" class="nav-link">Principles</a>
+                    <a href="#studio" class="nav-link">Studio</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-overlay"></div>
+            <div class="hero-content">
+                <p class="hero-badge">BRAND PRINCIPLE v1.1</p>
+                <h1 class="display-xl">Born at 15.<br><span class="gradient-text">Built for Infinity.</span></h1>
+                <p class="body-large hero-subtext">
+                    Dream XV is the intersection of intelligence and imagination. We build AI and games that feel alive — crafted with midnight focus and a belief that turns dreams into reality.
+                </p>
+                <div class="hero-actions">
+                    <a href="#studio" class="btn btn-primary">LAUNCH STUDIO</a>
+                    <a href="#story" class="btn btn-secondary">THE STORY</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Brand Story Section -->
+        <section id="story" class="story-section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-number">01</span>
+                    <h2 class="section-title">Brand Story</h2>
+                </div>
+                <div class="story-grid">
+                    <div class="story-main">
+                        <p class="story-lead">Dream XV is not a company. It's a declaration.</p>
+                        <p class="body-text">
+                            Founded from a dream held since the age of 15 — to build AI and games that matter. Every product under Dream XV feels like it came from someone who stayed up late, who believed before there was proof, who built alone before anyone was watching.
+                        </p>
+                    </div>
+                    <div class="story-details">
+                        <div class="story-meta-card">
+                            <h4 class="meta-label">ENERGY</h4>
+                            <p class="meta-value">Midnight focus. The 2am breakthrough.</p>
+                        </div>
+                        <div class="story-meta-card">
+                            <h4 class="meta-label">ARCHETYPE</h4>
+                            <p class="meta-value">The Dreamer-Builder — sees the future clearly and constructs it piece by piece.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Brand Principles Section -->
+        <section id="principles" class="principles-section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-number">02</span>
+                    <h2 class="section-title">Brand Principles</h2>
+                </div>
+                <div class="principles-grid">
+                    <div class="principle-card">
+                        <div class="principle-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <h3 class="principle-title">Build with vision.</h3>
+                        <p class="principle-desc">See beyond the horizon. Create systems and games that challenge expectations and shape tomorrow.</p>
+                    </div>
+                    <div class="principle-card">
+                        <div class="principle-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </div>
+                        <h3 class="principle-title">Ship with purpose.</h3>
+                        <p class="principle-desc">Every line of code, every pixel, and every design decision is intentional. We deliver excellence without compromise.</p>
+                    </div>
+                    <div class="principle-card">
+                        <div class="principle-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <h3 class="principle-title">Inspire forever.</h3>
+                        <p class="principle-desc">Create works that leave a lasting mark, igniting the dreamer inside the next generation of builders.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Studio Section (Placeholder for App entry) -->
+        <section id="studio" class="studio-section">
+            <div class="container">
+                <div class="studio-card">
+                    <div class="studio-glow"></div>
+                    <h2 class="display-md">DreamXV AI Studio</h2>
+                    <p class="body-large">The Orchestrator of AI Agent Music and Creativity.</p>
+                    <div class="studio-features">
+                        <div class="feature-tag">Featherless LLMs</div>
+                        <div class="feature-tag">Multi-Agent Bands</div>
+                        <div class="feature-tag">Adaptive Gameplay</div>
+                    </div>
+                    <a href="/frontend" class="btn btn-primary">LAUNCH STUDIO APPS</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container footer-content">
+                <div class="footer-brand">
+                    <span class="logo-text">DREAM <span class="accent-text">15</span></span>
+                    <span class="footer-tagline">Born at 15. Built for infinity.</span>
+                </div>
+                <div class="footer-creed">
+                    <span>Build with vision. Ship with purpose. Inspire forever.</span>
+                </div>
+                <div class="footer-copyright">
+                    &copy; 2026 Dream XV. All rights reserved.
+                </div>
+            </div>
+        </footer>
+
     </div>
 
     <script src="script.js"></script>
