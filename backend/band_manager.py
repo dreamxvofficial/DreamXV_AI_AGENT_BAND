@@ -294,7 +294,7 @@ class BandManager:
                     genre=breakdown.genre,
                     tone=breakdown.tone,
                 ),
-                timeout=180.0
+                timeout=120.0
             )
             logger.info(f"Documentation Agent completed in {time.time()-start_docs:.2f}s")
             self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)
@@ -302,7 +302,16 @@ class BandManager:
             logger.exception(e)
             logger.error(f"Documentation Agent failed or timed out: {e}")
             self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, str(e))
-            documentation = generate_mock_data_for_model(DocumentationOutput, user_prompt)
+            try:
+                documentation = generate_mock_data_for_model(DocumentationOutput, user_prompt)
+            except Exception as fallback_exc:
+                logger.exception(fallback_exc)
+                documentation = DocumentationOutput(
+                    readme=f"# {story.title if story else 'Untitled Project'}\n\nFallback README content. Generation succeeded with partial documentation.",
+                    gdd=f"# Game Design Document: {story.title if story else 'Untitled Project'}\n\nFallback Game Design Document. Generation succeeded with partial documentation."
+                )
+
+        logger.info("Documentation Agent complete")
 
         # ── Assemble Final Output ──────────────────────────────────────
         project = ProjectOutput(
@@ -319,6 +328,7 @@ class BandManager:
         )
 
         # Persist and clean up
+        logger.info("Saving project...")
         try:
             self._export.save_project(project)
         except Exception as e:
@@ -335,6 +345,7 @@ class BandManager:
             logger.warning(f"Failed to close band room: {e}")
 
         logger.info(f"Project completed: {project_id} — '{project.title}'")
+        logger.info("Generation finished")
         return project
 
     def get_agent_statuses(self, project_id: Optional[str] = None):

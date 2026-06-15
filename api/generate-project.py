@@ -177,6 +177,7 @@ async def generate_project(request: GenerateProjectRequest):
             pass
 
         # Return structured success/data envelope
+        logger.info("Returning API response...")
         return {
             "success": True,
             "data": {
