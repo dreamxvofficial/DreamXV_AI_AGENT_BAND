@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 import sys
 import traceback
+import asyncio
 
 # Ensure backend package can be imported by adding the root directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -240,6 +241,11 @@ async def generate_project(request: GenerateProjectRequest):
                 } if project.documentation else None,
                 "images": base64_images
             }
+        }
+    except asyncio.TimeoutError:
+        return {
+            "success": False,
+            "error": "Chief Agent timeout"
         }
     except Exception as e:
         import traceback

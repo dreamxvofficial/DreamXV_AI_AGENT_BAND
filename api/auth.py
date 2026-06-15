@@ -112,6 +112,7 @@ async def signup(req: SignupRequest):
         users = load_users()
         username_lower = req.username.strip().lower()
         email_lower = req.email.strip().lower()
+        print("Signup user:", email_lower)
         
         # Check duplicates
         for u_key, u_val in users.items():
@@ -126,7 +127,7 @@ async def signup(req: SignupRequest):
         # Save user
         users[req.username] = {
             "name": req.name,
-            "email": req.email,
+            "email": email_lower,
             "password_hash": hashed,
             "onboarded": False,
             "onboarding_answers": {}
@@ -138,7 +139,7 @@ async def signup(req: SignupRequest):
             "user": {
                 "name": req.name,
                 "username": req.username,
-                "email": req.email,
+                "email": email_lower,
                 "onboarded": False
             }
         }
@@ -152,6 +153,7 @@ async def login(req: LoginRequest):
     try:
         users = load_users()
         query = req.username_or_email.strip().lower()
+        print("Login attempt:", query)
         
         target_user = None
         target_username = None

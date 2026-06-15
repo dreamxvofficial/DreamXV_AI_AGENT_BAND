@@ -117,10 +117,13 @@ class BandManager:
         documentation_agent = DocumentationAgent(self._llm)
 
         # ── Phase 1: Chief Agent Breakdown ──────────────────────────────
+        import time
+        start = time.time()
         self._update_status(project_id, "Chief Agent", AgentStatus.RUNNING)
         breakdown = None
         try:
-            breakdown = await asyncio.wait_for(chief.run(user_prompt, room), timeout=60.0)
+            breakdown = await asyncio.wait_for(chief.run(user_prompt, room), timeout=180.0)
+            print("Chief Agent:", time.time() - start)
             self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
         except Exception as e:
             error_message = str(e)
