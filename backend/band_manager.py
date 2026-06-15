@@ -21,6 +21,8 @@ from backend.agents.world_agent import WorldAgent
 from backend.agents.gameplay_agent import GameplayAgent
 from backend.agents.art_agent import ArtAgent
 from backend.agents.qa_agent import QAAgent
+from backend.agents.reviewer_agent import ReviewerAgent
+from backend.agents.documentation_agent import DocumentationAgent
 
 from backend.models.output_models import ProjectOutput
 from backend.models.schemas import AgentStatus
@@ -111,6 +113,8 @@ class BandManager:
         gameplay_agent = GameplayAgent(self._llm)
         art_agent = ArtAgent(self._llm, self._image_service)
         qa_agent = QAAgent(self._llm)
+        reviewer_agent = ReviewerAgent(self._llm)
+        documentation_agent = DocumentationAgent(self._llm)
 
         # ── Phase 1: Chief Agent Breakdown ──────────────────────────────
         self._update_status(project_id, "Chief Agent", AgentStatus.RUNNING)
@@ -241,11 +245,39 @@ class BandManager:
             qa = await qa_agent.run(breakdown.qa_directive, room)
             self._update_status(project_id, "QA Agent", AgentStatus.COMPLETED)
         except Exception as e:
-            status = "Error"
             error_message = str(e)
             logger.error(f"QA Agent failed: {error_message}")
             self._update_status(project_id, "QA Agent", AgentStatus.ERROR, error_message)
             qa = None
+
+        # ── Phase 5: Reviewer Agent (cross-agent consistency) ──────────
+        self._update_status(project_id, "Reviewer Agent", AgentStatus.RUNNING)
+        review = None
+        try:
+            review = await reviewer_agent.run(breakdown.reviewer_directive, room)
+            self._update_status(project_id, "Reviewer Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            error_message = str(e)
+            logger.error(f"Reviewer Agent failed: {error_message}")
+            self._update_status(project_id, "Reviewer Agent", AgentStatus.ERROR, error_message)
+
+        # ── Phase 6: Documentation Agent (generates docs) ─────────────
+        self._update_status(project_id, "Documentation Agent", AgentStatus.RUNNING)
+        documentation = None
+        try:
+            project_title = story.title if story else "Untitled Project"
+            documentation = await documentation_agent.run(
+                breakdown.documentation_directive,
+                room,
+                title=project_title,
+                genre=breakdown.genre,
+                tone=breakdown.tone,
+            )
+            self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            error_message = str(e)
+            logger.error(f"Documentation Agent failed: {error_message}")
+            self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, error_message)
 
         # ── Assemble Final Output ──────────────────────────────────────
         project = ProjectOutput(
@@ -257,6 +289,8 @@ class BandManager:
             gameplay=gameplay,
             art=art,
             qa=qa,
+            review=review,
+            documentation=documentation,
         )
 
         # Persist and clean up

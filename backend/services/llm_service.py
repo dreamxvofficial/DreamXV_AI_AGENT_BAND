@@ -215,6 +215,78 @@ def generate_mock_data_for_model(model_class: Type[T], user_prompt: str = "") ->
                 overall_assessment="Highly consistent fantasy theme. The lore elements tie nicely into the exploration loop, and the visual guide supports the overall mood.",
             )
 
+    elif model_name == "ReviewerOutput":
+        from backend.models.output_models import ReviewIssue
+        if is_zombie:
+            return model_class(
+                consistency_score=9.0,
+                issues=[
+                    ReviewIssue(
+                        category="naming",
+                        description="Jack 'Scavenger' Morrison is referred to as 'Jack Morrison' in the story acts but 'Jack Scavenger Morrison' in the character roster.",
+                        severity="warning",
+                        suggested_fix="Standardize to 'Jack Morrison' with 'Scavenger' as a nickname/callsign.",
+                        references=["Story Agent: Act I", "Character Agent: Protagonist"],
+                    ),
+                    ReviewIssue(
+                        category="world",
+                        description="The Sunken Metro is listed as a world region but not referenced in any story act.",
+                        severity="info",
+                        suggested_fix="Add a brief reference to the Sunken Metro in Act II's journey sequence.",
+                        references=["World Agent: regions", "Story Agent: acts"],
+                    ),
+                ],
+                summary="Strong overall consistency. Minor naming standardization needed for the protagonist's title. World regions are well-defined but one location is underutilized in the narrative.",
+            )
+        else:
+            return model_class(
+                consistency_score=9.3,
+                issues=[
+                    ReviewIssue(
+                        category="character",
+                        description="General Vex is described as using 'Shadow Magic' but the world lore does not establish a shadow magic system.",
+                        severity="warning",
+                        suggested_fix="Add shadow magic as a forbidden art in the world lore elements.",
+                        references=["Character Agent: General Vex", "World Agent: lore_elements"],
+                    ),
+                ],
+                summary="Highly consistent project. The narrative, world, and gameplay systems align well. One minor lore gap identified regarding the antagonist's abilities.",
+            )
+
+    elif model_name == "ReviewIssue":
+        return model_class(
+            category="general",
+            description="Minor inconsistency detected in cross-references.",
+            severity="info",
+            suggested_fix="Review and align the referenced elements.",
+            references=["Agent A", "Agent B"],
+        )
+
+    elif model_name == "DocumentationOutput":
+        title = user_prompt.title() if user_prompt else "Untitled Project"
+        if is_zombie:
+            return model_class(
+                readme=f"# Undead Rising: Survival RPG\n\n> A gritty post-apocalyptic survival RPG set in a world overrun by the Necro-7 virus.\n\n## Overview\nUndead Rising is a turn-based tactical survival RPG where players guide a squad of scavengers through zombie-infested ruins in search of a cure.\n\n## Key Features\n- Deep narrative with moral choices\n- Grid-based inventory management\n- Tactical turn-based combat\n- Dynamic day/night survival cycle\n\n## Tech Stack\n- AI-Generated Design by DreamXV AI Studio\n- Multi-Agent Band Collaboration\n\n---\n*Built with DreamXV AI Studio — Born at 15. Built for Infinity.*",
+                gdd="# Game Design Document: Undead Rising\n\n## Vision Statement\nA survival RPG that blends tactical combat with resource scarcity, set in a hauntingly atmospheric post-apocalyptic world.\n\n## Target Audience\nCore gamers aged 16-35 who enjoy survival horror and tactical RPGs.\n\n## Genre\nSurvival Horror RPG with Turn-Based Tactical Combat\n\n## Core Gameplay Loop\nScavenge → Fortify → Survive → Progress\n\n## Narrative Design\nThree-act structure following a squad's journey to find the Necro-7 cure.\n\n## Art Direction\nGritty, desaturated palette with high-contrast lighting and atmospheric fog.",
+                feature_list=["Turn-based tactical combat", "Grid inventory system", "Noise-based stealth mechanics", "Day/night survival cycle", "Defensive crafting", "Character skill trees", "Multiple story endings"],
+                core_mechanics=["Grid Inventory Management with weight limits", "Noise Generation System affecting zombie awareness", "Turn-Based Tactical Combat with cover mechanics", "Defensive Crafting for shelter fortification"],
+                monetization=["Premium Edition with exclusive survivor skins", "Story DLC expansion packs", "Cosmetic weapon camos", "Soundtrack and artbook bundle"],
+                future_expansion=["DLC: The Northern Frontier — new frozen biome", "Co-op multiplayer survival mode", "Community map editor", "Seasonal challenge events"],
+                technical_summary="AI-driven game design using DreamXV multi-agent pipeline. Story, characters, world, gameplay, art, and QA generated collaboratively by 9 specialized AI agents powered by Featherless AI with AIMLAPI fallback.",
+                elevator_pitch="Undead Rising is a tactical survival RPG where every bullet counts and every choice matters. Guide your squad through a zombie apocalypse, scavenge for the cure, and face the hardest question: who do you save when you can't save everyone?",
+            )
+        else:
+            return model_class(
+                readme=f"# {title}\n\n> An epic adventure crafted by AI agents.\n\n## Overview\n{title} is an immersive game experience generated by DreamXV AI Studio's multi-agent collaboration system.\n\n## Key Features\n- Rich narrative with multiple acts\n- Unique character roster\n- Expansive world design\n- Deep gameplay mechanics\n\n---\n*Built with DreamXV AI Studio — Born at 15. Built for Infinity.*",
+                gdd=f"# Game Design Document: {title}\n\n## Vision Statement\nAn immersive game experience that combines rich storytelling with engaging gameplay mechanics.\n\n## Target Audience\nGamers who enjoy story-driven adventures with strategic depth.\n\n## Core Gameplay Loop\nExplore → Discover → Battle → Upgrade → Progress",
+                feature_list=["Dynamic combat system", "Open world exploration", "Character progression", "Environmental puzzles", "Rich lore and backstory", "Multiple endings"],
+                core_mechanics=["Elemental combat reactions", "Relic traversal system", "Environmental puzzle solving", "Skill board progression"],
+                monetization=["Cosmetic character skins", "Story expansion packs", "Premium edition with soundtrack", "Seasonal battle passes"],
+                future_expansion=["New regions and biomes", "Multiplayer arena mode", "Community content creation tools", "Annual story expansions"],
+                technical_summary="AI-driven game design using DreamXV multi-agent pipeline with 9 specialized agents. Powered by Featherless AI (primary) with AIMLAPI fallback.",
+                elevator_pitch=f"{title} is an AI-crafted adventure where every element — from story to gameplay — was designed by a collaborative team of intelligent agents. Experience a game that was dreamed into existence.",
+            )
+
     # 2. Dynamic Fallback Builder if any other class is added later
     mock_values = {}
     for field_name, field_info in model_class.model_fields.items():

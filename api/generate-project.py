@@ -214,6 +214,30 @@ async def generate_project(request: GenerateProjectRequest):
                     "suggestions": project.qa.suggestions if project.qa else [],
                     "overall_assessment": project.qa.overall_assessment if project.qa else ""
                 } if project.qa else None,
+                "review": {
+                    "consistency_score": project.review.consistency_score if project.review else 0.0,
+                    "issues": [
+                        {
+                            "category": issue.category,
+                            "description": issue.description,
+                            "severity": issue.severity,
+                            "suggested_fix": issue.suggested_fix,
+                            "references": issue.references,
+                        }
+                        for issue in (project.review.issues if project.review else [])
+                    ],
+                    "summary": project.review.summary if project.review else ""
+                } if project.review else None,
+                "documentation": {
+                    "readme": project.documentation.readme if project.documentation else "",
+                    "gdd": project.documentation.gdd if project.documentation else "",
+                    "feature_list": project.documentation.feature_list if project.documentation else [],
+                    "core_mechanics": project.documentation.core_mechanics if project.documentation else [],
+                    "monetization": project.documentation.monetization if project.documentation else [],
+                    "future_expansion": project.documentation.future_expansion if project.documentation else [],
+                    "technical_summary": project.documentation.technical_summary if project.documentation else "",
+                    "elevator_pitch": project.documentation.elevator_pitch if project.documentation else ""
+                } if project.documentation else None,
                 "images": base64_images
             }
         }

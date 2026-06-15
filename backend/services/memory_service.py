@@ -24,6 +24,8 @@ AGENT_NAMES: list[str] = [
     "Gameplay Agent",
     "Art Agent",
     "QA Agent",
+    "Reviewer Agent",
+    "Documentation Agent",
 ]
 
 

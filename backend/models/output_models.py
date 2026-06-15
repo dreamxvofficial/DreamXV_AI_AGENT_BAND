@@ -133,6 +133,83 @@ class QAOutput(BaseModel):
     )
 
 
+# ─── Reviewer Agent ────────────────────────────────────────────────────────
+class ReviewIssue(BaseModel):
+    """A single inconsistency detected by the Reviewer Agent."""
+    category: str = Field(
+        default="general",
+        description="Category: story, character, world, gameplay, naming",
+    )
+    description: str = Field(..., description="Description of the inconsistency")
+    severity: str = Field(
+        default="warning",
+        description="Severity: critical, warning, info",
+    )
+    suggested_fix: str = Field(
+        default="",
+        description="Suggested resolution",
+    )
+    references: list[str] = Field(
+        default_factory=list,
+        description="References to conflicting elements",
+    )
+
+
+class ReviewerOutput(BaseModel):
+    """Cross-agent consistency review produced by the Reviewer Agent."""
+    consistency_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=10.0,
+        description="Overall consistency score out of 10",
+    )
+    issues: list[ReviewIssue] = Field(
+        default_factory=list,
+        description="List of detected inconsistencies",
+    )
+    summary: str = Field(
+        default="",
+        description="Overall review summary",
+    )
+
+
+# ─── Documentation Agent ──────────────────────────────────────────────────
+class DocumentationOutput(BaseModel):
+    """Project documentation produced by the Documentation Agent."""
+    readme: str = Field(
+        default="",
+        description="README.md content",
+    )
+    gdd: str = Field(
+        default="",
+        description="Game Design Document content",
+    )
+    feature_list: list[str] = Field(
+        default_factory=list,
+        description="List of game features",
+    )
+    core_mechanics: list[str] = Field(
+        default_factory=list,
+        description="Core gameplay mechanics",
+    )
+    monetization: list[str] = Field(
+        default_factory=list,
+        description="Monetization strategies and ideas",
+    )
+    future_expansion: list[str] = Field(
+        default_factory=list,
+        description="Future expansion and DLC ideas",
+    )
+    technical_summary: str = Field(
+        default="",
+        description="Technical architecture summary",
+    )
+    elevator_pitch: str = Field(
+        default="",
+        description="30-second elevator pitch",
+    )
+
+
 # ─── Chief Agent / Full Project ────────────────────────────────────────────
 class ChiefTaskBreakdown(BaseModel):
     """Sub-task decomposition produced by the Chief Agent."""
@@ -142,6 +219,14 @@ class ChiefTaskBreakdown(BaseModel):
     gameplay_directive: str = Field(..., description="Instructions for Gameplay Agent")
     art_directive: str = Field(..., description="Instructions for Art Agent")
     qa_directive: str = Field(..., description="Instructions for QA Agent")
+    reviewer_directive: str = Field(
+        default="Review all agent outputs for cross-domain consistency.",
+        description="Instructions for Reviewer Agent",
+    )
+    documentation_directive: str = Field(
+        default="Generate comprehensive project documentation from all agent outputs.",
+        description="Instructions for Documentation Agent",
+    )
     genre: str = Field(default="", description="Identified genre")
     tone: str = Field(default="", description="Identified tone/mood")
 
@@ -156,4 +241,6 @@ class ProjectOutput(BaseModel):
     gameplay: Optional[GameplayOutput] = None
     art: Optional[Union[ArtOutput, dict]] = None
     qa: Optional[QAOutput] = None
+    review: Optional[ReviewerOutput] = None
+    documentation: Optional[DocumentationOutput] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

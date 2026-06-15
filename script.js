@@ -696,6 +696,8 @@ function handleCredentialResponse(response) {
                 { agent_name: "Gameplay Agent", status: "ready" },
                 { agent_name: "Art Agent", status: "ready" },
                 { agent_name: "QA Agent", status: "ready" },
+                { agent_name: "Reviewer Agent", status: "ready" },
+                { agent_name: "Documentation Agent", status: "ready" },
             ];
 
             updateModalAgentStatus(initialStatuses);
@@ -758,10 +760,27 @@ function handleCredentialResponse(response) {
                         { agent_name: "QA Agent", status: "running" }
                     ],
                     delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "QA Agent", status: "completed" },
+                        { agent_name: "Reviewer Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Reviewer Agent", status: "completed" },
+                        { agent_name: "Documentation Agent", status: "running" }
+                    ],
+                    delay: 1500
                 }
             ];
 
             let activeStatuses = JSON.parse(JSON.stringify(initialStatuses));
+            const genStartTime = Date.now();
+            initExecutionDashboard(initialStatuses, genStartTime);
+
             function runSimulationStep() {
                 if (simIndex < simSteps.length) {
                     const step = simSteps[simIndex];
@@ -771,6 +790,8 @@ function handleCredentialResponse(response) {
                     });
                     updateModalAgentStatus(activeStatuses);
                     updateAgentStatusPanel(activeStatuses);
+                    updatePipelineVisualization(activeStatuses);
+                    updateExecutionDashboard(activeStatuses, genStartTime);
 
                     simIndex++;
                     simTimeout = setTimeout(runSimulationStep, step.delay);
@@ -810,10 +831,12 @@ function handleCredentialResponse(response) {
                 const projectObj = responseData.data || {};
                 console.log("[DreamXV] Project generation completed:", projectObj);
 
-                // Force all simulated statuses to completed
                 activeStatuses.forEach(s => s.status = "completed");
                 updateModalAgentStatus(activeStatuses);
                 updateAgentStatusPanel(activeStatuses);
+                updatePipelineVisualization(activeStatuses);
+                updateExecutionDashboard(activeStatuses, genStartTime);
+                finalizeExecutionDashboard(genStartTime);
 
                 // Add to local projects
                 const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
@@ -841,31 +864,56 @@ function handleCredentialResponse(response) {
                     const readyStatuses = initialStatuses.map(s => ({ ...s, status: "ready" }));
                     updateModalAgentStatus(readyStatuses);
                     updateAgentStatusPanel(readyStatuses);
+                    updatePipelineVisualization(readyStatuses);
                 }, 2000);
 
                 // Refresh project list
                 fetchAndRenderProjects();
 
             } catch (err) {
-                if (simTimeout) clearTimeout(simTimeout);
-                if (progressInterval) clearInterval(progressInterval);
-                if (progressIndicator) progressIndicator.style.width = "0%";
-                if (progressPercent) progressPercent.textContent = "0%";
-                console.error("[DreamXV] Generation failed:", err);
-                resetSubmitButton();
+                console.warn("[DreamXV] API fetch failed. Initiating client-side demo mode fallback.", err);
+                showToast("Server offline. Running in Demo Mode...", "info");
 
-                // Show error state on active running agents
-                activeStatuses.forEach(s => {
-                    if (s.status === "running") s.status = "error";
-                });
+                // Fast-forward simulation to completed
+                while (simIndex < simSteps.length) {
+                    const step = simSteps[simIndex];
+                    step.updates.forEach(up => {
+                        const existing = activeStatuses.find(s => s.agent_name === up.agent_name);
+                        if (existing) existing.status = "completed";
+                    });
+                    simIndex++;
+                }
                 updateModalAgentStatus(activeStatuses);
                 updateAgentStatusPanel(activeStatuses);
+                updatePipelineVisualization(activeStatuses);
+                updateExecutionDashboard(activeStatuses, genStartTime);
 
-                if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-                    showError("Cannot reach the backend server. Make sure the API is running and configured correctly.");
-                } else {
-                    showError(err.message || "Generation failed. Please try again.");
-                }
+                if (simTimeout) clearTimeout(simTimeout);
+                if (progressInterval) clearInterval(progressInterval);
+                updateProgressBar(100);
+
+                // Generate and save mock project
+                const projectObj = generateClientSideMockProject(prompt);
+                finalizeExecutionDashboard(genStartTime);
+
+                const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+                const localProjects = safeJsonParse(localProjectsStr) || [];
+                localProjects.push(projectObj);
+                safeStorage.setItem("dreamxv_projects", JSON.stringify(localProjects));
+
+                showToast("Project generation complete (Demo Mode)!", "success");
+
+                setTimeout(() => {
+                    if (modal) modal.classList.add("hidden");
+                    resetSubmitButton();
+
+                    const readyStatuses = initialStatuses.map(s => ({ ...s, status: "ready" }));
+                    updateModalAgentStatus(readyStatuses);
+                    updateAgentStatusPanel(readyStatuses);
+                    updatePipelineVisualization(readyStatuses);
+                }, 2000);
+
+                fetchAndRenderProjects();
             }
         });
     }
@@ -1200,6 +1248,127 @@ function showProjectDetails(projectId) {
         }
     }
 
+    // 5. Documentation Tab
+    const doc = project.documentation || {};
+    const elevatorPitchEl = document.querySelector("#details-elevator-pitch .doc-pitch-text");
+    if (elevatorPitchEl) elevatorPitchEl.textContent = doc.elevator_pitch || "No elevator pitch generated.";
+
+    const readmeEl = document.getElementById("details-readme");
+    if (readmeEl) readmeEl.textContent = doc.readme || "No README.md generated.";
+
+    const gddEl = document.getElementById("details-gdd");
+    if (gddEl) gddEl.textContent = doc.gdd || "No Game Design Document generated.";
+
+    const docFeaturesEl = document.getElementById("details-feature-list");
+    if (docFeaturesEl) {
+        docFeaturesEl.innerHTML = "";
+        const features = doc.feature_list || [];
+        if (features.length > 0) {
+            features.forEach(f => {
+                const li = document.createElement("li");
+                li.textContent = f;
+                docFeaturesEl.appendChild(li);
+            });
+        } else {
+            docFeaturesEl.innerHTML = "<li>No features listed.</li>";
+        }
+    }
+
+    const docMechanicsEl = document.getElementById("details-core-mechanics");
+    if (docMechanicsEl) {
+        docMechanicsEl.innerHTML = "";
+        const mechanics = doc.core_mechanics || [];
+        if (mechanics.length > 0) {
+            mechanics.forEach(m => {
+                const li = document.createElement("li");
+                li.textContent = m;
+                docMechanicsEl.appendChild(li);
+            });
+        } else {
+            docMechanicsEl.innerHTML = "<li>No core mechanics listed.</li>";
+        }
+    }
+
+    const docMonetizationEl = document.getElementById("details-monetization");
+    if (docMonetizationEl) {
+        docMonetizationEl.innerHTML = "";
+        const monetization = doc.monetization || [];
+        if (monetization.length > 0) {
+            monetization.forEach(m => {
+                const li = document.createElement("li");
+                li.textContent = m;
+                docMonetizationEl.appendChild(li);
+            });
+        } else {
+            docMonetizationEl.innerHTML = "<li>No monetization ideas listed.</li>";
+        }
+    }
+
+    const docExpansionEl = document.getElementById("details-future-expansion");
+    if (docExpansionEl) {
+        docExpansionEl.innerHTML = "";
+        const expansion = doc.future_expansion || [];
+        if (expansion.length > 0) {
+            expansion.forEach(e => {
+                const li = document.createElement("li");
+                li.textContent = e;
+                docExpansionEl.appendChild(li);
+            });
+        } else {
+            docExpansionEl.innerHTML = "<li>No future expansion ideas listed.</li>";
+        }
+    }
+
+    const docTechSummaryEl = document.getElementById("details-tech-summary");
+    if (docTechSummaryEl) docTechSummaryEl.textContent = doc.technical_summary || "No technical summary generated.";
+
+    // 6. Review Report Section
+    const review = project.review || {};
+    const reviewScoreEl = document.getElementById("details-review-score");
+    if (reviewScoreEl) reviewScoreEl.textContent = `SCORE: ${review.consistency_score != null ? review.consistency_score.toFixed(1) : "--"}/10`;
+
+    const reviewSummaryEl = document.getElementById("details-review-summary");
+    if (reviewSummaryEl) reviewSummaryEl.textContent = review.summary || "No review summary generated.";
+
+    const reviewIssuesEl = document.getElementById("details-review-issues");
+    if (reviewIssuesEl) {
+        reviewIssuesEl.innerHTML = "";
+        const issues = review.issues || [];
+        if (issues.length > 0) {
+            issues.forEach(issue => {
+                const card = document.createElement("div");
+                card.className = `review-issue-card severity-${issue.severity || 'warning'}`;
+                card.innerHTML = `
+                    <div class="review-issue-meta">
+                        <span class="review-issue-category">${escapeHtml((issue.category || 'general').toUpperCase())}</span>
+                        <span class="review-issue-severity">${escapeHtml((issue.severity || 'warning').toUpperCase())}</span>
+                    </div>
+                    <div class="review-issue-desc">${escapeHtml(issue.description)}</div>
+                    ${issue.suggested_fix ? `<div class="review-issue-fix"><strong>Suggested Fix:</strong> ${escapeHtml(issue.suggested_fix)}</div>` : ''}
+                    ${issue.references && issue.references.length > 0 ? `
+                        <div class="review-issue-refs">
+                            <strong>References:</strong>
+                            ${issue.references.map(ref => `<span class="ref-tag">${escapeHtml(ref)}</span>`).join("")}
+                        </div>
+                    ` : ''}
+                `;
+                reviewIssuesEl.appendChild(card);
+            });
+        } else {
+            reviewIssuesEl.innerHTML = "<div style='color: var(--earth-teal); font-size: 13px;'>No major discrepancies identified. Cohesion is optimal.</div>";
+        }
+    }
+
+    // Bind Export project button
+    const exportBtn = document.getElementById("export-project-btn");
+    if (exportBtn) {
+        const newBtn = exportBtn.cloneNode(true);
+        exportBtn.parentNode.replaceChild(newBtn, exportBtn);
+        newBtn.addEventListener("click", () => {
+            exportProjectToZip(project);
+        });
+    }
+
     const firstTabBtn = document.querySelector(".details-tabs button[data-tab='details-narrative']");
     if (firstTabBtn) firstTabBtn.click();
 
@@ -1408,3 +1577,224 @@ window.AIRouter = {
         };
     }
 };
+
+/* ==========================================
+   CLIENT-SIDE MOCK GENERATOR & ZIP EXPORTER
+========================================== */
+
+function generateClientSideMockProject(prompt) {
+    const isSciFi = /space|star|cyber|galaxy|robot|sci-fi|nano|laser|future|ship|planet/i.test(prompt);
+    
+    const title = isSciFi ? "Project Aethelgard: Echoes of Nebula" : "Dragon Rider: The Last Egg";
+    
+    const story = isSciFi ? {
+        lore: "In the Year 3042, humanity discovered the Aethelgard Beacon at the edge of the Andromeda galaxy. It sent a pulse that awakened ancient sentinel machinery across the system, threatening to purge all organic life.",
+        summary: "A sci-fi action RPG where a rogue salvage pilot must decode the ancient alien beacon before the Sentinel fleets activate completely.",
+        acts: [
+            "Act I: The Beacon Horizon - Rescue a stranded researcher near the ancient alien ruin.",
+            "Act II: The Sentinel Wastes - Infiltrate an active robot forge planet to steal the decryption codes.",
+            "Act III: System Overdrive - Race against time to overload the beacon's power core."
+        ],
+        themes: ["Artificial Sentience", "Entropy & Legacy", "Sacrifice"]
+    } : {
+        lore: "For a thousand years, the dragon riders kept the peace in Eldoria. But when the Shadow Syndicate destroyed the sanctuary, only one egg remained. Now, a lone rider must cross the obsidian wastes...",
+        summary: "An epic adventure game where you hatch, raise, and bond with the last remaining dragon to save the world.",
+        acts: [
+            "Act I: The Sanctuary Ruins - Discover the hidden egg and escape the Syndicate scouts.",
+            "Act II: The Obsidian Wastes - Train your hatchling while navigating perilous volcanic landscapes.",
+            "Act III: The Shadow Citadel - Confront the Syndicate leader and restore the dragon flight."
+        ],
+        themes: ["Bonding & Trust", "Sacrifice", "Rebirth"]
+    };
+
+    const characters = isSciFi ? [
+        {
+            name: "Jax Vance",
+            role: "Protagonist",
+            backstory: "A freelance salvage pilot with a mechanical arm and a habit of taking jobs he shouldn't.",
+            abilities: ["EMP Grapple", "Tech Overload"],
+            personality_traits: ["Sarcastic", "Resourceful", "Determined"]
+        },
+        {
+            name: "A.R.I.A.",
+            role: "AI Companion",
+            backstory: "An ancient alien interface sub-program discovered inside the beacon. Cryptic but helpful.",
+            abilities: ["Sentinel Hacking", "Energy Barrier"],
+            personality_traits: ["Logical", "Inquisitive", "Dry humor"]
+        }
+    ] : [
+        {
+            name: "Kaelen",
+            role: "Protagonist",
+            backstory: "A young apprentice rider who was in the orchards when the sanctuary fell. Impulsive but fiercely loyal.",
+            abilities: ["Dragon Tongue", "Acrobatic Traversal"],
+            personality_traits: ["Brave", "Stubborn", "Compassionate"]
+        },
+        {
+            name: "Ignis",
+            role: "Companion Dragon",
+            backstory: "The hatchling from the last egg. Shares an empathic bond with Kaelen.",
+            abilities: ["Fire Breath", "Thermal Glide"],
+            personality_traits: ["Playful", "Protective", "Curious"]
+        }
+    ];
+
+    const world = isSciFi ? {
+        name: "Aethelgard System",
+        description: "A neon-lit cyberpunk system surrounding a dying star, featuring floating shipyard stations and toxic industrial planets.",
+        atmosphere: "Industrial cyberpunk, bright neon signage against the deep black of space."
+    } : {
+        name: "Eldoria",
+        description: "A world of floating islands, elemental storms, and ancient ruins left by the dragon lords.",
+        atmosphere: "Mystical yet desolate, with high-contrast warm glow from dragon fire against cold obsidian ruins."
+    };
+
+    const gameplay = isSciFi ? {
+        core_loop: "Salvage resources from wreckage → Upgrade pilot abilities and companion ship → Infiltrate automated defense forts.",
+        mechanics: ["Zero-G grapple traversal", "Companion hacking mechanics", "Tactical starship dogfighting"],
+        progression_system: "Upgrade your pilot suits and A.R.I.A.'s hacking modules using salvaged technology cores.",
+        difficulty_curve: "Begins in quiet shipwrecks, transitioning to heavy anti-air turret grids and elite mechanical hunter-killers."
+    } : {
+        core_loop: "Explore ruins to find dragon treats/upgrades → Feed and train your dragon → Battle Syndicate aerial units in intense third-person combat.",
+        mechanics: ["Aerial flight maneuvers", "Dragon feeding & bonding system", "Runic spellcraft casting"],
+        progression_system: "Level up the dragon's elemental powers (fire, wind, stone) by completing challenges and finding hidden relics.",
+        difficulty_curve: "Starts with simple flight tutorials, scaling up as Syndicate interceptors are introduced, requiring advanced flight maneuvers."
+    };
+
+    const art = {
+        style_guide: isSciFi ? "High-contrast cyberpunk styling with vibrant cyan and magenta accents. Distressed metal surfaces and cinematic rain effects." : "Stylized realism with deep teals and warm embers. Highly detailed dragon scale textures and cinematic volumetric clouds.",
+        image_paths: [
+            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80"
+        ]
+    };
+
+    const qa = {
+        consistency_score: 9.4,
+        issues: isSciFi 
+            ? ["Ensure gravity boots controls map correctly between zero-G and standard gravity regions."]
+            : ["Ensure the dragon's traversal speed scales correctly between aerial and ground modes."],
+        suggestions: isSciFi
+            ? ["Add a visual UI indicator for hacking radius."]
+            : ["Consider adding a quick-save system before major flight battles."],
+        overall_assessment: "Extremely coherent game vision. Mechanics map perfectly to the lore and core themes of the prompt."
+    };
+
+    const documentation = {
+        elevator_pitch: isSciFi
+            ? "Decode an ancient alien beacon before Sentinel fleets purge all organic life in this neon-infused space adventure."
+            : "Hatch, train, and ride the last dragon to save a beautiful, shattered world from the Syndicate of Shadows.",
+        readme: `# ${title}\n\nGenerated by DreamXV AI Studio — Demo Mode.\n\n## Overview\nThis repository holds the game concept files for **${title}**.\n\n- **Prompt**: "${prompt}"\n- **Platform**: PC & Consoles`,
+        gdd: `## Game Design Document\n\n### Title: ${title}\n\n### 1. Executive Summary\n- **Core Concept**: Exploration, upgrading, and companion-based progression.\n- **Tone**: ${isSciFi ? 'Dark / High-tech' : 'Epic / Mystical'}`,
+        feature_list: isSciFi
+            ? ["Procedural salvage wrecks", "Dynamic companion AI hacking", "Neon-retro visual filter option"]
+            : ["Realistic dragon bonding simulator", "Aerial aerial combat with tactical evasion", "Floating island exploration"],
+        core_mechanics: isSciFi
+            ? ["Grapple hook physics", "Alien cipher hacking", "Vessel shield management"]
+            : ["Bonding/feeding system", "Elemental breath attacks", "Evasive barrel rolls"],
+        monetization: ["Premium game model", "Cosmetic ship blueprints DLC"],
+        future_expansion: isSciFi
+            ? ["New Planet: Ocean World Cyber-City", "Procedural survival salvage expansion"]
+            : ["Co-op multiplayer raid mode", "New region: The Frozen Archipelagos"],
+        technical_summary: isSciFi
+            ? "Built in Unreal Engine 5 utilizing Nanite for ship wrecks, custom particle systems for laser fire, and client-side database storage."
+            : "Built in Unreal Engine 5 using Niagara particles for fire/clouds. Utilizes custom flocking AI for enemy fighter squadrons."
+    };
+
+    const review = {
+        consistency_score: 9.6,
+        summary: "Excellent cohesion between narrative constraints and interactive systems.",
+        issues: isSciFi ? [
+            {
+                category: "gameplay",
+                description: "Jax's salvage ship has jump drives but Act I says player is stranded in sector 4.",
+                severity: "warning",
+                suggested_fix: "Specify in Act I that the jump core is damaged.",
+                references: ["Gameplay: Core Loop", "Story: Act I"]
+            }
+        ] : [
+            {
+                category: "gameplay",
+                description: "Dragon flight speed is high but story mentions narrow tunnels in Act II which might cause collision issues.",
+                severity: "warning",
+                suggested_fix: "Add a slow-glide mode specifically for cave exploration.",
+                references: ["Gameplay: Core Loop", "Story: Act II"]
+            }
+        ]
+    };
+
+    return {
+        project_id: "dxv_" + Math.random().toString(36).substring(2, 11),
+        title: title,
+        created_at: new Date().toISOString(),
+        status: "completed",
+        story: story,
+        characters: characters,
+        world: world,
+        gameplay: gameplay,
+        art: art,
+        qa: qa,
+        review: review,
+        documentation: documentation
+    };
+}
+
+async function exportProjectToZip(project) {
+    if (!window.JSZip) {
+        showToast("ZIP library not loaded. Please try again.", "error");
+        return;
+    }
+    
+    showToast("Preparing export...", "info");
+    
+    const zip = new JSZip();
+    
+    const designFolder = zip.folder("GameDesign");
+    const docsFolder = zip.folder("Documentation");
+    
+    let gddMd = `# Game Design Document: ${project.title || 'Untitled Project'}\n\n`;
+    gddMd += `## Elevator Pitch\n${project.documentation?.elevator_pitch || 'N/A'}\n\n`;
+    gddMd += `## Story & Narrative\n${project.story?.lore || project.story?.summary || 'N/A'}\n\n`;
+    gddMd += `### Acts/Chapters\n`;
+    if (project.story?.acts && project.story.acts.length > 0) {
+        project.story.acts.forEach((act, idx) => {
+            gddMd += `${idx + 1}. ${act}\n`;
+        });
+    } else {
+        gddMd += `N/A\n`;
+    }
+    gddMd += `\n## World-Building\n${project.world?.description || 'N/A'}\n`;
+    gddMd += `*Atmosphere*: ${project.world?.atmosphere || 'N/A'}\n\n`;
+    gddMd += `## Gameplay & Mechanics\n`;
+    gddMd += `### Core Loop\n${project.gameplay?.core_loop || 'N/A'}\n\n`;
+    gddMd += `### Mechanics\n`;
+    if (project.gameplay?.mechanics && project.gameplay.mechanics.length > 0) {
+        project.gameplay.mechanics.forEach(m => gddMd += `- ${m}\n`);
+    } else {
+        gddMd += `N/A\n`;
+    }
+    gddMd += `\n### Progression System\n${project.gameplay?.progression_system || 'N/A'}\n\n`;
+    
+    designFolder.file("GameDesignDocument.md", gddMd);
+    
+    docsFolder.file("README.md", project.documentation?.readme || `# ${project.title || 'Untitled Project'}\n\nGenerated by DreamXV AI Studio.`);
+    
+    zip.file("project_manifest.json", JSON.stringify(project, null, 4));
+    
+    docsFolder.file("TechnicalSummary.md", `# Technical Architecture\n\n${project.documentation?.technical_summary || 'N/A'}`);
+    
+    try {
+        const content = await zip.generateAsync({ type: "blob" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(content);
+        link.download = `${(project.title || "project").toLowerCase().replace(/[^a-z0-9]/g, "_")}_design_kit.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast("Project exported successfully!", "success");
+    } catch (err) {
+        console.error("ZIP Generation failed:", err);
+        showToast("Failed to generate export ZIP.", "error");
+    }
+}

@@ -512,6 +512,62 @@
                                     <span class="agent-role font-code">QA Agent</span>
                                     <span class="status-badge status-ready">Ready</span>
                                 </div>
+                                <div class="agent-status-item">
+                                    <span class="agent-role font-code">Reviewer Agent</span>
+                                    <span class="status-badge status-ready">Ready</span>
+                                </div>
+                                <div class="agent-status-item">
+                                    <span class="agent-role font-code">Documentation Agent</span>
+                                    <span class="status-badge status-ready">Ready</span>
+                                </div>
+                            </div>
+                            <!-- AI Provider Info -->
+                            <div class="ai-provider-info">
+                                <div class="provider-row"><span class="provider-label">PRIMARY</span><span class="provider-name">Featherless AI</span></div>
+                                <div class="provider-row"><span class="provider-label">FALLBACK</span><span class="provider-name provider-fallback">AIMLAPI</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Execution Dashboard -->
+                        <div class="dashboard-panel-card execution-dashboard" id="execution-dashboard">
+                            <h3 class="dashboard-section-title">Execution Dashboard</h3>
+                            <div id="exec-dashboard-content">
+                                <div class="exec-idle-state">
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: rgba(240,232,208,0.3);">
+                                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                    <p style="color: rgba(240,232,208,0.4); font-size: 13px; margin-top: 8px;">Awaiting project generation...</p>
+                                </div>
+                            </div>
+                            <div id="exec-total-time" class="exec-total-time" style="display:none;">
+                                <span class="font-code" style="color: var(--earth-teal); font-size: 11px; letter-spacing: 0.1em;">TOTAL TIME</span>
+                                <span id="exec-total-time-value" class="font-code" style="color: var(--lunar-gold); font-size: 18px; font-weight: 600;">0.0s</span>
+                            </div>
+                        </div>
+
+                        <!-- Agent Pipeline Visualization -->
+                        <div class="dashboard-panel-card" id="agent-pipeline-panel">
+                            <h3 class="dashboard-section-title">Agent Pipeline</h3>
+                            <div class="pipeline-visualization" id="pipeline-viz">
+                                <div class="pipeline-node pipeline-chief" data-agent="Chief Agent">
+                                    <div class="pipeline-node-dot"></div>
+                                    <span>Chief</span>
+                                </div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-parallel-group">
+                                    <div class="pipeline-node" data-agent="Story Agent"><div class="pipeline-node-dot"></div><span>Story</span></div>
+                                    <div class="pipeline-node" data-agent="Character Agent"><div class="pipeline-node-dot"></div><span>Char</span></div>
+                                    <div class="pipeline-node" data-agent="World Agent"><div class="pipeline-node-dot"></div><span>World</span></div>
+                                    <div class="pipeline-node" data-agent="Gameplay Agent"><div class="pipeline-node-dot"></div><span>Game</span></div>
+                                </div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Art Agent"><div class="pipeline-node-dot"></div><span>Art</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="QA Agent"><div class="pipeline-node-dot"></div><span>QA</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Reviewer Agent"><div class="pipeline-node-dot"></div><span>Review</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Documentation Agent"><div class="pipeline-node-dot"></div><span>Docs</span></div>
                             </div>
                         </div>
 
@@ -689,11 +745,12 @@
                 style="padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 100%;">
                 <!-- Tabs Navigation -->
                 <div class="details-tabs"
-                    style="display: flex; background: rgba(12, 26, 46, 0.8); border-bottom: 1px solid rgba(26, 48, 72, 0.4); padding: 0 var(--space-4); flex-shrink: 0;">
+                    style="display: flex; background: rgba(12, 26, 46, 0.8); border-bottom: 1px solid rgba(26, 48, 72, 0.4); padding: 0 var(--space-4); flex-shrink: 0; overflow-x: auto;">
                     <button class="tab-btn active" data-tab="details-narrative">Narrative</button>
                     <button class="tab-btn" data-tab="details-characters">Characters</button>
                     <button class="tab-btn" data-tab="details-gameplay">Gameplay & World</button>
                     <button class="tab-btn" data-tab="details-art">Visuals & QA</button>
+                    <button class="tab-btn" data-tab="details-documentation">Documentation</button>
                 </div>
 
                 <!-- Tab contents -->
@@ -847,9 +904,77 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Tab: Documentation -->
+                    <div id="details-documentation" class="tab-content hidden">
+                        <div class="doc-section">
+                            <div class="doc-elevator-pitch" id="details-elevator-pitch">
+                                <span class="doc-section-label">ELEVATOR PITCH</span>
+                                <p class="doc-pitch-text"></p>
+                            </div>
+                        </div>
+
+                        <div class="doc-section">
+                            <span class="doc-section-label">README.md</span>
+                            <div class="doc-code-block" id="details-readme"></div>
+                        </div>
+
+                        <div class="doc-section">
+                            <span class="doc-section-label">GAME DESIGN DOCUMENT</span>
+                            <div class="doc-code-block" id="details-gdd"></div>
+                        </div>
+
+                        <div class="doc-grid">
+                            <div class="doc-section">
+                                <span class="doc-section-label">FEATURES</span>
+                                <ul class="doc-list" id="details-feature-list"></ul>
+                            </div>
+                            <div class="doc-section">
+                                <span class="doc-section-label">CORE MECHANICS</span>
+                                <ul class="doc-list" id="details-core-mechanics"></ul>
+                            </div>
+                        </div>
+
+                        <div class="doc-grid">
+                            <div class="doc-section">
+                                <span class="doc-section-label">MONETIZATION IDEAS</span>
+                                <ul class="doc-list doc-list-amber" id="details-monetization"></ul>
+                            </div>
+                            <div class="doc-section">
+                                <span class="doc-section-label">FUTURE EXPANSION</span>
+                                <ul class="doc-list doc-list-teal" id="details-future-expansion"></ul>
+                            </div>
+                        </div>
+
+                        <div class="doc-section">
+                            <span class="doc-section-label">TECHNICAL SUMMARY</span>
+                            <div class="doc-code-block doc-tech-summary" id="details-tech-summary"></div>
+                        </div>
+
+                        <!-- Review Report -->
+                        <div class="review-report-section">
+                            <div class="review-report-header">
+                                <h4>Consistency Review Report</h4>
+                                <span class="review-score-badge" id="details-review-score">SCORE: --</span>
+                            </div>
+                            <p class="review-summary" id="details-review-summary"></p>
+                            <div class="review-issues-list" id="details-review-issues"></div>
+                        </div>
+                    </div>
+
+                    <!-- Export Button -->
+                    <div class="export-bar">
+                        <button class="btn btn-primary export-project-btn" id="export-project-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            EXPORT PROJECT
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- Global Error Boundary UI Overlay -->
@@ -874,6 +999,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="script.js"></script>
 
 </body>
