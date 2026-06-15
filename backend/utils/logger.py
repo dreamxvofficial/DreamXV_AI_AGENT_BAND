@@ -10,6 +10,7 @@ logger.add(
     colorize=False,
     backtrace=False,
     diagnose=False,
+    enqueue=False
 )
 
 def get_logger(name="dreamxv"):

@@ -74,16 +74,6 @@ class Settings(BaseSettings):
         description="Band SDK base URL",
     )
 
-    # --- Google OAuth Credentials ---
-    google_client_id: str = Field(
-        default="",
-        description="Google Client ID",
-    )
-    google_client_secret: str = Field(
-        default="",
-        description="Google Client Secret",
-    )
-
     # --- Application Paths ---
     project_root: Path = _PROJECT_ROOT
     outputs_dir: Path = _PROJECT_ROOT / "outputs"

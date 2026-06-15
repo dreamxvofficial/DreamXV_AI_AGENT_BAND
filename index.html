@@ -13,8 +13,7 @@
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- Google Identity Services SDK -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Local Authentication Only -->
 </head>
 
 <body>
@@ -207,9 +206,8 @@
                 </div>
             </footer>
         </div>
-
         <!-- ==========================================
-           GOOGLE AUTHENTICATION VIEW
+           LOCAL AUTHENTICATION VIEW (SIGNUP / LOGIN)
         ========================================== -->
         <div id="auth-view" class="view-panel hidden">
             <div class="auth-container">
@@ -218,48 +216,51 @@
                     <h2>Access DreamXV Studio</h2>
                     <p class="auth-subtitle">Born at 15. Built for Infinity.</p>
 
-                    <!-- Real Google Sign-In Button Target -->
-                    <div id="google-signin-btn"
-                        style="margin-bottom: var(--space-4); width: 100%; display: flex; justify-content: center;">
+                    <!-- Auth Tabs -->
+                    <div class="auth-tabs" style="display: flex; gap: var(--space-4); margin-bottom: var(--space-4); border-bottom: 1px solid rgba(26,48,72,0.3); padding-bottom: 8px;">
+                        <button id="tab-login-btn" class="auth-tab-btn active" style="flex: 1; background: none; border: none; color: var(--lunar-gold); font-family: var(--font-code); font-size: 14px; cursor: pointer; padding: var(--space-2) 0; border-bottom: 2px solid var(--lunar-gold);">LOGIN</button>
+                        <button id="tab-signup-btn" class="auth-tab-btn" style="flex: 1; background: none; border: none; color: rgba(240, 232, 208, 0.4); font-family: var(--font-code); font-size: 14px; cursor: pointer; padding: var(--space-2) 0; border-bottom: 2px solid transparent;">SIGN UP</button>
                     </div>
 
-                    <!-- Fallback Test Account Trigger -->
-                    <button id="show-test-accounts-btn" class="btn btn-secondary"
-                        style="width: 100%; padding: 10px; font-size: 13px; margin-bottom: var(--space-4);">Use Test /
-                        Mock Account</button>
+                    <!-- Login Form -->
+                    <form id="login-form">
+                        <div style="margin-bottom: var(--space-4); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">USERNAME OR GMAIL</label>
+                            <input type="text" id="login-username" placeholder="Username or email" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
+                        </div>
+                        <div style="margin-bottom: var(--space-6); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">PASSWORD</label>
+                            <input type="password" id="login-password" placeholder="Enter password" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">LOGIN</button>
+                    </form>
 
-                    <!-- Account Chooser (Mock Google OAuth Modal) -->
-                    <div id="account-chooser" class="hidden">
-                        <div class="chooser-header">
-                            <span class="chooser-title">Choose an account</span>
-                            <span class="chooser-domain">to continue to DreamXV Studio</span>
+                    <!-- Signup Form -->
+                    <form id="signup-form" class="hidden">
+                        <div style="margin-bottom: var(--space-3); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">FULL NAME</label>
+                            <input type="text" id="signup-name" placeholder="Full name" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
                         </div>
-                        <div class="account-list">
-                            <div class="account-item" data-email="sahir.dev@gmail.com" data-name="Sahir"
-                                data-pic="https://api.dicebear.com/7.x/initials/svg?seed=Sahir&backgroundColor=c47d1a&textColor=0c1a2e">
-                                <div class="avatar-wrap">S</div>
-                                <div class="account-info">
-                                    <span class="account-name">Sahir</span>
-                                    <span class="account-email">sahir.dev@gmail.com</span>
-                                </div>
-                            </div>
-                            <div class="account-item" data-email="guest.builder@gmail.com" data-name="Guest Builder"
-                                data-pic="https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=1b8a7a&textColor=0c1a2e">
-                                <div class="avatar-wrap">G</div>
-                                <div class="account-info">
-                                    <span class="account-name">Guest Builder</span>
-                                    <span class="account-email">guest.builder@gmail.com</span>
-                                </div>
-                            </div>
+                        <div style="margin-bottom: var(--space-3); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">USERNAME</label>
+                            <input type="text" id="signup-username" placeholder="Choose a username" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
                         </div>
-                        <div class="custom-account-btn" id="toggle-custom-auth-btn">Use another account</div>
-                        <div id="custom-account-form" class="hidden">
-                            <input type="text" id="custom-name" placeholder="Full Name" required>
-                            <input type="email" id="custom-email" placeholder="Email Address" required>
-                            <button id="custom-signin-submit" class="btn btn-primary"
-                                style="padding: 10px 20px; width: 100%;">Continue</button>
+                        <div style="margin-bottom: var(--space-3); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">GMAIL</label>
+                            <input type="email" id="signup-email" placeholder="email@gmail.com" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
                         </div>
-                    </div>
+                        <div style="margin-bottom: var(--space-3); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">PASSWORD</label>
+                            <input type="password" id="signup-password" placeholder="Create password" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
+                        </div>
+                        <div style="margin-bottom: var(--space-5); text-align: left;">
+                            <label style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">CONFIRM PASSWORD</label>
+                            <input type="password" id="signup-confirm" placeholder="Confirm password" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">CREATE ACCOUNT</button>
+                    </form>
+
+                    <div id="auth-error-box" style="display: none; color: #f87171; font-size: 13px; margin-top: var(--space-4); background: rgba(248,113,113,0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(248,113,113,0.2);"></div>
                 </div>
             </div>
         </div>
@@ -269,10 +270,10 @@
         ========================================== -->
         <div id="onboarding-view" class="view-panel hidden">
             <div class="onboarding-container">
-                <!-- Step 0: Welcome greeting (Cinematic text) -->
+                <!-- Step 0: Welcome greeting -->
                 <div id="onboard-welcome" class="onboard-step active">
                     <div class="cinematic-text-wrapper">
-                        <h2 class="fade-line" id="onboard-greet">Welcome, Sahir.</h2>
+                        <h2 class="fade-line" id="onboard-greet">Welcome.</h2>
                         <p class="fade-line delay-1">Every great creation begins with a dream.</p>
                         <p class="fade-line delay-2">Welcome to Dream XV.</p>
                     </div>
@@ -290,75 +291,51 @@
 
                     <!-- Q1 -->
                     <div class="quiz-question active" data-step="1">
-                        <h3>What would you like to build today?</h3>
-                        <div class="quiz-options">
-                            <label class="quiz-option"><input type="radio" name="q1" value="AI Game"><span>AI
-                                    Game</span></label>
-                            <label class="quiz-option"><input type="radio" name="q1" value="AI App"><span>AI
-                                    App</span></label>
-                            <label class="quiz-option"><input type="radio" name="q1" value="AI Agent System"><span>AI
-                                    Agent System</span></label>
-                            <label class="quiz-option"><input type="radio" name="q1"
-                                    value="Creative Project"><span>Creative Project</span></label>
-                            <label class="quiz-option"><input type="radio" name="q1"
-                                    value="Something Else"><span>Something Else</span></label>
+                        <h3>What should DreamXV call you?</h3>
+                        <div style="margin-top: var(--space-6);">
+                            <input type="text" id="onboard-nickname" placeholder="Enter your name or nickname..." style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 8px; padding: 14px 18px; color: var(--starlight); font-size: 16px; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--lunar-gold)'" onblur="this.style.borderColor='rgba(26,48,72,0.8)'">
                         </div>
                     </div>
 
                     <!-- Q2 -->
                     <div class="quiz-question hidden" data-step="2">
-                        <h3>What is your primary role?</h3>
+                        <h3>Creator Type</h3>
                         <div class="quiz-options">
-                            <label class="quiz-option"><input type="radio" name="q2"
-                                    value="Developer"><span>Developer</span></label>
-                            <label class="quiz-option"><input type="radio" name="q2"
-                                    value="Designer"><span>Designer</span></label>
-                            <label class="quiz-option"><input type="radio" name="q2"
-                                    value="Creator"><span>Creator</span></label>
-                            <label class="quiz-option"><input type="radio" name="q2"
-                                    value="Entrepreneur"><span>Entrepreneur</span></label>
-                            <label class="quiz-option"><input type="radio" name="q2"
-                                    value="Student"><span>Student</span></label>
+                            <label class="quiz-option"><input type="radio" name="creator_type" value="Game Developer"><span>Game Developer</span></label>
+                            <label class="quiz-option"><input type="radio" name="creator_type" value="Student"><span>Student</span></label>
+                            <label class="quiz-option"><input type="radio" name="creator_type" value="Artist"><span>Artist</span></label>
+                            <label class="quiz-option"><input type="radio" name="creator_type" value="Entrepreneur"><span>Entrepreneur</span></label>
                         </div>
                     </div>
 
                     <!-- Q3 -->
                     <div class="quiz-question hidden" data-step="3">
-                        <h3>What type of experience do you prefer?</h3>
-                        <div class="quiz-options">
-                            <label class="quiz-option"><input type="radio" name="q3"
-                                    value="Beginner"><span>Beginner</span></label>
-                            <label class="quiz-option"><input type="radio" name="q3"
-                                    value="Intermediate"><span>Intermediate</span></label>
-                            <label class="quiz-option"><input type="radio" name="q3"
-                                    value="Advanced"><span>Advanced</span></label>
+                        <h3>Favorite Genres</h3>
+                        <div class="quiz-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <label class="quiz-option"><input type="checkbox" name="genres" value="RPG"><span>RPG</span></label>
+                            <label class="quiz-option"><input type="checkbox" name="genres" value="Action"><span>Action</span></label>
+                            <label class="quiz-option"><input type="checkbox" name="genres" value="Adventure"><span>Adventure</span></label>
+                            <label class="quiz-option"><input type="checkbox" name="genres" value="Strategy"><span>Strategy</span></label>
+                            <label class="quiz-option"><input type="checkbox" name="genres" value="Sci-Fi"><span>Sci-Fi</span></label>
+                            <label class="quiz-option"><input type="checkbox" name="genres" value="Fantasy"><span>Fantasy</span></label>
                         </div>
                     </div>
 
                     <!-- Q4 -->
                     <div class="quiz-question hidden" data-step="4">
-                        <h3>What inspires you most?</h3>
-                        <div class="quiz-options">
-                            <label class="quiz-option"><input type="radio" name="q4"
-                                    value="Games"><span>Games</span></label>
-                            <label class="quiz-option"><input type="radio" name="q4"
-                                    value="Artificial Intelligence"><span>Artificial Intelligence</span></label>
-                            <label class="quiz-option"><input type="radio" name="q4"
-                                    value="Space"><span>Space</span></label>
-                            <label class="quiz-option"><input type="radio" name="q4"
-                                    value="Creativity"><span>Creativity</span></label>
-                            <label class="quiz-option"><input type="radio" name="q4"
-                                    value="Technology"><span>Technology</span></label>
+                        <h3>Dream Project</h3>
+                        <div style="margin-top: var(--space-6);">
+                            <textarea id="onboard-dream-project" placeholder="Describe your ultimate dream game or system..." style="width: 100%; min-height: 120px; background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 8px; padding: 14px 18px; color: var(--starlight); font-size: 15px; line-height: 1.6; resize: vertical; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--lunar-gold)'" onblur="this.style.borderColor='rgba(26,48,72,0.8)'"></textarea>
                         </div>
                     </div>
 
                     <div class="quiz-nav">
                         <button id="prev-question-btn" class="btn btn-secondary hidden">BACK</button>
-                        <button id="next-question-btn" class="btn btn-primary" disabled>NEXT</button>
+                        <button id="next-question-btn" class="btn btn-primary">NEXT</button>
                     </div>
                 </div>
             </div>
-        </div>
+        </div></div>
 
         <!-- ==========================================
            DASHBOARD VIEW
@@ -674,7 +651,10 @@
                 <button class="modal-close" id="close-create-project-btn">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: var(--space-6); color: rgba(240, 232, 208, 0.7);">Describe the game or creative
+                <div style="margin-bottom: var(--space-4); display: flex; justify-content: center;">
+                    <img src="assets/logo/logo.jpg" alt="Dream XV Logo" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--lunar-gold); box-shadow: 0 0 15px var(--lunar-gold);">
+                </div>
+                <p style="margin-bottom: var(--space-6); color: rgba(240, 232, 208, 0.7); text-align: center;">Describe the game or creative
                     project you want to build. Our AI agents will collaborate to generate story, characters, world,
                     gameplay, and art.</p>
 

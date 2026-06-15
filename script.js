@@ -47,10 +47,7 @@ function safeJsonParse(str) {
 ========================================== */
 
 function loadCorrectVideo() {
-    const isMobile = window.innerWidth <= 768;
-    const newSource = isMobile
-        ? "/videos/DreamXV Intro Video_Mobile.mp4"
-        : "/videos/DreamXV Intro Video_Desktop.mp4";
+    const newSource = "/videos/DreamXV Intro Video_Desktop.mp4";
 
     if (video && video.src && decodeURIComponent(video.src).includes(newSource)) {
         return;
@@ -203,10 +200,10 @@ function initApp() {
 
     const handleLaunch = (e) => {
         if (e) e.preventDefault();
-        const user = safeStorage.getItem("dreamxv_user");
+        const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
         const onboarded = safeStorage.getItem("dreamxv_onboarded");
 
-        if (user && onboarded) {
+        if (user && onboarded === "true") {
             showView("dashboard-view");
             initDashboard();
         } else if (user) {
@@ -219,55 +216,135 @@ function initApp() {
     if (launchBtn) launchBtn.addEventListener("click", handleLaunch);
     launchTriggers.forEach(btn => btn.addEventListener("click", handleLaunch));
 
-    // 2. Google OAuth & Mock Fallback Flow
-    const showTestBtn = document.getElementById("show-test-accounts-btn");
-    const accountChooser = document.getElementById("account-chooser");
-    const toggleCustomBtn = document.getElementById("toggle-custom-auth-btn");
-    const customForm = document.getElementById("custom-account-form");
-    const customSubmitBtn = document.getElementById("custom-signin-submit");
+    // 2. Tab switching & Local Auth handling
+    const tabLoginBtn = document.getElementById("tab-login-btn");
+    const tabSignupBtn = document.getElementById("tab-signup-btn");
+    const loginForm = document.getElementById("login-form");
+    const signupForm = document.getElementById("signup-form");
+    const authErrorBox = document.getElementById("auth-error-box");
 
-    if (showTestBtn) {
-        showTestBtn.addEventListener("click", () => {
-            accountChooser.classList.toggle("hidden");
+    if (tabLoginBtn && tabSignupBtn && loginForm && signupForm) {
+        tabLoginBtn.addEventListener("click", () => {
+            tabLoginBtn.classList.add("active");
+            tabLoginBtn.style.color = "var(--lunar-gold)";
+            tabLoginBtn.style.borderBottomColor = "var(--lunar-gold)";
+            tabSignupBtn.classList.remove("active");
+            tabSignupBtn.style.color = "rgba(240, 232, 208, 0.4)";
+            tabSignupBtn.style.borderBottomColor = "transparent";
+            loginForm.classList.remove("hidden");
+            signupForm.classList.add("hidden");
+            if (authErrorBox) authErrorBox.style.display = "none";
+        });
+
+        tabSignupBtn.addEventListener("click", () => {
+            tabSignupBtn.classList.add("active");
+            tabSignupBtn.style.color = "var(--lunar-gold)";
+            tabSignupBtn.style.borderBottomColor = "var(--lunar-gold)";
+            tabLoginBtn.classList.remove("active");
+            tabLoginBtn.style.color = "rgba(240, 232, 208, 0.4)";
+            tabLoginBtn.style.borderBottomColor = "transparent";
+            signupForm.classList.remove("hidden");
+            loginForm.classList.add("hidden");
+            if (authErrorBox) authErrorBox.style.display = "none";
         });
     }
 
-    if (toggleCustomBtn) {
-        toggleCustomBtn.addEventListener("click", () => {
-            customForm.classList.toggle("hidden");
-        });
-    }
+    const showAuthError = (msg) => {
+        if (authErrorBox) {
+            authErrorBox.textContent = msg;
+            authErrorBox.style.display = "block";
+        }
+    };
 
-    // Handle Mock Account Selection
-    const accountItems = document.querySelectorAll(".account-item");
-    accountItems.forEach(item => {
-        item.addEventListener("click", () => {
-            const name = item.getAttribute("data-name");
-            const email = item.getAttribute("data-email");
-            const avatar = item.getAttribute("data-pic");
-            window.saveUserSession(name, email, avatar);
-        });
-    });
-
-    // Handle Custom Account Form Submission
-    if (customSubmitBtn) {
-        customSubmitBtn.addEventListener("click", (e) => {
+    if (signupForm) {
+        signupForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const nameInput = document.getElementById("custom-name");
-            const emailInput = document.getElementById("custom-email");
+            if (authErrorBox) authErrorBox.style.display = "none";
 
-            if (nameInput.value && emailInput.value) {
-                const seedName = encodeURIComponent(nameInput.value.trim());
-                const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${seedName}&backgroundColor=c47d1a&textColor=0c1a2e`;
-                window.saveUserSession(nameInput.value.trim(), emailInput.value.trim(), avatar);
-            } else {
-                alert("Please fill in both Name and Email.");
+            const name = document.getElementById("signup-name").value.trim();
+            const username = document.getElementById("signup-username").value.trim();
+            const email = document.getElementById("signup-email").value.trim();
+            const password = document.getElementById("signup-password").value;
+            const confirm = document.getElementById("signup-confirm").value;
+
+            if (password !== confirm) {
+                showAuthError("Passwords do not match.");
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/auth/signup", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, username, email, password })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    showAuthError(data.error || "Signup failed.");
+                    return;
+                }
+                showToast("Account created successfully!", "success");
+                
+                const userObj = {
+                    name: data.user.name,
+                    username: data.user.username,
+                    email: data.user.email,
+                    created: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                };
+                safeStorage.setItem("dreamxv_user", JSON.stringify(userObj));
+                safeStorage.setItem("dreamxv_onboarded", "false");
+                startOnboarding();
+            } catch (err) {
+                console.error("Signup error:", err);
+                showAuthError("Failed to reach server. Please try again.");
             }
         });
     }
 
-    // Initialize real Google Auth
-    initGoogleAuth();
+    if (loginForm) {
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (authErrorBox) authErrorBox.style.display = "none";
+
+            const usernameOrEmail = document.getElementById("login-username").value.trim();
+            const password = document.getElementById("login-password").value;
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username_or_email: usernameOrEmail, password })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    showAuthError(data.error || "Invalid credentials.");
+                    return;
+                }
+                
+                const userObj = {
+                    name: data.user.name,
+                    username: data.user.username,
+                    email: data.user.email,
+                    created: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                };
+                safeStorage.setItem("dreamxv_user", JSON.stringify(userObj));
+                
+                if (data.user.onboarded) {
+                    safeStorage.setItem("dreamxv_onboarded", "true");
+                    safeStorage.setItem("dreamxv_onboarding_data", JSON.stringify(data.user.onboarding_answers));
+                    showView("dashboard-view");
+                    initDashboard();
+                } else {
+                    safeStorage.setItem("dreamxv_onboarded", "false");
+                    startOnboarding();
+                }
+                showToast(`Welcome back, ${data.user.name}!`, "success");
+            } catch (err) {
+                console.error("Login error:", err);
+                showAuthError("Failed to reach server. Please try again.");
+            }
+        });
+    }
 
     // 3. Onboarding Quiz Interaction
     const onboardWelcomeBtn = document.getElementById("start-onboard-btn");
@@ -278,7 +355,12 @@ function initApp() {
 
     let currentStep = 1;
     const totalSteps = 4;
-    const quizAnswers = {};
+    const quizAnswers = {
+        q1: "",
+        q2: "",
+        q3: [],
+        q4: ""
+    };
 
     if (onboardWelcomeBtn) {
         onboardWelcomeBtn.addEventListener("click", () => {
@@ -301,30 +383,100 @@ function initApp() {
         updateQuizUI();
     }
 
-    // Enable Next button when choices are made
-    const quizContainers = document.querySelectorAll(".quiz-question");
-    quizContainers.forEach(q => {
-        // Handle radio buttons
-        const radios = q.querySelectorAll('input[type="radio"]');
-        radios.forEach(radio => {
-            radio.addEventListener("change", () => {
-                quizAnswers[`q${currentStep}`] = radio.value;
-                if (nextBtn) nextBtn.disabled = false;
-            });
+    const nicknameInput = document.getElementById("onboard-nickname");
+    if (nicknameInput) {
+        nicknameInput.addEventListener("input", () => {
+            quizAnswers.q1 = nicknameInput.value.trim();
+            validateCurrentStep();
         });
+    }
+
+    document.addEventListener("change", (e) => {
+        if (e.target && e.target.name === "creator_type") {
+            quizAnswers.q2 = e.target.value;
+            validateCurrentStep();
+        }
     });
 
+    document.addEventListener("change", (e) => {
+        if (e.target && e.target.name === "genres") {
+            const checkboxes = document.querySelectorAll('input[name="genres"]:checked');
+            quizAnswers.q3 = Array.from(checkboxes).map(cb => cb.value);
+            validateCurrentStep();
+        }
+    });
+
+    const dreamProjectInput = document.getElementById("onboard-dream-project");
+    if (dreamProjectInput) {
+        dreamProjectInput.addEventListener("input", () => {
+            quizAnswers.q4 = dreamProjectInput.value.trim();
+            validateCurrentStep();
+        });
+    }
+
+    function validateCurrentStep() {
+        if (!nextBtn) return;
+        let valid = false;
+        if (currentStep === 1) {
+            valid = quizAnswers.q1.length > 0;
+        } else if (currentStep === 2) {
+            valid = quizAnswers.q2.length > 0;
+        } else if (currentStep === 3) {
+            valid = quizAnswers.q3.length > 0;
+        } else if (currentStep === 4) {
+            valid = quizAnswers.q4.length > 0;
+        }
+        nextBtn.disabled = !valid;
+    }
+
     if (nextBtn) {
-        nextBtn.addEventListener("click", () => {
+        nextBtn.addEventListener("click", async () => {
             if (currentStep < totalSteps) {
                 currentStep++;
                 updateQuizUI();
             } else {
-                // Save onboarding choices and complete
-                safeStorage.setItem("dreamxv_onboarding_data", JSON.stringify(quizAnswers));
-                safeStorage.setItem("dreamxv_onboarded", "true");
-                showView("dashboard-view");
-                initDashboard();
+                const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
+                if (!user) return;
+
+                try {
+                    const res = await fetch("/api/auth/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            username: user.username,
+                            name: quizAnswers.q1,
+                            creator_type: quizAnswers.q2,
+                            favorite_genres: quizAnswers.q3,
+                            dream_project: quizAnswers.q4
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        user.name = quizAnswers.q1;
+                        safeStorage.setItem("dreamxv_user", JSON.stringify(user));
+                        safeStorage.setItem("dreamxv_onboarding_data", JSON.stringify(data.user.onboarding_answers));
+                        safeStorage.setItem("dreamxv_onboarded", "true");
+                        showView("dashboard-view");
+                        initDashboard();
+                        showToast("Onboarding complete!", "success");
+                    } else {
+                        showToast("Onboarding failed to sync with server, saving locally.", "warning");
+                        user.name = quizAnswers.q1;
+                        safeStorage.setItem("dreamxv_user", JSON.stringify(user));
+                        safeStorage.setItem("dreamxv_onboarding_data", JSON.stringify(quizAnswers));
+                        safeStorage.setItem("dreamxv_onboarded", "true");
+                        showView("dashboard-view");
+                        initDashboard();
+                    }
+                } catch (err) {
+                    console.error("Onboarding sync failed:", err);
+                    user.name = quizAnswers.q1;
+                    safeStorage.setItem("dreamxv_user", JSON.stringify(user));
+                    safeStorage.setItem("dreamxv_onboarding_data", JSON.stringify(quizAnswers));
+                    safeStorage.setItem("dreamxv_onboarded", "true");
+                    showView("dashboard-view");
+                    initDashboard();
+                }
             }
         });
     }
@@ -339,7 +491,7 @@ function initApp() {
     }
 
     function updateQuizUI() {
-        // Toggle questions
+        const quizContainers = document.querySelectorAll(".quiz-question");
         quizContainers.forEach(q => {
             const stepNum = parseInt(q.getAttribute("data-step"));
             if (stepNum === currentStep) {
@@ -351,7 +503,6 @@ function initApp() {
             }
         });
 
-        // Toggle back button
         if (prevBtn) {
             if (currentStep === 1) {
                 prevBtn.classList.add("hidden");
@@ -360,7 +511,6 @@ function initApp() {
             }
         }
 
-        // Change Next button text at final step
         if (nextBtn) {
             if (currentStep === totalSteps) {
                 nextBtn.textContent = "FINISH";
@@ -369,34 +519,13 @@ function initApp() {
             }
         }
 
-        // Update progress indicators
         const stepIndicator = document.getElementById("progress-step-indicator");
         const progressBar = document.getElementById("onboard-progress-bar");
         if (stepIndicator) stepIndicator.textContent = `Question ${currentStep} of ${totalSteps}`;
         if (progressBar) progressBar.style.width = `${(currentStep / totalSteps) * 100}%`;
 
-        // Check if current step has an answer saved to enable/disable Next button
-        if (nextBtn) {
-            const currentAnswer = quizAnswers[`q${currentStep}`];
-            if (currentAnswer && (Array.isArray(currentAnswer) ? currentAnswer.length > 0 : true)) {
-                nextBtn.disabled = false;
-            } else {
-                nextBtn.disabled = true;
-            }
-        }
+        validateCurrentStep();
     }
-
-    // Save User Session helper (Exposed globally for Google Sign-In Callback)
-    window.saveUserSession = function (name, email, avatar) {
-        const user = {
-            name: name,
-            email: email,
-            avatar: avatar,
-            created: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-        };
-        safeStorage.setItem("dreamxv_user", JSON.stringify(user));
-        startOnboarding();
-    };
 
     // 4. Dashboard Controls
     const profileTrigger = document.getElementById("profile-trigger");
@@ -415,19 +544,22 @@ function initApp() {
     }
 
     if (logoutBtn) {
-        logoutBtn.addEventListener("click", (e) => {
+        logoutBtn.addEventListener("click", async (e) => {
             e.preventDefault();
+            try {
+                await fetch("/api/auth/logout", { method: "POST" });
+            } catch (err) {}
             safeStorage.removeItem("dreamxv_user");
             safeStorage.removeItem("dreamxv_onboarded");
             safeStorage.removeItem("dreamxv_onboarding_data");
             showView("landing-view");
+            showToast("Logged out successfully.", "info");
         });
     }
 
-    // Initial Dashboard call if user is already logged in
-    const user = safeStorage.getItem("dreamxv_user");
-    const onboarded = safeStorage.getItem("dreamxv_onboarded");
-    if (user && onboarded) {
+    const userObj = safeStorage.getItem("dreamxv_user");
+    const onboardedObj = safeStorage.getItem("dreamxv_onboarded");
+    if (userObj && onboardedObj === "true") {
         initDashboard();
     }
 }
@@ -468,15 +600,9 @@ function initDashboard() {
     if (dropEmail) dropEmail.textContent = user.email || "";
     if (dropCreated) dropCreated.textContent = `Created ${user.created || "Recently"}`;
 
-    // Get time-based greeting
-    const hour = new Date().getHours();
-    let greetTime = "Evening";
-    if (hour < 12) {
-        greetTime = "Morning";
-    } else if (hour < 18) {
-        greetTime = "Afternoon";
-    }
-    if (dbGreeting) dbGreeting.textContent = `Good ${greetTime}, ${user.name || "Dreamer"}`;
+    // Welcome greeting with first name
+    const firstName = (user.name || "Dreamer").split(" ")[0];
+    if (dbGreeting) dbGreeting.textContent = `Welcome, ${firstName}`;
 
     // Fetch projects from backend
     fetchAndRenderProjects();
@@ -1446,10 +1572,17 @@ function formatDate(dateStr) {
 })();
 
 /* ==========================================
-   SETTINGS ACTION CARD
+   ATLAS ACTION CARD
 ========================================== */
 
-// Settings action card removed
+(function initAtlasCard() {
+    const atlasCard = document.getElementById("action-atlas");
+    if (atlasCard) {
+        atlasCard.addEventListener("click", () => {
+            showToast("DreamXV Atlas: Explore worlds, ideas, lore, and inspiration. Coming Soon.", "info");
+        });
+    }
+})();
 
 /* ==========================================
    TOAST NOTIFICATIONS
@@ -1797,4 +1930,90 @@ async function exportProjectToZip(project) {
         console.error("ZIP Generation failed:", err);
         showToast("Failed to generate export ZIP.", "error");
     }
+}
+
+/* ==========================================
+   EXECUTION DASHBOARD & PIPELINE VISUALIZATION
+========================================== */
+
+function initExecutionDashboard(agents, startTime) {
+    const container = document.getElementById("exec-dashboard-content");
+    const totalTimeDiv = document.getElementById("exec-total-time");
+    if (!container) return;
+
+    if (totalTimeDiv) totalTimeDiv.style.display = "none";
+    
+    container.innerHTML = `
+        <div class="exec-status-header" style="display: flex; justify-content: space-between; font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); margin-bottom: var(--space-2); border-bottom: 1px solid rgba(26,48,72,0.3); padding-bottom: var(--space-2);">
+            <span>AGENT</span>
+            <span>STATUS</span>
+        </div>
+        <div id="exec-dashboard-rows" style="display: flex; flex-direction: column; gap: var(--space-2);">
+            ${agents.map(a => `
+                <div class="exec-dashboard-row" data-agent-row="${a.agent_name}" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <span style="color: var(--starlight); font-family: var(--font-code);">${a.agent_name}</span>
+                    <span class="exec-agent-time font-code" style="color: rgba(240, 232, 208, 0.3);">Queued</span>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
+
+function updateExecutionDashboard(agents, startTime) {
+    const container = document.getElementById("exec-dashboard-rows");
+    if (!container) return;
+
+    const now = Date.now();
+    const elapsedTotal = ((now - startTime) / 1000).toFixed(1);
+    
+    agents.forEach(a => {
+        const row = container.querySelector(`[data-agent-row="${a.agent_name}"]`);
+        if (row) {
+            const timeVal = row.querySelector(".exec-agent-time");
+            if (timeVal) {
+                if (a.status === "running") {
+                    timeVal.textContent = "Running...";
+                    timeVal.style.color = "var(--earth-teal)";
+                } else if (a.status === "completed") {
+                    timeVal.textContent = "Completed";
+                    timeVal.style.color = "var(--starlight)";
+                } else if (a.status === "error") {
+                    timeVal.textContent = "Error";
+                    timeVal.style.color = "#f87171";
+                } else {
+                    timeVal.textContent = "Queued";
+                    timeVal.style.color = "rgba(240, 232, 208, 0.3)";
+                }
+            }
+        }
+    });
+
+    const totalTimeVal = document.getElementById("exec-total-time-value");
+    if (totalTimeVal) totalTimeVal.textContent = `${elapsedTotal}s`;
+}
+
+function finalizeExecutionDashboard(startTime) {
+    const totalTimeDiv = document.getElementById("exec-total-time");
+    if (totalTimeDiv) totalTimeDiv.style.display = "flex";
+    
+    const now = Date.now();
+    const elapsedTotal = ((now - startTime) / 1000).toFixed(1);
+    const totalTimeVal = document.getElementById("exec-total-time-value");
+    if (totalTimeVal) totalTimeVal.textContent = `${elapsedTotal}s`;
+}
+
+function updatePipelineVisualization(agents) {
+    agents.forEach(a => {
+        const node = document.querySelector(`.pipeline-node[data-agent="${a.agent_name}"]`);
+        if (node) {
+            node.classList.remove("active", "completed", "error");
+            if (a.status === "running") {
+                node.classList.add("active");
+            } else if (a.status === "completed") {
+                node.classList.add("completed");
+            } else if (a.status === "error") {
+                node.classList.add("error");
+            }
+        }
+    });
 }

@@ -26,3 +26,6 @@ band-sdk[pydantic-ai]>=0.1.0
 
 # --- WebSocket ---
 websockets>=13.0
+
+# --- Hashing & Security ---
+bcrypt>=4.0.0
