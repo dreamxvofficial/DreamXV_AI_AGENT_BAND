@@ -44,6 +44,8 @@ class CharacterAgent:
         Returns:
             List of CharacterOutput instances.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("Character Agent starting character creation...")
 
         room.add_participant(AGENT_NAME)

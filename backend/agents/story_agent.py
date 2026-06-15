@@ -44,6 +44,8 @@ class StoryAgent:
         Returns:
             StoryOutput with title, lore, summary, acts, and themes.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("Story Agent starting narrative generation...")
 
         room.add_participant(AGENT_NAME)

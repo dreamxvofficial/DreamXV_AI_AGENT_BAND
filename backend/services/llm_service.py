@@ -381,16 +381,10 @@ class LLMService:
                 )
                 return result
             except Exception as fallback_exc:
-                logger.warning(
-                    f"Both primary and fallback LLM services failed: {fallback_exc}. "
-                    f"Generating mock text fallback."
+                logger.error(
+                    f"Both primary and fallback LLM services failed: {fallback_exc}."
                 )
-                user_prompt = ""
-                for msg in reversed(messages):
-                    if msg.get("role") == "user":
-                        user_prompt = msg.get("content", "")
-                        break
-                return f"[MOCK FALLBACK] Processed prompt: '{user_prompt}'."
+                raise fallback_exc
 
     async def generate_structured(
         self,
@@ -434,16 +428,10 @@ class LLMService:
                 )
                 return result
             except Exception as fallback_exc:
-                logger.warning(
-                    f"Both primary and fallback LLM services failed: {fallback_exc}. "
-                    f"Generating mock fallback data for model {response_model.__name__}."
+                logger.error(
+                    f"Both primary and fallback LLM services failed: {fallback_exc}."
                 )
-                user_prompt = ""
-                for msg in reversed(messages):
-                    if msg.get("role") == "user":
-                        user_prompt = msg.get("content", "")
-                        break
-                return generate_mock_data_for_model(response_model, user_prompt)
+                raise fallback_exc
 
     async def close(self) -> None:
         """Shut down both provider clients."""

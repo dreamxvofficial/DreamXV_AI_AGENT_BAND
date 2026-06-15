@@ -59,6 +59,8 @@ class ArtAgent:
         Returns:
             ArtOutput with prompts, image paths, and style guide.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("ART_AGENT_START")
         logger.info("Art Agent starting visual production...")
 

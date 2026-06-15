@@ -47,6 +47,8 @@ class DocumentationAgent:
         Returns:
             DocumentationOutput with all documentation sections.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("Documentation Agent starting documentation generation...")
 
         room.add_participant(AGENT_NAME)

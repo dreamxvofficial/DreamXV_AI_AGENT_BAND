@@ -44,6 +44,8 @@ class WorldAgent:
         Returns:
             WorldOutput with name, description, regions, lore, and atmosphere.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("World Agent starting world creation...")
 
         room.add_participant(AGENT_NAME)

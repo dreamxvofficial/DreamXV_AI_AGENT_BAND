@@ -44,6 +44,8 @@ class GameplayAgent:
         Returns:
             GameplayOutput with core loop, mechanics, progression, and difficulty.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("Gameplay Agent starting systems design...")
 
         room.add_participant(AGENT_NAME)

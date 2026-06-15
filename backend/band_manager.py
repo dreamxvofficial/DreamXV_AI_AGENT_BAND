@@ -125,18 +125,8 @@ class BandManager:
         except Exception as e:
             error_message = str(e)
             logger.error(f"Chief Agent failed or timed out: {error_message}")
-            self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED, f"Completed with warning: {error_message}")
-            from backend.models.output_models import ChiefTaskBreakdown
-            breakdown = ChiefTaskBreakdown(
-                story_directive=f"Create a game story based on: {user_prompt}",
-                character_directive=f"Generate characters for: {user_prompt}",
-                world_directive=f"Build the world setting for: {user_prompt}",
-                gameplay_directive=f"Design gameplay mechanics for: {user_prompt}",
-                art_directive=f"Define visual direction and style for: {user_prompt}",
-                qa_directive=f"Assess consistency and quality for: {user_prompt}",
-                genre="Role-Playing Game",
-                tone="Epic"
-            )
+            self._update_status(project_id, "Chief Agent", AgentStatus.ERROR, error_message)
+            raise e
 
         # ── Phase 2: Parallel Specialist Agents ─────────────────────────
         async def run_story():
@@ -153,15 +143,8 @@ class BandManager:
                 return result
             except Exception as e:
                 logger.error(f"Story Agent failed or timed out: {e}")
-                self._update_status(project_id, "Story Agent", AgentStatus.COMPLETED, f"Completed with warning: {e}")
-                from backend.models.output_models import StoryOutput
-                return StoryOutput(
-                    title="Untitled Project",
-                    lore="Lore design sync completed with warning.",
-                    summary=user_prompt,
-                    acts=["Act I: Arrival", "Act II: Exploration", "Act III: Resolution"],
-                    themes=["Adventure"]
-                )
+                self._update_status(project_id, "Story Agent", AgentStatus.ERROR, str(e))
+                raise e
 
         async def run_characters():
             self._update_status(project_id, "Character Agent", AgentStatus.RUNNING)
@@ -177,17 +160,8 @@ class BandManager:
                 return result
             except Exception as e:
                 logger.error(f"Character Agent failed or timed out: {e}")
-                self._update_status(project_id, "Character Agent", AgentStatus.COMPLETED, f"Completed with warning: {e}")
-                from backend.models.output_models import CharacterOutput
-                return [
-                    CharacterOutput(
-                        name="Hero",
-                        role="Protagonist",
-                        backstory="A brave explorer on a mysterious quest.",
-                        abilities=["Agility", "Adaptability"],
-                        personality_traits=["Determined", "Curious"]
-                    )
-                ]
+                self._update_status(project_id, "Character Agent", AgentStatus.ERROR, str(e))
+                raise e
 
         async def run_world():
             self._update_status(project_id, "World Agent", AgentStatus.RUNNING)
@@ -203,15 +177,8 @@ class BandManager:
                 return result
             except Exception as e:
                 logger.error(f"World Agent failed or timed out: {e}")
-                self._update_status(project_id, "World Agent", AgentStatus.COMPLETED, f"Completed with warning: {e}")
-                from backend.models.output_models import WorldOutput
-                return WorldOutput(
-                    name="Mysterious Realms",
-                    description="A vast world filled with ancient wonders.",
-                    regions=["The Wildlands", "The Citadel"],
-                    lore_elements=["Ancient relics"],
-                    atmosphere="Mysterious"
-                )
+                self._update_status(project_id, "World Agent", AgentStatus.ERROR, str(e))
+                raise e
 
         async def run_gameplay():
             self._update_status(project_id, "Gameplay Agent", AgentStatus.RUNNING)
@@ -227,14 +194,8 @@ class BandManager:
                 return result
             except Exception as e:
                 logger.error(f"Gameplay Agent failed or timed out: {e}")
-                self._update_status(project_id, "Gameplay Agent", AgentStatus.COMPLETED, f"Completed with warning: {e}")
-                from backend.models.output_models import GameplayOutput
-                return GameplayOutput(
-                    core_loop="Explore → Gather Resources → Level Up",
-                    mechanics=["Real-time combat", "Skill tree upgrades"],
-                    progression_system="Experience points progression",
-                    difficulty_curve="Standard dynamic curve"
-                )
+                self._update_status(project_id, "Gameplay Agent", AgentStatus.ERROR, str(e))
+                raise e
 
         # Run parallel specialists
         story, characters, world, gameplay = await asyncio.gather(
@@ -259,13 +220,8 @@ class BandManager:
         except Exception as e:
             error_message = str(e)
             logger.error(f"Art Agent failed or timed out: {error_message}")
-            self._update_status(project_id, "Art Agent", AgentStatus.COMPLETED, f"Completed with warning: {error_message}")
-            from backend.models.output_models import ArtOutput
-            art = ArtOutput(
-                prompts=[f"A beautiful artistic scenery of {breakdown.genre}"],
-                image_paths=["https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"],
-                style_guide=f"Visual direction: {breakdown.tone} style"
-            )
+            self._update_status(project_id, "Art Agent", AgentStatus.ERROR, error_message)
+            raise e
 
         # ── Phase 4: QA Agent (reviews everything) ─────────────────────
         self._update_status(project_id, "QA Agent", AgentStatus.RUNNING)
@@ -275,14 +231,8 @@ class BandManager:
         except Exception as e:
             error_message = str(e)
             logger.error(f"QA Agent failed or timed out: {error_message}")
-            self._update_status(project_id, "QA Agent", AgentStatus.COMPLETED, f"Completed with warning: {error_message}")
-            from backend.models.output_models import QAOutput
-            qa = QAOutput(
-                consistency_score=8.8,
-                issues=["Review timed out. Verify spatial mappings manually."],
-                suggestions=["Implement more checkpoints."],
-                overall_assessment="Cohesion is optimal, pending manual validation."
-            )
+            self._update_status(project_id, "QA Agent", AgentStatus.ERROR, error_message)
+            raise e
 
         # ── Phase 5: Reviewer Agent (cross-agent consistency) ──────────
         self._update_status(project_id, "Reviewer Agent", AgentStatus.RUNNING)
@@ -293,21 +243,8 @@ class BandManager:
         except Exception as e:
             error_message = str(e)
             logger.error(f"Reviewer Agent failed or timed out: {error_message}")
-            self._update_status(project_id, "Reviewer Agent", AgentStatus.COMPLETED, f"Completed with warning: {error_message}")
-            from backend.models.output_models import ReviewerOutput, ReviewIssue
-            review = ReviewerOutput(
-                consistency_score=9.0,
-                issues=[
-                    ReviewIssue(
-                        category="general",
-                        description="Review execution exceeded 60s timeout.",
-                        severity="info",
-                        suggested_fix="Increase computing limits if available.",
-                        references=["System Execution limit"]
-                    )
-                ],
-                summary="Review completed with warning. Systems are generally cohesive."
-            )
+            self._update_status(project_id, "Reviewer Agent", AgentStatus.ERROR, error_message)
+            raise e
 
         # ── Phase 6: Documentation Agent (generates docs) ─────────────
         self._update_status(project_id, "Documentation Agent", AgentStatus.RUNNING)
@@ -328,18 +265,8 @@ class BandManager:
         except Exception as e:
             error_message = str(e)
             logger.error(f"Documentation Agent failed or timed out: {error_message}")
-            self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED, f"Completed with warning: {error_message}")
-            from backend.models.output_models import DocumentationOutput
-            documentation = DocumentationOutput(
-                elevator_pitch=f"A gorgeous new {breakdown.genre} project set in a custom {breakdown.tone} universe.",
-                readme=f"# {project_title}\n\nGenerated by DreamXV AI Studio.\n\n- **Genre**: {breakdown.genre}\n- **Tone**: {breakdown.tone}",
-                gdd="## Game Design Document\n\n### Executive Summary\nConcept finalized and saved with pipeline warnings.",
-                feature_list=["Dynamic multi-agent creation", "Premium layout integration"],
-                core_mechanics=["Interactive dialogs", "Zero-G traversal systems"],
-                monetization=["Premium single-player campaign"],
-                future_expansion=["Level editors DLC"],
-                technical_summary="Built using standard serverless APIs and modular agent framework."
-            )
+            self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, error_message)
+            raise e
 
         # ── Assemble Final Output ──────────────────────────────────────
         project = ProjectOutput(

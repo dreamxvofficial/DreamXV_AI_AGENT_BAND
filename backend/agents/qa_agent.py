@@ -40,6 +40,8 @@ class QAAgent:
         Returns:
             QAOutput with consistency score, issues, suggestions, and assessment.
         """
+        prompt = directive
+        logger.info(f"Agent received: {prompt}")
         logger.info("QA Agent starting quality review...")
 
         room.add_participant(AGENT_NAME)

@@ -43,6 +43,8 @@ class ChiefAgent:
         Returns:
             ChiefTaskBreakdown with directives for each specialist agent.
         """
+        prompt = user_prompt
+        logger.info(f"Agent received: {prompt}")
         logger.info(f"Chief Agent analyzing prompt: {user_prompt[:100]}...")
 
         # Join the room and announce
