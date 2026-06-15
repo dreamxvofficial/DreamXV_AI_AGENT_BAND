@@ -28,7 +28,7 @@ class AIMLService:
         self._client = AsyncOpenAI(
             api_key=settings.aiml_api_key,
             base_url=settings.aiml_base_url,
-            timeout=120.0,
+            timeout=180.0,
         )
         self._default_model = settings.aiml_model
         self._default_temperature = settings.default_temperature
@@ -61,7 +61,7 @@ class AIMLService:
             messages=messages,
             temperature=temperature or self._default_temperature,
             max_tokens=max_tokens or self._default_max_tokens,
-            timeout=120.0,
+            timeout=180.0,
         )
 
         content = response.choices[0].message.content or ""

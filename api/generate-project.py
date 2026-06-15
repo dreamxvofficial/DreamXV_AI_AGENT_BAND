@@ -109,6 +109,15 @@ async def general_exception_handler(request: Request, exc: Exception):
         }
     )
 
+# Reuse global BandManager instance to cache model clients and reuse HTTP sessions
+_global_manager = None
+
+def get_manager() -> BandManager:
+    global _global_manager
+    if _global_manager is None:
+        _global_manager = BandManager()
+    return _global_manager
+
 @app.post("/api/generate-project")
 @app.post("/")
 async def generate_project(request: GenerateProjectRequest):
@@ -125,8 +134,8 @@ async def generate_project(request: GenerateProjectRequest):
                     "error": err_msg
                 }
 
-        # Initialize BandManager and execute the pipeline synchronously
-        manager = BandManager()
+        # Retrieve singleton BandManager
+        manager = get_manager()
         
         project = await manager.generate_project(request.prompt, request.user_id)
         

@@ -136,6 +136,7 @@ async def signup(req: SignupRequest):
         
         return {
             "success": True,
+            "message": "Account created successfully",
             "user": {
                 "name": req.name,
                 "username": req.username,
@@ -166,10 +167,10 @@ async def login(req: LoginRequest):
                 break
                 
         if not target_user:
-            return {"success": False, "error": "Invalid username or email."}
+            return {"success": False, "error": "User not found"}
             
         if not verify_password(req.password, target_user.get("password_hash", "")):
-            return {"success": False, "error": "Invalid password."}
+            return {"success": False, "error": "Incorrect password"}
             
         return {
             "success": True,

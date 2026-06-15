@@ -642,6 +642,7 @@ if (closeTermsBtn && termsModal) {
 
 let googleAuthRetries = 0;
 async function initGoogleAuth() {
+    return; // Temporarily disabled Google login
     if (typeof google === "undefined" || typeof google.accounts === "undefined") {
         if (googleAuthRetries < 10) {
             googleAuthRetries++;
@@ -711,7 +712,7 @@ function handleCredentialResponse(response) {
    CREATE PROJECT MODAL
 ========================================== */
 
-(function initCreateProjectModal() {
+document.addEventListener("DOMContentLoaded", () => {
     const modal = document.getElementById("create-project-modal");
     const promptInput = document.getElementById("project-prompt-input");
     const charCount = document.getElementById("prompt-char-count");
@@ -1037,7 +1038,7 @@ function handleCredentialResponse(response) {
             }
         });
     }
-})();
+});
 
 /* ==========================================
    AGENT STATUS PANEL UPDATES
