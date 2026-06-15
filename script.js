@@ -940,21 +940,34 @@ function handleCredentialResponse(response) {
                 if (progressInterval) clearInterval(progressInterval);
                 updateProgressBar(100);
 
+                const responseText = await response.text();
+                console.log(responseText);
+
                 if (!response.ok) {
                     let errMsg = "";
                     try {
-                        const errData = await response.json();
+                        const errData = JSON.parse(responseText);
                         errMsg = errData.error || errData.detail;
                     } catch (_) {
                         errMsg = `Server error: ${response.status}`;
                     }
                     throw new Error(errMsg || `Server error: ${response.status}`);
                 }
-                const responseData = await response.json();
-                if (!responseData.success) {
-                    throw new Error(responseData.error || "Generation failed.");
+                
+                const data = JSON.parse(responseText);
+                if (!data.success) {
+                    console.error(data);
+                    showToast(data.error || "Generation failed", "error");
+                    
+                    // Reset UI/button state as done in catch block
+                    resetSubmitButton();
+                    const readyStatuses = initialStatuses.map(s => ({ ...s, status: "ready" }));
+                    updateModalAgentStatus(readyStatuses);
+                    updateAgentStatusPanel(readyStatuses);
+                    updatePipelineVisualization(readyStatuses);
+                    return;
                 }
-                const projectObj = responseData.data || {};
+                const projectObj = data.data || {};
                 console.log("[DreamXV] Project generation completed:", projectObj);
 
                 activeStatuses.forEach(s => s.status = "completed");

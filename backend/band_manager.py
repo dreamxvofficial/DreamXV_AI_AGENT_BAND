@@ -24,7 +24,7 @@ from backend.agents.qa_agent import QAAgent
 from backend.agents.reviewer_agent import ReviewerAgent
 from backend.agents.documentation_agent import DocumentationAgent
 
-from backend.models.output_models import ProjectOutput
+from backend.models.output_models import ProjectOutput, DocumentationOutput
 from backend.models.schemas import AgentStatus
 
 from backend.services.llm_service import LLMService
@@ -247,6 +247,7 @@ class BandManager:
             raise e
 
         # ── Phase 6: Documentation Agent (generates docs) ─────────────
+        logger.info("Starting Documentation Agent")
         self._update_status(project_id, "Documentation Agent", AgentStatus.RUNNING)
         documentation = None
         try:
@@ -261,12 +262,12 @@ class BandManager:
                 ),
                 timeout=60.0
             )
+            logger.info("Documentation Agent completed")
             self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)
         except Exception as e:
-            error_message = str(e)
-            logger.error(f"Documentation Agent failed or timed out: {error_message}")
-            self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, error_message)
-            raise e
+            logger.exception(e)
+            documentation = DocumentationOutput()
+            self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, str(e))
 
         # ── Assemble Final Output ──────────────────────────────────────
         project = ProjectOutput(
