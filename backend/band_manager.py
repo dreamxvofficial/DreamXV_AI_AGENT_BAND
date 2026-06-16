@@ -401,6 +401,11 @@ class BandManager:
                 prompt=prompt,
                 project_json=project_json
             )
+            
+            # Start background async image generation!
+            logger.info(f"[{project.project_id}] Launching background art generation task...")
+            asyncio.create_task(self.generate_project_images_async(project.project_id, project))
+            
         except Exception as e:
             logger.warning(f"Failed to save project to Supabase: {e}")
 
@@ -473,6 +478,156 @@ class BandManager:
                 seen_ids.add(p["project_id"])
 
         return projects_list
+
+    async def generate_project_images_async(self, project_id: str, project: ProjectOutput) -> None:
+        """Asynchronously generate 6 AI images for the project in the background."""
+        logger.info(f"[{project_id}] Starting async background art generation...")
+        
+        from backend.services.supabase_service import SupabaseService
+        db = SupabaseService()
+        
+        # Update status to generating
+        db.update_project_art_status(project_id, "generating", 0, 6)
+        
+        # Ask the LLM to generate exactly 6 highly creative art prompts based on the project concept
+        try:
+            from backend.models.output_models import ImagePromptsList
+            
+            story_desc = project.story.summary if project.story else ""
+            world_desc = project.world.description if project.world else ""
+            characters_desc = "\n".join([f"- {c.name} ({c.role}): {c.visual_description or c.backstory}" for c in project.characters])
+            gameplay_desc = project.gameplay.core_loop if project.gameplay else ""
+            
+            concept_details = (
+                f"Game Title: {project.title}\n"
+                f"Narrative Summary: {story_desc}\n"
+                f"World Setting: {world_desc}\n"
+                f"Character Roster:\n{characters_desc}\n"
+                f"Gameplay Core Loop: {gameplay_desc}\n"
+            )
+            
+            system_prompt = (
+                "You are the Lead Art Director at DreamXV AI Studio. Your task is to generate exactly 6 distinct, "
+                "cinematic image generation prompts for FLUX. The prompts must cover these 5 specific visual categories "
+                "to form a cohesive art concept guide:\n"
+                "1. environments/terrains (e.g. landscapes, town views)\n"
+                "2. important characters (highly detailed visual descriptors)\n"
+                "3. key story scenes (dramatic story moments, action, interactions)\n"
+                "4. world landmarks (structures, statues, notable geographical objects)\n"
+                "5. gameplay moments (first-person action, UI representations, active play)\n"
+                "Generate exactly 6 prompts in total, making sure each prompt specifies mood, composition, lighting, "
+                "and visual style matching the game's tone. Ensure the prompts are returned in a structured format."
+            )
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Game Concept Details:\n{concept_details}"}
+            ]
+            
+            prompts_list_output = await self._llm.generate_structured(
+                messages,
+                ImagePromptsList,
+                temperature=0.8
+            )
+            prompts = prompts_list_output.prompts
+            logger.info(f"[{project_id}] LLM generated {len(prompts)} dynamic image prompts.")
+        except Exception as e:
+            logger.error(f"[{project_id}] Failed to generate dynamic art prompts from LLM: {e}. Falling back to default prompts.")
+            from backend.models.output_models import ImagePromptItem
+            prompts = [
+                ImagePromptItem(prompt=f"Cinematic environment terrain shot of {project.title}, epic landscapes, highly detailed 8k", category="environment"),
+                ImagePromptItem(prompt=f"Detailed character portrait matching the theme of {project.title}, cinematic lighting", category="character"),
+                ImagePromptItem(prompt=f"Dramatic key story scene from the world of {project.title}, atmospheric lighting, photorealistic", category="scene"),
+                ImagePromptItem(prompt=f"Fascinating world landmark structure from the lore of {project.title}, concept art", category="landmark"),
+                ImagePromptItem(prompt=f"Gameplay action sequence depicting {project.title} core loop, dynamic camera angle", category="gameplay"),
+                ImagePromptItem(prompt=f"Cinematic cover scene for {project.title}, high detail graphic design style", category="scene")
+            ]
+            
+        prompts = prompts[:6]
+        while len(prompts) < 6:
+            prompts.append(prompts[0])
+            
+        generated_count = 0
+        image_urls = []
+        
+        for idx, item in enumerate(prompts):
+            image_url = ""
+            logger.info(f"[{project_id}] Generating image {idx+1}/6 (category: {item.category})...")
+            
+            # Retry loop: 3 attempts
+            for attempt in range(1, 4):
+                try:
+                    res_path = await self._image_service.generate_image(
+                        item.prompt,
+                        project_id=project_id,
+                        image_type=item.category,
+                        filename=f"image_{idx+1}.png"
+                    )
+                    
+                    if res_path:
+                        if not res_path.startswith("data:image/"):
+                            from pathlib import Path
+                            import base64
+                            img_path = Path(res_path)
+                            if img_path.exists():
+                                img_bytes = img_path.read_bytes()
+                                img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                                image_url = f"data:image/png;base64,{img_b64}"
+                                try:
+                                    img_path.unlink()
+                                except Exception:
+                                    pass
+                            else:
+                                image_url = res_path
+                        else:
+                            image_url = res_path
+                            
+                        logger.info(f"[{project_id}] Image {idx+1}/6 generated successfully on attempt {attempt}.")
+                        break
+                except Exception as img_exc:
+                    logger.warning(f"[{project_id}] Image {idx+1}/6 attempt {attempt} failed: {img_exc}")
+                    if attempt < 3:
+                        await asyncio.sleep(1.0 * attempt)
+                    else:
+                        logger.error(f"[{project_id}] Image {idx+1}/6 failed completely after 3 attempts.")
+            
+            if image_url:
+                db.save_project_image(
+                    project_id=project_id,
+                    image_url=image_url,
+                    prompt=item.prompt,
+                    category=item.category
+                )
+                generated_count += 1
+                image_urls.append(image_url)
+                db.update_project_art_status(project_id, "generating", generated_count, 6)
+                
+        status = "completed" if generated_count > 0 else "failed"
+        db.update_project_art_status(project_id, status, generated_count, 6)
+        logger.info(f"[{project_id}] Async art generation complete. Status: {status} ({generated_count}/6).")
+        
+        # Update the project_json manifest
+        try:
+            project_record = db.get_project(project_id)
+            if project_record:
+                project_json = project_record.get("project_json", {})
+                if isinstance(project_json, dict):
+                    if "art" not in project_json or not project_json["art"]:
+                        project_json["art"] = {}
+                    project_json["art"]["image_paths"] = image_urls
+                    project_json["images"] = image_urls
+                    project_json["art"]["prompts"] = [item.prompt for item in prompts]
+                    
+                    db.save_project(
+                        project_id=project_id,
+                        user_id=project_record.get("user_id"),
+                        title=project_record.get("title", project.title),
+                        prompt=project_record.get("prompt", ""),
+                        project_json=project_json
+                    )
+                    logger.info(f"[{project_id}] Project JSON manifest updated with generated image URLs.")
+        except Exception as e:
+            logger.error(f"[{project_id}] Failed to update project JSON with new images: {e}")
 
     async def close(self) -> None:
         """Shut down all services."""

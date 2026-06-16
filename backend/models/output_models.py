@@ -110,6 +110,17 @@ class ArtOutput(BaseModel):
     )
 
 
+class ImagePromptItem(BaseModel):
+    """A single dynamically generated prompt for AI Art."""
+    prompt: str = Field(..., description="Cinematic image prompt including composition, lighting, subject, and style detail.")
+    category: str = Field(..., description="Category: character, environment, scene, landmark, or gameplay.")
+
+
+class ImagePromptsList(BaseModel):
+    """List of exactly 6 dynamically generated art prompts."""
+    prompts: list[ImagePromptItem] = Field(..., description="Exactly 6 image prompts representing different aspects of the project.")
+
+
 # ─── QA Agent ──────────────────────────────────────────────────────────────
 class QAOutput(BaseModel):
     """Quality assurance output produced by the QA Agent."""
@@ -244,3 +255,28 @@ class ProjectOutput(BaseModel):
     review: Optional[ReviewerOutput] = None
     documentation: Optional[DocumentationOutput] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ─── Atlas Agent ─────────────────────────────────────────────────────────────
+class AtlasPhase(BaseModel):
+    """A single roadmap phase containing a name and a list of tasks."""
+    name: str = Field(..., description="Phase name (e.g., Phase 1: Project Setup)")
+    tasks: list[str] = Field(..., description="Tasks associated with this phase")
+
+
+class AtlasTaskBreakdown(BaseModel):
+    """Production tasks broken down by priority/timeline status."""
+    critical_tasks: list[str] = Field(..., description="High-priority critical path tasks")
+    optional_tasks: list[str] = Field(..., description="Optional features or nice-to-haves")
+    future_expansion: list[str] = Field(..., description="Long-term expansion or DLC ideas")
+
+
+class AtlasOutput(BaseModel):
+    """Structured production blueprint produced by the Atlas Agent."""
+    project_id: str = Field(..., description="Associated project identifier")
+    roadmap: list[AtlasPhase] = Field(..., description="Ordered milestones of the roadmap")
+    project_structure: list[str] = Field(..., description="List of folders and files relative to project root")
+    production_flow_map: list[str] = Field(..., description="Ordered steps of production flow workflow")
+    dependency_map: list[str] = Field(..., description="Code/asset dependency mapping")
+    task_breakdown: AtlasTaskBreakdown = Field(..., description="Categorized tasks breakdown")
+

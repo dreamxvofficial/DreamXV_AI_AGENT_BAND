@@ -22,7 +22,7 @@ from backend.utils.logger import get_logger
 logger = get_logger("image_service")
 
 # Maximum images per project (enforced)
-MAX_IMAGES_PER_PROJECT = 3
+MAX_IMAGES_PER_PROJECT = 10
 
 
 class ImageService:

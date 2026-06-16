@@ -38,6 +38,14 @@ sys.modules["generate_project"] = gen_project_module
 spec.loader.exec_module(gen_project_module)
 gen_app = gen_project_module.app
 
+# Load atlas module dynamically
+atlas_path = os.path.join(_PROJECT_ROOT, "api", "atlas.py")
+spec_atlas = importlib.util.spec_from_file_location("atlas_api", atlas_path)
+atlas_module = importlib.util.module_from_spec(spec_atlas)
+sys.modules["atlas_api"] = atlas_module
+spec_atlas.loader.exec_module(atlas_module)
+atlas_app = atlas_module.app
+
 
 class TestAutomation(unittest.IsolatedAsyncioTestCase):
     """Full-stack automated regression test suite for DreamXV AI Studio."""
@@ -45,6 +53,14 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Reset user DB before each test run for a clean state."""
         load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
+
+        # Mock ImageService.generate_image to speed up tests and prevent external API calls / timeouts
+        from unittest.mock import AsyncMock, patch
+        from backend.services.image_service import ImageService
+        self.generate_image_mock = AsyncMock(return_value="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAAH0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSuQmCC")
+        self.patcher = patch.object(ImageService, "generate_image", self.generate_image_mock)
+        self.patcher.start()
+        self.addCleanup(self.patcher.stop)
         
         # Clean up test database records in Supabase
         try:
@@ -59,7 +75,21 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
                 if user:
                     user_id = user.get("id")
                     print(f"\n[Setup] Found existing test user UUID: {user_id}. Cleaning up projects...")
-                    # 2. Delete projects first to avoid foreign key errors
+                    # Fetch projects to clean up images first to avoid foreign key constraints (if cascade fails)
+                    res_projs = db.client.table("projects").select("id").eq("user_id", user_id).execute()
+                    
+                    # Clean up atlas projects first (ignore if table does not exist yet)
+                    try:
+                        db.client.table("atlas_projects").delete().eq("user_id", user_id).execute()
+                    except Exception as ae:
+                        print(f"[Setup] Warning: atlas_projects table cleanup skipped: {ae}")
+                    
+                    if res_projs and hasattr(res_projs, "data") and res_projs.data:
+                        for p in res_projs.data:
+                            pid = p.get("id")
+                            db.client.table("project_images").delete().eq("project_id", pid).execute()
+                    
+                    # 2. Delete projects
                     db.client.table("projects").delete().eq("user_id", user_id).execute()
                     # 3. Delete user
                     db.client.table("users").delete().eq("id", user_id).execute()
@@ -94,6 +124,7 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
             "API Response": False,
             "Frontend Rendering": True,   # Verified via code review
             "Database Save": False,
+            "Atlas Planner": False,
         }
 
         # --- 1. Signup ---
@@ -249,6 +280,72 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
 
                 print("  [PASS] Generate Zombie RPG PASSED")
 
+                # --- Test 4b: Verify background art generation & database records ---
+                print("\n--- Test 4b: Verify background art generation & database records ---")
+                from api.projects import app as projects_app
+                from backend.services.supabase_service import SupabaseService
+                db = SupabaseService()
+                
+                transport_proj = httpx.ASGITransport(app=projects_app)
+                async with httpx.AsyncClient(transport=transport_proj, base_url="http://test", timeout=60.0) as client:
+                    # Poll the endpoint until art generation is complete (or max 20 attempts, 2s sleep)
+                    art_status = "pending"
+                    project_details = {}
+                    for attempt in range(1, 21):
+                        res = await client.get(f"/api/projects?project_id={project_id}")
+                        self.assertEqual(res.status_code, 200)
+                        data = res.json()
+                        self.assertTrue(data.get("success"))
+                        project_details = data.get("project", {})
+                        art_status = project_details.get("art_generation_status", "pending")
+                        print(f"  Poll {attempt}/20: status={art_status}, images_generated={project_details.get('generated_images', 0)}")
+                        
+                        if art_status in ("completed", "failed", "error"):
+                            break
+                        await asyncio.sleep(2.0)
+                    
+                    # Assert background art generation completion
+                    self.assertEqual(art_status, "completed", f"Art generation failed or timed out with status: {art_status}")
+                    
+                    images_list = project_details.get("images_list", [])
+                    print(f"  Found {len(images_list)} images generated.")
+                    self.assertEqual(len(images_list), 6, f"Expected exactly 6 images, found {len(images_list)}")
+                    
+                    # Assert schema of the generated images
+                    for idx, img in enumerate(images_list):
+                        self.assertIn("id", img)
+                        self.assertIn("image_url", img)
+                        self.assertIn("prompt", img)
+                        self.assertIn("category", img)
+                        self.assertTrue(img["image_url"].startswith("data:image/"), "Image URL must be a base64 data URL")
+                        print(f"    Image {idx+1}: id={img['id']}, category={img['category']}, prompt={img['prompt'][:50]}...")
+                    print("  [PASS] Background art generation schema check PASSED")
+                    
+                    # --- Test 4c: Invoke Image Regeneration Endpoint ---
+                    print("\n--- Test 4c: Invoke image regeneration endpoint ---")
+                    target_image = images_list[0]
+                    target_image_id = target_image["id"]
+                    
+                    regen_payload = {
+                        "project_id": project_id,
+                        "image_id": target_image_id
+                    }
+                    res_regen = await client.post("/api/projects/regenerate-image", json=regen_payload)
+                    print(f"  Regen Status: {res_regen.status_code}")
+                    self.assertEqual(res_regen.status_code, 200)
+                    regen_data = res_regen.json()
+                    self.assertTrue(regen_data.get("success"), f"Regeneration failed: {regen_data.get('error')}")
+                    new_image_url = regen_data.get("image_url")
+                    self.assertIsNotNone(new_image_url)
+                    self.assertTrue(new_image_url.startswith("data:image/"))
+                    
+                    # Verify DB record matches
+                    db_images = db.get_project_images(project_id)
+                    updated_image = next((img for img in db_images if img["id"] == target_image_id), None)
+                    self.assertIsNotNone(updated_image)
+                    self.assertEqual(updated_image["image_url"], new_image_url)
+                    print("  [PASS] Image regeneration endpoint call and DB check PASSED")
+
         # --- 5. Generate "Fantasy Dragon Game" ---
         print("\n--- Test 5: Generate 'Fantasy Dragon Game' ---")
         transport_gen = httpx.ASGITransport(app=gen_app)
@@ -298,6 +395,115 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
             else:
                 print(f"  WARNING: Dragon generation reported failure: {gen_data.get('error')}")
                 self.assertTrue(gen_data.get("error"), "API returned success=false with empty error!")
+
+        # --- 6. DreamXV Atlas Planner ---
+        print("\n--- Test 6: DreamXV Atlas Planner ---")
+        transport_atlas = httpx.ASGITransport(app=atlas_app)
+        async with httpx.AsyncClient(
+            transport=transport_atlas, base_url="http://test", timeout=60.0
+        ) as client:
+            # Game Stack Test (linked to the real zombie project from Test 4)
+            atlas_payload_game = {
+                "project_id": project_id,
+                "duration": "2 weeks",
+                "tools": "Unity 6, Blender, C#"
+            }
+            res_game = await client.post("/api/atlas", json=atlas_payload_game)
+            print(f"  Game Stack Status: {res_game.status_code}")
+            self.assertEqual(res_game.status_code, 200)
+            data_game = res_game.json()
+            self.assertTrue(data_game.get("success"), f"Game Atlas generation failed: {data_game.get('error')}")
+            atlas_game = data_game.get("atlas", {})
+            atlas_uuid = atlas_game.get("id")
+            self.assertIsNotNone(atlas_uuid, "Atlas ID must not be None")
+            self.assertIn("roadmap", atlas_game)
+            self.assertIn("structure", atlas_game)
+            self.assertIn("flow_map", atlas_game)
+            self.assertIn("dependency_map", atlas_game)
+            self.assertIn("tasks", atlas_game)
+            self.assertIn("generated_files", atlas_game)
+            
+            # Ensure folder structure is game-oriented
+            has_game_folder = any("Assets" in p or "Docs" in p for p in atlas_game.get("structure", []))
+            self.assertTrue(has_game_folder, "Expected game folder structure elements in Game Stack response")
+            print("  [PASS] Game Stack Atlas structure validated")
+
+            # 6b. Get Atlas details
+            res_get = await client.get(f"/api/atlas?atlas_id={atlas_uuid}")
+            self.assertEqual(res_get.status_code, 200)
+            get_data = res_get.json()
+            self.assertTrue(get_data.get("success"))
+            self.assertEqual(get_data.get("atlas", {}).get("title"), zombie_project.get("title"))
+            print("  [PASS] Fetch Atlas by ID validated")
+
+            # 6c. Download Atlas ZIP
+            res_download = await client.get(f"/api/atlas/download?atlas_id={atlas_uuid}")
+            self.assertEqual(res_download.status_code, 200)
+            self.assertTrue(len(res_download.content) > 100, "ZIP download content empty")
+            print("  [PASS] Download ZIP validated")
+
+            # 6d. Duplicate Atlas
+            res_dup = await client.post("/api/atlas/duplicate", json={"atlas_id": atlas_uuid})
+            self.assertEqual(res_dup.status_code, 200)
+            dup_data = res_dup.json()
+            self.assertTrue(dup_data.get("success"))
+            dup_id = dup_data.get("atlas_id")
+            self.assertIsNotNone(dup_id)
+            print("  [PASS] Duplicate Atlas validated")
+
+            # Verify Duplicate has title " - Copy"
+            res_get_dup = await client.get(f"/api/atlas?atlas_id={dup_id}")
+            self.assertEqual(res_get_dup.status_code, 200)
+            get_dup_data = res_get_dup.json()
+            self.assertTrue(get_dup_data.get("success"))
+            self.assertTrue(get_dup_data.get("atlas", {}).get("title").endswith(" - Copy"))
+            print("  [PASS] Duplicate Title check validated")
+
+            # 6e. List Atlas by Source Project
+            res_list_source = await client.get(f"/api/atlas?source_project_id={project_id}")
+            self.assertEqual(res_list_source.status_code, 200)
+            list_source_data = res_list_source.json()
+            self.assertTrue(list_source_data.get("success"))
+            plans = list_source_data.get("plans", [])
+            self.assertTrue(len(plans) >= 2, "Expected at least 2 plans (original and copy)")
+            print("  [PASS] List Atlas by Source Project validated")
+
+            # 6f. Delete Duplicate
+            res_del = await client.delete(f"/api/atlas?atlas_id={dup_id}")
+            self.assertEqual(res_del.status_code, 200)
+            del_data = res_del.json()
+            self.assertTrue(del_data.get("success"))
+            print("  [PASS] Delete Atlas validated")
+
+            # Verify deletion
+            res_get_deleted = await client.get(f"/api/atlas?atlas_id={dup_id}")
+            self.assertEqual(res_get_deleted.status_code, 200)
+            deleted_data = res_get_deleted.json()
+            self.assertFalse(deleted_data.get("success"))
+            print("  [PASS] Deletion check validated")
+
+            # Web Stack Test
+            atlas_payload_web = {
+                "project_id": "test-web-project",
+                "duration": "48 hours",
+                "tools": "React, FastAPI, Supabase"
+            }
+            res_web = await client.post("/api/atlas", json=atlas_payload_web)
+            print(f"  Web Stack Status: {res_web.status_code}")
+            self.assertEqual(res_web.status_code, 200)
+            data_web = res_web.json()
+            self.assertTrue(data_web.get("success"), f"Web Atlas generation failed: {data_web.get('error')}")
+            atlas_web = data_web.get("atlas", {})
+            self.assertIn("roadmap", atlas_web)
+            self.assertIn("structure", atlas_web)
+            # Ensure folder structure is web-oriented
+            web_keywords = ["frontend", "backend", "src", "public", "server", "api", "package.json", "requirements.txt", "main.py", "app"]
+            has_web_folder = any(any(kw in p.lower() for kw in web_keywords) for p in atlas_web.get("structure", []))
+            self.assertTrue(has_web_folder, "Expected web folder structure elements in Web Stack response")
+            print("  [PASS] Web Stack Atlas structure validated")
+            
+            results["Atlas Planner"] = True
+            print("  [PASS] DreamXV Atlas Planner Tests PASSED")
 
         # --- Final Report ---
         print("\n" + "=" * 60)

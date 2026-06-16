@@ -424,10 +424,8 @@
                                             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
                                         </svg>
                                     </div>
-                                    <h4>DreamXV Atlas <span
-                                            style="font-size: 9px; padding: 2px 6px; background: rgba(196, 125, 26, 0.15); color: var(--sunrise-amber); border-radius: 10px; margin-left: 4px; border: 1px solid rgba(196, 125, 26, 0.3); vertical-align: middle;">SOON</span>
-                                    </h4>
-                                    <p>Explore worlds, ideas, lore, and inspiration. Coming Soon.</p>
+                                    <h4>DreamXV Atlas</h4>
+                                    <p>From concept to launch — generate project structures, timelines, and development plans.</p>
                                 </div>
 
                             </div>
@@ -457,6 +455,14 @@
 
                     <!-- Right Column: Status Panels -->
                     <div class="dashboard-right-col">
+                        <!-- Atlas Projects Sidebar Section -->
+                        <div class="dashboard-panel-card" id="atlas-projects-sidebar">
+                            <h3 class="dashboard-section-title">Atlas Projects</h3>
+                            <div class="atlas-projects-list" id="atlas-projects-sidebar-list" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+                                <div style="color: rgba(240, 232, 208, 0.4); font-size: 13px; text-align: center; padding: 20px 0;">No Atlas projects generated yet.</div>
+                            </div>
+                        </div>
+
                         <!-- Agent Status Panel -->
                         <div class="dashboard-panel-card">
                             <h3 class="dashboard-section-title">Agent Status</h3>
@@ -548,6 +554,96 @@
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ==========================================
+           ATLAS OUTPUT VIEW
+        ========================================== -->
+        <div id="atlas-output-view" class="view-panel hidden">
+            <!-- Navbar -->
+            <header class="dashboard-navbar" style="background: rgba(12, 26, 46, 0.85); backdrop-filter: blur(10px); width: 100vw; position: fixed; top: 0; left: 0; z-index: 1000; border-bottom: 1px solid rgba(26, 48, 72, 0.3);">
+                <div class="nav-container" style="max-width: 1200px; margin: 0 auto; height: 80px; padding: 0 var(--space-6); display: flex; align-items: center; justify-content: space-between;">
+                    <div class="logo-group" id="atlas-nav-logo">
+                        <img class="brand-logo" src="assets/logo/logo.jpg" alt="Dream XV Logo" width="40" height="40" style="border-radius: 50%;">
+                        <span class="logo-text">DREAM <span class="accent-text">15</span></span>
+                    </div>
+                    <button class="btn btn-secondary" id="atlas-back-to-dashboard-btn" style="padding: 8px 16px; font-size: 13px;">DASHBOARD</button>
+                </div>
+            </header>
+
+            <main class="container" style="padding-top: 100px; padding-bottom: 50px; width: 100%; max-width: 1200px; margin: 0 auto; padding-left: var(--space-6); padding-right: var(--space-6);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-4);">
+                    <div>
+                        <h2 id="atlas-output-title" style="color: var(--lunar-gold); font-family: var(--font-display); font-size: 28px; letter-spacing: 0.05em; text-transform: uppercase;">DreamXV Atlas Output</h2>
+                        <p id="atlas-output-subtitle" style="color: rgba(240, 232, 208, 0.7); font-size: 14px; margin-top: var(--space-1);"></p>
+                    </div>
+                </div>
+
+                <!-- Tabs Navigation -->
+                <div class="details-tabs" style="display: flex; background: rgba(12, 26, 46, 0.8); border-bottom: 1px solid rgba(26, 48, 72, 0.4); padding: 0 var(--space-4); margin-bottom: var(--space-6); border-radius: 8px 8px 0 0; overflow-x: auto; flex-shrink: 0;">
+                    <button class="tab-btn active" data-atlas-tab="atlas-roadmap">Roadmap</button>
+                    <button class="tab-btn" data-atlas-tab="atlas-structure">Structure</button>
+                    <button class="tab-btn" data-atlas-tab="atlas-flow">Flow Map</button>
+                    <button class="tab-btn" data-atlas-tab="atlas-tasks">Tasks</button>
+                    <button class="tab-btn" data-atlas-tab="atlas-export">Export</button>
+                </div>
+
+                <!-- Tab contents -->
+                <div class="atlas-content-wrapper" style="min-height: 400px; background: rgba(17, 34, 64, 0.3); border: 1px solid rgba(26, 48, 72, 0.5); padding: var(--space-6); border-radius: 0 0 8px 8px; margin-bottom: 20px;">
+                    <!-- Tab: Roadmap -->
+                    <div id="atlas-roadmap" class="atlas-tab-content">
+                        <div id="atlas-roadmap-render" style="display: flex; flex-direction: column; gap: var(--space-4);"></div>
+                    </div>
+
+                    <!-- Tab: Structure -->
+                    <div id="atlas-structure" class="atlas-tab-content hidden">
+                        <div class="doc-code-block" id="atlas-structure-render" style="white-space: pre-wrap; font-family: var(--font-code); line-height: 1.6; font-size: 14px; color: var(--starlight); background: rgba(12, 26, 46, 0.6); padding: var(--space-4); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4);"></div>
+                    </div>
+
+                    <!-- Tab: Flow Map -->
+                    <div id="atlas-flow" class="atlas-tab-content hidden">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+                            <div>
+                                <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-3);">PRODUCTION WORKFLOW</span>
+                                <div class="doc-code-block" id="atlas-flow-render" style="white-space: pre-wrap; font-family: var(--font-code); line-height: 1.8; font-size: 13px; background: rgba(12, 26, 46, 0.6); padding: var(--space-4); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4);"></div>
+                            </div>
+                            <div>
+                                <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-3);">DEPENDENCY MAP</span>
+                                <div class="doc-code-block" id="atlas-dependency-render" style="white-space: pre-wrap; font-family: var(--font-code); line-height: 1.8; font-size: 13px; background: rgba(12, 26, 46, 0.6); padding: var(--space-4); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4);"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Tasks -->
+                    <div id="atlas-tasks" class="atlas-tab-content hidden">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+                            <div>
+                                <span style="font-family: var(--font-code); font-size: 11px; color: #f87171; letter-spacing: 0.1em; display: block; margin-bottom: var(--space-3);">CRITICAL PATH TASKS</span>
+                                <ul id="atlas-critical-tasks" style="font-size: 14px; line-height: 1.8; padding-left: var(--space-4); color: var(--starlight); list-style-type: square;"></ul>
+                            </div>
+                            <div>
+                                <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-3);">OPTIONAL FEATURES</span>
+                                <ul id="atlas-optional-tasks" style="font-size: 14px; line-height: 1.8; padding-left: var(--space-4); color: var(--starlight); list-style-type: circle; margin-bottom: var(--space-4);"></ul>
+                                
+                                <span style="font-family: var(--font-code); font-size: 11px; color: var(--sunrise-amber); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-3);">FUTURE EXPANSION</span>
+                                <ul id="atlas-future-expansion" style="font-size: 14px; line-height: 1.8; padding-left: var(--space-4); color: var(--starlight); list-style-type: disc;"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Export -->
+                    <div id="atlas-export" class="atlas-tab-content hidden" style="text-align: center; padding: var(--space-12) 0;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--lunar-gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: var(--space-6); filter: drop-shadow(0 0 10px rgba(196, 125, 26, 0.3)); margin-left: auto; margin-right: auto;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <h3 style="margin-bottom: var(--space-2); color: var(--starlight);">Download Production Kit</h3>
+                        <p style="color: rgba(240, 232, 208, 0.7); max-width: 500px; margin: 0 auto var(--space-8) auto; font-size: 15px; line-height: 1.6;">Export the entire production blueprint as a ZIP archive, including full Roadmap documentation, Tasks, Flow Diagrams, and auto-generated folder structure placeholders.</p>
+                        <button class="btn btn-primary" id="atlas-download-zip-btn" style="padding: 14px 36px;">
+                            DOWNLOAD ZIP ARCHIVE
+                        </button>
                     </div>
                 </div>
             </main>
@@ -708,6 +804,75 @@
         </div>
     </div>
 
+    <!-- ==========================================
+       DREAMXV ATLAS INPUT MODAL
+    ========================================== -->
+    <div id="atlas-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>DreamXV Atlas Planner</h3>
+                <button class="modal-close" id="close-atlas-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: var(--space-4); display: flex; justify-content: center;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--lunar-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px var(--lunar-gold));">
+                        <circle cx="12" cy="12" r="10" />
+                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                    </svg>
+                </div>
+                <p style="margin-bottom: var(--space-6); color: rgba(240, 232, 208, 0.7); text-align: center;">Generate development roadmaps, folder structures, and workflows. Select a generated project and specify your timeline and tech stack.</p>
+
+                <!-- Project Selection -->
+                <div style="margin-bottom: var(--space-4); text-align: left;">
+                    <label for="atlas-project-select" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">SELECT PROJECT</label>
+                    <select id="atlas-project-select" style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                        <option value="" disabled selected>Select an existing project...</option>
+                    </select>
+                </div>
+
+                <!-- Duration (text input) -->
+                <div style="margin-bottom: var(--space-4); text-align: left;">
+                    <label for="atlas-duration-input" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">PROJECT DURATION</label>
+                    <input type="text" id="atlas-duration-input" placeholder="e.g. 48 hours, 1 week, 3 months" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <!-- Tools & Technologies (text input) -->
+                <div style="margin-bottom: var(--space-6); text-align: left;">
+                    <label for="atlas-tools-input" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">TOOLS & TECHNOLOGIES</label>
+                    <input type="text" id="atlas-tools-input" placeholder="e.g. Unity 6, C#, Blender or React, Supabase, FastAPI" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div id="atlas-modal-error" style="display: none; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 6px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); color: #f87171; font-size: 13px;"></div>
+
+                <div style="display: flex; gap: var(--space-4); justify-content: flex-end;">
+                    <button class="btn btn-secondary" id="cancel-atlas-modal-btn" style="padding: 12px 24px;">Cancel</button>
+                    <button class="btn btn-primary" id="submit-atlas-modal-btn" style="padding: 12px 32px;">
+                        <span id="submit-atlas-text">GENERATE PLAN</span>
+                        <span id="submit-atlas-spinner" style="display: none; margin-left: 8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Generation Progress Section for Atlas -->
+                <div id="atlas-generation-progress" style="display: none; margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid rgba(26, 48, 72, 0.5);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+                        <span style="font-family: var(--font-code); font-size: 12px; color: var(--earth-teal); letter-spacing: 0.1em;">ATLAS PLANNING IN PROGRESS</span>
+                        <span id="atlas-progress-percent" style="font-family: var(--font-code); font-size: 12px; color: var(--lunar-gold);">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="atlas-progress-indicator" class="progress-bar-indicator" style="width: 0%;"></div>
+                    </div>
+                    <div id="atlas-agent-status" style="margin-top: 15px; font-family: var(--font-code); font-size: 13px; color: var(--starlight); text-align: center;">
+                        Atlas Agent is mapping timelines and architectures...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 
     <!-- ==========================================
@@ -840,9 +1005,17 @@
                         </div>
 
                         <div style="margin-bottom: var(--space-6);">
-                            <span
-                                style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-4);">ART
-                                CONCEPT GALLERY</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: 8px;">
+                                <span
+                                    style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block;">ART
+                                    CONCEPT GALLERY</span>
+                                <div id="art-progress-container" style="display: none; align-items: center; gap: 8px;">
+                                    <span id="art-progress-text" style="font-family: var(--font-code); font-size: 11px; color: var(--lunar-gold);">Generating Art (0/6)...</span>
+                                    <div style="width: 100px; height: 6px; background: rgba(26, 48, 72, 0.4); border-radius: 3px; overflow: hidden; display: inline-block;">
+                                        <div id="art-progress-bar-fill" style="width: 0%; height: 100%; background: var(--lunar-gold); transition: width 0.3s ease;"></div>
+                                    </div>
+                                </div>
+                            </div>
                             <div id="details-gallery"
                                 style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4);">
                             </div>
@@ -942,14 +1115,18 @@
                         </div>
                     </div>
 
-                    <!-- Export Button -->
-                    <div class="export-bar">
-                        <button class="btn btn-primary export-project-btn" id="export-project-btn">
+                    <!-- Export Button & Open Atlas -->
+                    <div class="export-bar" style="display: flex; gap: var(--space-4); align-items: center; justify-content: flex-start; flex-wrap: wrap;">
+                        <button class="btn btn-primary export-project-btn" id="export-project-btn" style="padding: 10px 20px; font-size: 13px;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                             </svg>
                             EXPORT PROJECT
                         </button>
+                        <div id="project-details-atlas-section" class="hidden" style="display: flex; gap: 8px; align-items: center;">
+                            <select id="project-details-atlas-select" style="background: var(--void-navy); border: 1px solid rgba(26,48,72,0.8); border-radius: 6px; padding: 8px 12px; color: var(--starlight); font-size: 13px; outline: none;"></select>
+                            <button id="project-details-open-atlas-btn" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; border: 1px solid var(--lunar-gold); color: var(--lunar-gold);">OPEN ATLAS</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -976,6 +1153,15 @@
                     style="padding: 10px 20px;">RELOAD</button>
                 <button class="btn btn-primary" id="reset-boundary-btn" style="padding: 10px 20px;">RESET APP</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal for Gallery Images -->
+    <div id="image-lightbox-modal" class="modal-overlay hidden" style="z-index: 10001; background: rgba(0, 0, 0, 0.9);">
+        <div style="position: relative; max-width: 90%; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <button id="close-lightbox-btn" style="position: absolute; top: -40px; right: 0; background: transparent; border: none; color: var(--starlight); font-size: 36px; cursor: pointer; line-height: 1;">&times;</button>
+            <img id="lightbox-image" src="" alt="Enlarged concept art" style="max-width: 100%; max-height: 80vh; object-fit: contain; border: 1px solid rgba(26, 48, 72, 0.5); border-radius: 8px; cursor: zoom-out;">
+            <div id="lightbox-caption" style="margin-top: var(--space-3); color: var(--starlight); font-family: var(--font-body); font-size: 14px; text-align: center; max-width: 600px;"></div>
         </div>
     </div>
 

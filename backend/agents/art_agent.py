@@ -91,18 +91,10 @@ class ArtAgent:
 
         logger.info(f"Art Agent generated {len(art_output.prompts)} art prompts")
 
-        # Step 2: Generate actual images from the prompts
-        image_types = ["character", "environment", "cover"]
-        image_paths = await self._image_service.generate_project_images(
-            art_output.prompts[:3],  # Max 3 images
-            project_id=project_id,
-            image_types=image_types[:len(art_output.prompts)],
-        )
+        # Actual image generation is now handled asynchronously in the background.
+        art_output.image_paths = []
 
-        # Update ArtOutput with actual image paths
-        art_output.image_paths = image_paths
-
-        logger.info(f"Art Agent complete: {len(image_paths)} images generated")
+        logger.info("Art Agent prompts generation complete.")
 
         # Clean up massive base64 strings before broadcasting to the room to protect other agents' context windows
         room_art_output = art_output.model_copy(deep=True)

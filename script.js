@@ -1087,6 +1087,7 @@ function capitalize(str) {
 ========================================== */
 
 let _statusPollInterval = null;
+let _artPollInterval = null;
 
 function startStatusPolling() {
     stopStatusPolling();
@@ -1189,19 +1190,30 @@ async function fetchAndRenderProjects() {
                     <div class="project-title">${escapeHtml(p.title || "Untitled")}</div>
                     <div class="project-date">${formatDate(p.created_at)}</div>
                 </div>
-                <span class="project-status">${p.status || "completed"}</span>
+                <span class="project-status">${p.is_atlas ? "atlas" : (p.status || "completed")}</span>
             `;
             card.addEventListener("click", () => {
-                showProjectDetails(p.project_id);
+                if (p.is_atlas) {
+                    openAtlasProject(p.project_id);
+                } else {
+                    showProjectDetails(p.project_id);
+                }
             });
             container.appendChild(card);
         });
     } else {
         if (emptyState) emptyState.style.display = "flex";
     }
+
+    // Update the sidebar list of Atlas Projects as well
+    fetchAndRenderAtlasSidebar();
 }
 
 async function showProjectDetails(projectId) {
+    if (_artPollInterval) {
+        clearInterval(_artPollInterval);
+        _artPollInterval = null;
+    }
     let project = null;
 
     // Try fetching details from the backend first
@@ -1350,25 +1362,75 @@ async function showProjectDetails(projectId) {
     const styleGuideEl = document.getElementById("details-style-guide");
     if (styleGuideEl) styleGuideEl.textContent = art.style_guide || "No visual style guide generated.";
 
-    const galleryEl = document.getElementById("details-gallery");
-    if (galleryEl) {
-        galleryEl.innerHTML = "";
-        const imagePaths = art.image_paths || [];
-        if (imagePaths.length > 0) {
-            imagePaths.forEach((path, idx) => {
-                const img = document.createElement("img");
-                img.src = path;
-                img.alt = `Concept Art ${idx + 1}`;
-                img.style.width = "100%";
-                img.style.height = "160px";
-                img.style.objectFit = "cover";
-                img.style.borderRadius = "6px";
-                img.style.border = "1px solid rgba(26, 48, 72, 0.5)";
-                galleryEl.appendChild(img);
-            });
+    // Render the new Concept Art Gallery
+    if (!project.images_list) {
+        const fallbackUrls = project.images || (project.art && project.art.image_paths) || [];
+        project.images_list = fallbackUrls.map((url, index) => ({
+            id: `local_${index}`,
+            image_url: url,
+            category: "concept",
+            prompt: "Concept Art"
+        }));
+    }
+    
+    renderGallery(project);
+
+    // Setup polling for art generation if pending/generating
+    const artProgressContainer = document.getElementById("art-progress-container");
+    const artProgressText = document.getElementById("art-progress-text");
+    const artProgressBarFill = document.getElementById("art-progress-bar-fill");
+
+    function updateArtProgressUI(status, generated, total) {
+        if (!artProgressContainer) return;
+        if (status === "generating" || status === "pending") {
+            artProgressContainer.style.display = "flex";
+            if (artProgressText) artProgressText.textContent = `Generating Art (${generated}/${total})...`;
+            if (artProgressBarFill) {
+                const percent = total > 0 ? (generated / total) * 100 : 0;
+                artProgressBarFill.style.width = `${percent}%`;
+            }
         } else {
-            galleryEl.innerHTML = "<div style='grid-column: span 3; text-align: center; color: rgba(240, 232, 208, 0.4); font-size: 13px; padding: 20px 0;'>No concept art generated.</div>";
+            artProgressContainer.style.display = "none";
         }
+    }
+
+    updateArtProgressUI(project.art_generation_status, project.generated_images || 0, project.total_images || 6);
+
+    if (project.art_generation_status === "generating" || project.art_generation_status === "pending") {
+        _artPollInterval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/projects?project_id=${encodeURIComponent(projectId)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.success) {
+                        const updatedProject = data.project;
+                        
+                        // Map local image fallback
+                        if (!updatedProject.images_list) {
+                            const fallbackUrls = updatedProject.images || (updatedProject.art && updatedProject.art.image_paths) || [];
+                            updatedProject.images_list = fallbackUrls.map((url, index) => ({
+                                id: `local_${index}`,
+                                image_url: url,
+                                category: "concept",
+                                prompt: "Concept Art"
+                            }));
+                        }
+                        
+                        renderGallery(updatedProject);
+                        updateArtProgressUI(updatedProject.art_generation_status, updatedProject.generated_images || 0, updatedProject.total_images || 6);
+                        
+                        if (updatedProject.art_generation_status === "completed" || updatedProject.art_generation_status === "error") {
+                            clearInterval(_artPollInterval);
+                            _artPollInterval = null;
+                            showToast("Concept art generation completed!", "success");
+                            fetchAndRenderProjects();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Art status poll failed:", err);
+            }
+        }, 3000);
     }
 
     const qa = project.qa || {};
@@ -1529,6 +1591,51 @@ async function showProjectDetails(projectId) {
         });
     }
 
+    // Fetch associated Atlas projects if any
+    const atlasSection = document.getElementById("project-details-atlas-section");
+    const atlasSelect = document.getElementById("project-details-atlas-select");
+    const atlasOpenBtn = document.getElementById("project-details-open-atlas-btn");
+
+    if (atlasSection && atlasSelect && atlasOpenBtn) {
+        atlasSection.classList.add("hidden");
+        atlasSelect.innerHTML = "";
+        
+        try {
+            fetch(`/api/atlas?source_project_id=${encodeURIComponent(projectId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.success && data.plans && data.plans.length > 0) {
+                        data.plans.forEach(plan => {
+                            const opt = document.createElement("option");
+                            opt.value = plan.id;
+                            const dateStr = formatDate(plan.created_at);
+                            opt.textContent = `${plan.tools} (${plan.duration}) - ${dateStr}`;
+                            atlasSelect.appendChild(opt);
+                        });
+                        
+                        const newBtn = atlasOpenBtn.cloneNode(true);
+                        atlasOpenBtn.parentNode.replaceChild(newBtn, atlasOpenBtn);
+                        newBtn.addEventListener("click", () => {
+                            const selectedAtlasId = atlasSelect.value;
+                            if (selectedAtlasId) {
+                                modal.classList.add("hidden");
+                                if (_artPollInterval) {
+                                    clearInterval(_artPollInterval);
+                                    _artPollInterval = null;
+                                }
+                                openAtlasProject(selectedAtlasId);
+                            }
+                        });
+                        
+                        atlasSection.classList.remove("hidden");
+                    }
+                })
+                .catch(err => console.warn("Failed to fetch project Atlas plans:", err));
+        } catch (err) {
+            console.warn("Error triggering project Atlas fetch:", err);
+        }
+    }
+
     const firstTabBtn = document.querySelector(".details-tabs button[data-tab='details-narrative']");
     if (firstTabBtn) firstTabBtn.click();
 
@@ -1542,9 +1649,19 @@ async function showProjectDetails(projectId) {
     if (closeBtn && modal) {
         closeBtn.addEventListener("click", () => {
             modal.classList.add("hidden");
+            if (_artPollInterval) {
+                clearInterval(_artPollInterval);
+                _artPollInterval = null;
+            }
         });
         modal.addEventListener("click", (e) => {
-            if (e.target === modal) modal.classList.add("hidden");
+            if (e.target === modal) {
+                modal.classList.add("hidden");
+                if (_artPollInterval) {
+                    clearInterval(_artPollInterval);
+                    _artPollInterval = null;
+                }
+            }
         });
     }
 
@@ -1565,6 +1682,179 @@ async function showProjectDetails(projectId) {
         });
     });
 })();
+
+        });
+    });
+})();
+
+/* ==========================================
+   AI ART GALLERY & LIGHTBOX MODULE
+   ========================================== */
+
+function renderGallery(project) {
+    const galleryEl = document.getElementById("details-gallery");
+    if (!galleryEl) return;
+    galleryEl.innerHTML = "";
+
+    const imagesList = project.images_list || [];
+    if (imagesList.length > 0) {
+        imagesList.forEach((imgObj) => {
+            const path = imgObj.image_url;
+            const category = imgObj.category || "concept";
+            const prompt = imgObj.prompt || "";
+            const imageId = imgObj.id;
+
+            const card = document.createElement("div");
+            card.className = "gallery-card";
+            card.style.position = "relative";
+            card.style.borderRadius = "8px";
+            card.style.overflow = "hidden";
+            card.style.border = "1px solid rgba(26, 48, 72, 0.5)";
+            card.style.background = "var(--cosmos)";
+            card.style.transition = "transform 0.2s, box-shadow 0.2s";
+
+            card.innerHTML = `
+                <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; cursor: pointer;">
+                    <img class="gallery-img" src="${path}" alt="${category} concept art" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                    <div class="category-badge" style="position: absolute; top: 8px; left: 8px; background: rgba(12, 26, 46, 0.85); color: var(--earth-teal); border: 1px solid var(--earth-teal); font-family: var(--font-code); font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${category}</div>
+                </div>
+                <div class="card-footer" style="padding: 8px; display: flex; gap: 8px; justify-content: space-between; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4);">
+                    <button class="gallery-download-btn" style="flex: 1; padding: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; background: transparent; border: 1px solid var(--lunar-gold); color: var(--lunar-gold); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download
+                    </button>
+                    <button class="gallery-regen-btn" style="flex: 1; padding: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; background: transparent; border: 1px solid var(--earth-teal); color: var(--earth-teal); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">
+                        <svg class="regen-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        Regen
+                    </button>
+                </div>
+            `;
+
+            // Hover effects
+            const imgWrapper = card.querySelector(".image-wrapper");
+            const img = card.querySelector(".gallery-img");
+            imgWrapper.addEventListener("mouseenter", () => {
+                img.style.transform = "scale(1.05)";
+            });
+            imgWrapper.addEventListener("mouseleave", () => {
+                img.style.transform = "scale(1)";
+            });
+
+            card.addEventListener("mouseenter", () => {
+                card.style.transform = "translateY(-4px)";
+                card.style.boxShadow = "0 8px 16px rgba(0,0,0,0.4)";
+            });
+            card.addEventListener("mouseleave", () => {
+                card.style.transform = "translateY(0)";
+                card.style.boxShadow = "none";
+            });
+
+            // Click image to zoom/lightbox
+            imgWrapper.addEventListener("click", () => {
+                openLightbox(path, `${category.toUpperCase()} - ${prompt}`);
+            });
+
+            // Download handler
+            card.querySelector(".gallery-download-btn").addEventListener("click", () => {
+                triggerDirectDownload(path, `${category}_art.png`);
+            });
+
+            // Regenerate handler
+            const regenBtn = card.querySelector(".gallery-regen-btn");
+            if (imageId && !imageId.startsWith("local_")) {
+                regenBtn.addEventListener("click", async () => {
+                    await triggerRegenerateImage(project.project_id, imageId, card);
+                });
+            } else {
+                regenBtn.style.display = "none";
+            }
+
+            galleryEl.appendChild(card);
+        });
+    } else {
+        galleryEl.innerHTML = "<div style='grid-column: span 3; text-align: center; color: rgba(240, 232, 208, 0.4); font-size: 13px; padding: 20px 0;'>No concept art generated.</div>";
+    }
+}
+
+function openLightbox(src, caption) {
+    const modal = document.getElementById("image-lightbox-modal");
+    const img = document.getElementById("lightbox-image");
+    const captionEl = document.getElementById("lightbox-caption");
+
+    if (modal && img) {
+        img.src = src;
+        if (captionEl) captionEl.textContent = caption;
+        modal.classList.remove("hidden");
+    }
+}
+
+function closeLightbox() {
+    const modal = document.getElementById("image-lightbox-modal");
+    if (modal) {
+        modal.classList.add("hidden");
+    }
+}
+
+// Bind lightbox events globally
+document.addEventListener("DOMContentLoaded", () => {
+    const closeBtn = document.getElementById("close-lightbox-btn");
+    const modal = document.getElementById("image-lightbox-modal");
+    const img = document.getElementById("lightbox-image");
+    if (closeBtn) closeBtn.addEventListener("click", closeLightbox);
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal || e.target === img) closeLightbox();
+        });
+    }
+});
+
+function triggerDirectDownload(base64Data, filename) {
+    const link = document.createElement("a");
+    link.href = base64Data;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Downloading image...", "success");
+}
+
+async function triggerRegenerateImage(projectId, imageId, cardElement) {
+    const regenBtn = cardElement.querySelector(".gallery-regen-btn");
+    const imgElement = cardElement.querySelector(".gallery-img");
+
+    if (regenBtn.disabled) return;
+
+    regenBtn.disabled = true;
+    regenBtn.innerHTML = `
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+        Regenerating...
+    `;
+
+    try {
+        const res = await fetch("/api/projects/regenerate-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ project_id: projectId, image_id: imageId })
+        });
+        const data = await res.json();
+        if (data.success && data.image_url) {
+            imgElement.src = data.image_url;
+            showToast("Concept art regenerated successfully!", "success");
+            fetchAndRenderProjects();
+        } else {
+            showToast(data.error || "Regeneration failed.", "error");
+        }
+    } catch (err) {
+        console.error("Regenerate image request failed:", err);
+        showToast("Error connecting to server.", "error");
+    } finally {
+        regenBtn.disabled = false;
+        regenBtn.innerHTML = `
+            <svg class="regen-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Regen
+        `;
+    }
+}
 
 function escapeHtml(text) {
     const div = document.createElement("div");
@@ -1761,9 +2051,6 @@ async function exportProjectToZip(project) {
     
     const zip = new JSZip();
     
-    const designFolder = zip.folder("GameDesign");
-    const docsFolder = zip.folder("Documentation");
-    
     let gddMd = `# Game Design Document: ${project.title || 'Untitled Project'}\n\n`;
     gddMd += `## Elevator Pitch\n${project.documentation?.elevator_pitch || 'N/A'}\n\n`;
     gddMd += `## Story & Narrative\n${project.story?.lore || project.story?.summary || 'N/A'}\n\n`;
@@ -1787,13 +2074,90 @@ async function exportProjectToZip(project) {
     }
     gddMd += `\n### Progression System\n${project.gameplay?.progression_system || 'N/A'}\n\n`;
     
-    designFolder.file("GameDesignDocument.md", gddMd);
+    // Write requested root-level files
+    zip.file("README.md", project.documentation?.readme || `# ${project.title || 'Untitled Project'}\n\nGenerated by DreamXV AI Studio.`);
+    zip.file("Game Design Document.md", gddMd);
+    zip.file("Characters.json", JSON.stringify(project.characters || [], null, 4));
+    zip.file("World.json", JSON.stringify(project.world || {}, null, 4));
+    zip.file("Story.json", JSON.stringify(project.story || {}, null, 4));
     
-    docsFolder.file("README.md", project.documentation?.readme || `# ${project.title || 'Untitled Project'}\n\nGenerated by DreamXV AI Studio.`);
+    // QA Report
+    let qaMd = `# QA Consistency Report: ${project.title || 'Untitled Project'}\n\n`;
+    const qa = project.qa || {};
+    qaMd += `## Consistency Score: ${qa.consistency_score != null ? qa.consistency_score.toFixed(1) : '--'}/10\n\n`;
+    qaMd += `### Overall Assessment\n${qa.overall_assessment || 'N/A'}\n\n`;
+    qaMd += `### Consistency Issues\n`;
+    if (qa.issues && qa.issues.length > 0) {
+        qa.issues.forEach(issue => qaMd += `- ${issue}\n`);
+    } else {
+        qaMd += `No major discrepancies identified. Cohesion is optimal.\n`;
+    }
+    qaMd += `\n### Improvement Suggestions\n`;
+    if (qa.suggestions && qa.suggestions.length > 0) {
+        qa.suggestions.forEach(sug => qaMd += `- ${sug}\n`);
+    } else {
+        qaMd += `None\n`;
+    }
+    zip.file("QA_Report.md", qaMd);
     
+    // Documentation
+    let docMd = `# Documentation: ${project.title || 'Untitled Project'}\n\n`;
+    const doc = project.documentation || {};
+    docMd += `## Elevator Pitch\n${doc.elevator_pitch || 'N/A'}\n\n`;
+    docMd += `## Features List\n`;
+    if (doc.feature_list && doc.feature_list.length > 0) {
+        doc.feature_list.forEach(f => docMd += `- ${f}\n`);
+    } else {
+        docMd += `N/A\n`;
+    }
+    docMd += `\n## Core Mechanics\n`;
+    if (doc.core_mechanics && doc.core_mechanics.length > 0) {
+        doc.core_mechanics.forEach(m => docMd += `- ${m}\n`);
+    } else {
+        docMd += `N/A\n`;
+    }
+    docMd += `\n## Monetization\n`;
+    if (doc.monetization && doc.monetization.length > 0) {
+        doc.monetization.forEach(m => docMd += `- ${m}\n`);
+    } else {
+        docMd += `N/A\n`;
+    }
+    docMd += `\n## Future Expansion\n`;
+    if (doc.future_expansion && doc.future_expansion.length > 0) {
+        doc.future_expansion.forEach(e => docMd += `- ${e}\n`);
+    } else {
+        docMd += `N/A\n`;
+    }
+    docMd += `\n## Technical Summary\n${doc.technical_summary || 'N/A'}\n`;
+    zip.file("Documentation.md", docMd);
+    
+    // Project Manifest
     zip.file("project_manifest.json", JSON.stringify(project, null, 4));
     
-    docsFolder.file("TechnicalSummary.md", `# Technical Architecture\n\n${project.documentation?.technical_summary || 'N/A'}`);
+    // Add images folder containing binary-decoded files
+    const imagesFolder = zip.folder("images");
+    
+    // Pull images from project.images_list (which is populated)
+    let imagesList = project.images_list || [];
+    if (imagesList.length === 0) {
+        // Fallback to project.images
+        const fallbackUrls = project.images || (project.art && project.art.image_paths) || [];
+        imagesList = fallbackUrls.map((url, index) => ({
+            image_url: url,
+            category: "concept"
+        }));
+    }
+    
+    imagesList.forEach((imgObj, idx) => {
+        const base64Url = imgObj.image_url;
+        const category = imgObj.category || "concept";
+        if (base64Url && base64Url.startsWith("data:image/")) {
+            const base64Data = base64Url.split(",")[1];
+            if (base64Data) {
+                imagesFolder.file(`${category}_art_${idx + 1}.png`, base64Data, { base64: true });
+            }
+        }
+    });
     
     try {
         const content = await zip.generateAsync({ type: "blob" });
@@ -1894,4 +2258,512 @@ function updatePipelineVisualization(agents) {
             }
         }
     });
+}
+
+/* ==========================================
+   DREAMXV ATLAS PRODUCTION PLANNER MODULE
+   ========================================== */
+
+document.addEventListener("DOMContentLoaded", () => {
+    const atlasCard = document.getElementById("action-atlas");
+    const atlasModal = document.getElementById("atlas-modal");
+    const closeBtn = document.getElementById("close-atlas-modal-btn");
+    const cancelBtn = document.getElementById("cancel-atlas-modal-btn");
+    const submitBtn = document.getElementById("submit-atlas-modal-btn");
+    const selectEl = document.getElementById("atlas-project-select");
+    const durationInput = document.getElementById("atlas-duration-input");
+    const toolsInput = document.getElementById("atlas-tools-input");
+    const errorBox = document.getElementById("atlas-modal-error");
+    
+    const progressSection = document.getElementById("atlas-generation-progress");
+    const progressPercent = document.getElementById("atlas-progress-percent");
+    const progressIndicator = document.getElementById("atlas-progress-indicator");
+    const progressStatusText = document.getElementById("atlas-agent-status");
+
+    let activeAtlasResult = null;
+    let activeProjectTitle = "";
+
+    if (!atlasCard || !atlasModal) return;
+
+    // Open Atlas Modal
+    atlasCard.addEventListener("click", () => {
+        atlasModal.classList.remove("hidden");
+        if (errorBox) errorBox.style.display = "none";
+        if (progressSection) progressSection.style.display = "none";
+        
+        // Reset inputs
+        if (durationInput) durationInput.value = "";
+        if (toolsInput) toolsInput.value = "";
+        
+        // Reset submit button state
+        submitBtn.disabled = false;
+        document.getElementById("submit-atlas-text").textContent = "GENERATE PLAN";
+        document.getElementById("submit-atlas-spinner").style.display = "none";
+        
+        populateAtlasProjects();
+    });
+
+    // Close Modal
+    const closeModal = () => {
+        atlasModal.classList.add("hidden");
+    };
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+    atlasModal.addEventListener("click", (e) => {
+        if (e.target === atlasModal) closeModal();
+    });
+
+    // Populate Completed Projects Dropdown
+    async function populateAtlasProjects() {
+        if (!selectEl) return;
+        selectEl.innerHTML = '<option value="" disabled selected>Select an existing project...</option>';
+        
+        let projects = [];
+        const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
+        if (user) {
+            try {
+                const userQueryId = user.id || user.email || user.username;
+                const res = await fetch(`/api/projects?user_id=${encodeURIComponent(userQueryId)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.projects) {
+                        projects = data.projects;
+                    }
+                }
+            } catch (err) {
+                console.warn("[DreamXV Atlas] Failed to fetch projects:", err);
+            }
+        }
+        
+        if (projects.length === 0) {
+            const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+            projects = safeJsonParse(localProjectsStr) || [];
+        }
+        
+        const completedProjects = projects.filter(p => !p.status || p.status === "completed");
+        
+        if (completedProjects.length === 0) {
+            const opt = document.createElement("option");
+            opt.disabled = true;
+            opt.textContent = "No completed projects available.";
+            selectEl.appendChild(opt);
+            return;
+        }
+
+        completedProjects.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.project_id;
+            opt.textContent = p.title || "Untitled Project";
+            selectEl.appendChild(opt);
+        });
+    }
+
+    // Submit and Generate Plan
+    submitBtn.addEventListener("click", async () => {
+        const projectId = selectEl.value;
+        const duration = durationInput ? durationInput.value.trim() : "";
+        const tools = toolsInput ? toolsInput.value.trim() : "";
+
+        if (errorBox) errorBox.style.display = "none";
+
+        if (!projectId) {
+            showError("Please select a project to proceed.");
+            return;
+        }
+        if (duration.length < 2) {
+            showError("Please enter a valid project duration (e.g. '1 week').");
+            return;
+        }
+        if (tools.length < 2) {
+            showError("Please enter the tools or technologies to build your project.");
+            return;
+        }
+
+        // Selected title
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        activeProjectTitle = selectedOption ? selectedOption.textContent : "Project";
+
+        // Enable progress UI
+        submitBtn.disabled = true;
+        document.getElementById("submit-atlas-text").textContent = "GENERATING PLAN...";
+        document.getElementById("submit-atlas-spinner").style.display = "inline-block";
+        if (progressSection) progressSection.style.display = "block";
+        
+        if (progressPercent) progressPercent.textContent = "0%";
+        if (progressIndicator) progressIndicator.style.width = "0%";
+        if (progressStatusText) progressStatusText.textContent = "Atlas Agent is analyzing project component maps...";
+
+        let progressVal = 0;
+        let progressInterval = setInterval(() => {
+            if (progressVal < 95) {
+                progressVal += Math.random() * 3 + 1.5;
+                if (progressVal > 95) progressVal = 95;
+                
+                if (progressIndicator) progressIndicator.style.width = `${progressVal}%`;
+                if (progressPercent) progressPercent.textContent = `${Math.floor(progressVal)}%`;
+                
+                if (progressVal > 70 && progressStatusText) {
+                    progressStatusText.textContent = "Generating milestones, trees, and flows for the technology stack...";
+                } else if (progressVal > 35 && progressStatusText) {
+                    progressStatusText.textContent = "Formatting sequential timeline and task lists...";
+                }
+            }
+        }, 180);
+
+        try {
+            const bodyPayload = {
+                project_id: projectId,
+                duration: duration,
+                tools: tools
+            };
+            if (window.activeRegenAtlasId) {
+                bodyPayload.atlas_id = window.activeRegenAtlasId;
+                window.activeRegenAtlasId = null; // reset
+            }
+
+            const res = await fetch("/api/atlas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(bodyPayload)
+            });
+
+            clearInterval(progressInterval);
+            
+            if (progressIndicator) progressIndicator.style.width = "100%";
+            if (progressPercent) progressPercent.textContent = "100%";
+            if (progressStatusText) progressStatusText.textContent = "Blueprint generation completed!";
+
+            const data = await res.json();
+            if (!data.success) {
+                throw new Error(data.error || "Failed to generate Atlas production blueprint.");
+            }
+
+            activeAtlasResult = data.atlas;
+
+            setTimeout(() => {
+                closeModal();
+                showAtlasOutputPage(activeAtlasResult, activeProjectTitle, duration, tools);
+            }, 1000);
+
+        } catch (err) {
+            clearInterval(progressInterval);
+            console.error("Atlas generation error:", err);
+            showError("Generation failed: " + err.message);
+            
+            submitBtn.disabled = false;
+            document.getElementById("submit-atlas-text").textContent = "GENERATE PLAN";
+            document.getElementById("submit-atlas-spinner").style.display = "none";
+            if (progressIndicator) progressIndicator.style.width = "0%";
+            if (progressPercent) progressPercent.textContent = "0%";
+        }
+    });
+
+    function showError(msg) {
+        if (errorBox) {
+            errorBox.textContent = msg;
+            errorBox.style.display = "block";
+        }
+    }
+
+    // Render Output Page
+    function showAtlasOutputPage(atlas, projectTitle, duration, tools) {
+        showView("atlas-output-view");
+
+        const subtitleEl = document.getElementById("atlas-output-subtitle");
+        if (subtitleEl) {
+            subtitleEl.textContent = `Production kit for "${projectTitle}" constructed for a duration of ${duration} using ${tools}.`;
+        }
+
+        // Render Tabs
+        renderAtlasRoadmap(atlas.roadmap || []);
+        renderAtlasStructure(atlas.project_structure || []);
+        renderAtlasFlow(atlas.production_flow_map || [], atlas.dependency_map || []);
+        renderAtlasTasks(atlas.task_breakdown || {});
+
+        // Reset tab buttons
+        const tabBtns = document.querySelectorAll("[data-atlas-tab]");
+        tabBtns.forEach(btn => btn.classList.remove("active"));
+        const firstTab = document.querySelector("[data-atlas-tab='atlas-roadmap']");
+        if (firstTab) firstTab.classList.add("active");
+
+        const tabContents = document.querySelectorAll(".atlas-tab-content");
+        tabContents.forEach(content => content.classList.add("hidden"));
+        const firstContent = document.getElementById("atlas-roadmap");
+        if (firstContent) firstContent.classList.remove("hidden");
+    }
+
+    // Render Helpers
+    function renderAtlasRoadmap(roadmapList) {
+        const renderEl = document.getElementById("atlas-roadmap-render");
+        if (!renderEl) return;
+        renderEl.innerHTML = "";
+        
+        roadmapList.forEach((phase) => {
+            const card = document.createElement("div");
+            card.style.background = "rgba(26, 48, 72, 0.2)";
+            card.style.border = "1px solid rgba(26, 48, 72, 0.4)";
+            card.style.padding = "var(--space-4)";
+            card.style.borderRadius = "8px";
+            
+            let tasksHtml = (phase.tasks || []).map(t => `<li style="margin-bottom: 6px;">${escapeHtml(t)}</li>`).join("");
+            if (!tasksHtml) tasksHtml = "<li>No tasks generated for this phase.</li>";
+            
+            card.innerHTML = `
+                <h4 style="color: var(--sunrise-amber); font-family: var(--font-display); margin-bottom: var(--space-2); font-size: 16px; font-weight: 600;">${escapeHtml(phase.name)}</h4>
+                <ul style="padding-left: var(--space-5); color: var(--starlight); line-height: 1.6; font-size: 14px; list-style-type: decimal;">
+                    ${tasksHtml}
+                </ul>
+            `;
+            renderEl.appendChild(card);
+        });
+    }
+
+    function renderAtlasStructure(structureList) {
+        const renderEl = document.getElementById("atlas-structure-render");
+        if (!renderEl) return;
+        renderEl.innerHTML = structureList.join("\n");
+    }
+
+    function renderAtlasFlow(flowList, dependencyList) {
+        const flowEl = document.getElementById("atlas-flow-render");
+        const depEl = document.getElementById("atlas-dependency-render");
+        
+        if (flowEl) {
+            flowEl.innerHTML = flowList.map(step => `↓ ${escapeHtml(step)}`).join("\n").replace(/^↓ /, "");
+        }
+        if (depEl) {
+            depEl.innerHTML = dependencyList.map(dep => `  ${escapeHtml(dep)}`).join("\n");
+        }
+    }
+
+    function renderAtlasTasks(tasksObj) {
+        const critEl = document.getElementById("atlas-critical-tasks");
+        const optEl = document.getElementById("atlas-optional-tasks");
+        const expEl = document.getElementById("atlas-future-expansion");
+        
+        if (critEl) {
+            critEl.innerHTML = (tasksObj.critical_tasks || []).map(t => `<li>${escapeHtml(t)}</li>`).join("") || "<li>None</li>";
+        }
+        if (optEl) {
+            optEl.innerHTML = (tasksObj.optional_tasks || []).map(t => `<li>${escapeHtml(t)}</li>`).join("") || "<li>None</li>";
+        }
+        if (expEl) {
+            expEl.innerHTML = (tasksObj.future_expansion || []).map(t => `<li>${escapeHtml(t)}</li>`).join("") || "<li>None</li>";
+        }
+    }
+
+    // Dashboard back navigation
+    const backBtn = document.getElementById("atlas-back-to-dashboard-btn");
+    if (backBtn) {
+        backBtn.addEventListener("click", () => {
+            showView("dashboard-view");
+            fetchAndRenderProjects();
+        });
+    }
+    
+    const navLogo = document.getElementById("atlas-nav-logo");
+    if (navLogo) {
+        navLogo.addEventListener("click", () => {
+            showView("dashboard-view");
+            fetchAndRenderProjects();
+        });
+    }
+
+    // ZIP Download Button
+    const downloadZipBtn = document.getElementById("atlas-download-zip-btn");
+    if (downloadZipBtn) {
+        downloadZipBtn.addEventListener("click", () => {
+            if (activeAtlasResult && activeAtlasResult.id) {
+                window.location.href = `/api/atlas/download?atlas_id=${encodeURIComponent(activeAtlasResult.id)}`;
+            } else {
+                showToast("Atlas ID not found for download.", "error");
+            }
+        });
+    }
+});
+
+// Atlas Tabs Switcher Event Listener
+(function initAtlasTabsEvents() {
+    document.addEventListener("click", (e) => {
+        const target = e.target.closest("[data-atlas-tab]");
+        if (!target) return;
+
+        const tabBtns = document.querySelectorAll("[data-atlas-tab]");
+        tabBtns.forEach(b => b.classList.remove("active"));
+        target.classList.add("active");
+
+        const contents = document.querySelectorAll(".atlas-tab-content");
+        contents.forEach(c => c.classList.add("hidden"));
+
+        const targetId = target.getAttribute("data-atlas-tab");
+        const targetContent = document.getElementById(targetId);
+        if (targetContent) {
+            targetContent.classList.remove("hidden");
+        }
+    });
+})();
+
+// --- DreamXV Atlas Sidebar & Actions Logic ---
+
+async function fetchAndRenderAtlasSidebar() {
+    const sidebarList = document.getElementById("atlas-projects-sidebar-list");
+    if (!sidebarList) return;
+    
+    const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
+    if (!user) {
+        sidebarList.innerHTML = '<div style="color: rgba(240, 232, 208, 0.4); font-size: 13px; text-align: center; padding: 20px 0;">Please log in to see Atlas projects.</div>';
+        return;
+    }
+    
+    try {
+        const userQueryId = user.id || user.email || user.username;
+        const res = await fetch(`/api/atlas?user_id=${encodeURIComponent(userQueryId)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.plans && data.plans.length > 0) {
+                sidebarList.innerHTML = "";
+                data.plans.forEach(plan => {
+                    const card = document.createElement("div");
+                    card.className = "atlas-sidebar-item";
+                    card.style.background = "rgba(7, 14, 26, 0.4)";
+                    card.style.border = "1px solid rgba(26, 48, 72, 0.6)";
+                    card.style.padding = "10px";
+                    card.style.borderRadius = "6px";
+                    card.style.display = "flex";
+                    card.style.flexDirection = "column";
+                    card.style.gap = "6px";
+                    
+                    const dateStr = formatDate(plan.created_at);
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="color: var(--starlight); font-size: 14px; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 140px;" class="atlas-item-title">${escapeHtml(plan.title || "Untitled")}</span>
+                            <span style="font-size: 10px; color: var(--earth-teal); font-family: var(--font-code);" class="atlas-item-date">${dateStr}</span>
+                        </div>
+                        <div style="font-size: 11px; color: rgba(240, 232, 208, 0.5); font-family: var(--font-code);" class="atlas-item-tools">${escapeHtml(plan.tools || "")} (${escapeHtml(plan.duration || "")})</div>
+                        <div class="atlas-item-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
+                            <button class="atlas-action-btn atlas-btn-open" title="Open Atlas" style="background: none; border: none; color: var(--lunar-gold); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+                            <button class="atlas-action-btn atlas-btn-download" title="Download ZIP" style="background: none; border: none; color: var(--earth-teal); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+                            <button class="atlas-action-btn atlas-btn-regen" title="Regenerate" style="background: none; border: none; color: var(--sunrise-amber); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></button>
+                            <button class="atlas-action-btn atlas-btn-duplicate" title="Duplicate" style="background: none; border: none; color: #60a5fa; cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                            <button class="atlas-action-btn atlas-btn-delete" title="Delete" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                        </div>
+                    `;
+                    
+                    // Bind action listeners
+                    card.querySelector(".atlas-btn-open").addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        openAtlasProject(plan.id);
+                    });
+                    card.querySelector(".atlas-btn-download").addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        window.location.href = `/api/atlas/download?atlas_id=${encodeURIComponent(plan.id)}`;
+                    });
+                    card.querySelector(".atlas-btn-regen").addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        regenerateAtlasProjectInPlace(plan.source_project_id, plan.duration, plan.tools, plan.id);
+                    });
+                    card.querySelector(".atlas-btn-duplicate").addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        await duplicateAtlasProject(plan.id);
+                    });
+                    card.querySelector(".atlas-btn-delete").addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        if (confirm("Are you sure you want to delete this Atlas project?")) {
+                            await deleteAtlasProject(plan.id);
+                        }
+                    });
+                    
+                    sidebarList.appendChild(card);
+                });
+            } else {
+                sidebarList.innerHTML = '<div style="color: rgba(240, 232, 208, 0.4); font-size: 13px; text-align: center; padding: 20px 0;">No Atlas projects generated yet.</div>';
+            }
+        }
+    } catch (err) {
+        console.warn("Failed to list sidebar Atlas projects:", err);
+        sidebarList.innerHTML = '<div style="color: #f87171; font-size: 13px; text-align: center; padding: 20px 0;">Failed to load Atlas projects.</div>';
+    }
+}
+
+async function openAtlasProject(atlasId) {
+    showToast("Retrieving Atlas project blueprint...", "info");
+    try {
+        const res = await fetch(`/api/atlas?atlas_id=${encodeURIComponent(atlasId)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.success) {
+                activeAtlasResult = data.atlas;
+                const sourceTitle = data.atlas.title || "Project";
+                showAtlasOutputPage(activeAtlasResult, sourceTitle, data.atlas.duration, data.atlas.tools);
+            } else {
+                showToast(data.error || "Failed to open Atlas project.", "error");
+            }
+        }
+    } catch (err) {
+        console.error("Open Atlas error:", err);
+        showToast("Failed to open Atlas project.", "error");
+    }
+}
+
+async function duplicateAtlasProject(atlasId) {
+    showToast("Duplicating Atlas blueprint...", "info");
+    try {
+        const res = await fetch("/api/atlas/duplicate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ atlas_id: atlasId })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            showToast("Atlas blueprint duplicated successfully!", "success");
+            fetchAndRenderProjects();
+        } else {
+            showToast(data.error || "Failed to duplicate Atlas.", "error");
+        }
+    } catch (err) {
+        console.error("Duplicate Atlas error:", err);
+        showToast("Failed to duplicate Atlas.", "error");
+    }
+}
+
+async function deleteAtlasProject(atlasId) {
+    showToast("Deleting Atlas blueprint...", "info");
+    try {
+        const res = await fetch(`/api/atlas?atlas_id=${encodeURIComponent(atlasId)}`, {
+            method: "DELETE"
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            showToast("Atlas blueprint deleted successfully.", "success");
+            fetchAndRenderProjects();
+        } else {
+            showToast(data.error || "Failed to delete Atlas blueprint.", "error");
+        }
+    } catch (err) {
+        console.error("Delete Atlas error:", err);
+        showToast("Failed to delete Atlas blueprint.", "error");
+    }
+}
+
+async function regenerateAtlasProjectInPlace(projectId, duration, tools, atlasId) {
+    const atlasModal = document.getElementById("atlas-modal");
+    if (!atlasModal) return;
+    
+    const selectEl = document.getElementById("atlas-project-select");
+    const durationInput = document.getElementById("atlas-duration-input");
+    const toolsInput = document.getElementById("atlas-tools-input");
+    
+    if (selectEl) selectEl.value = projectId;
+    if (durationInput) durationInput.value = duration;
+    if (toolsInput) toolsInput.value = tools;
+    
+    atlasModal.classList.remove("hidden");
+    
+    window.activeRegenAtlasId = atlasId;
+    
+    const submitBtn = document.getElementById("submit-atlas-modal-btn");
+    if (submitBtn) {
+        showToast("Initiating regeneration plan...", "info");
+        submitBtn.click();
+    }
 }

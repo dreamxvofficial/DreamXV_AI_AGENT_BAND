@@ -201,3 +201,284 @@ class SupabaseService:
         except Exception as e:
             logger.error(f"Error fetching project '{project_id}' from Supabase: {e}")
         return None
+
+    def save_project_image(
+        self,
+        project_id: str,
+        image_url: str,
+        prompt: str,
+        category: str
+    ) -> Optional[dict[str, Any]]:
+        """Save a generated image to project_images table in Supabase."""
+        if not self.client:
+            return None
+
+        project_uuid = self._get_project_uuid(project_id)
+        image_data = {
+            "project_id": project_uuid,
+            "image_url": image_url,
+            "prompt": prompt,
+            "category": category
+        }
+        try:
+            res = self.client.table("project_images").insert(image_data).execute()
+            if res.data:
+                logger.info(f"Saved image to Supabase for project: {project_id} ({category})")
+                return res.data[0]
+        except Exception as e:
+            logger.error(f"Error saving project image to Supabase: {e}")
+        return None
+
+    def update_project_art_status(
+        self,
+        project_id: str,
+        status: str,
+        generated_count: int,
+        total_count: int
+    ) -> Optional[dict[str, Any]]:
+        """Update art generation progress in projects table."""
+        if not self.client:
+            return None
+
+        project_uuid = self._get_project_uuid(project_id)
+        try:
+            res = self.client.table("projects").update({
+                "art_generation_status": status,
+                "generated_images": generated_count,
+                "total_images": total_count
+            }).eq("id", project_uuid).execute()
+            if res.data:
+                logger.info(f"Updated art status for project {project_id}: {status} ({generated_count}/{total_count})")
+                return res.data[0]
+        except Exception as e:
+            logger.error(f"Error updating project art status: {e}")
+        return None
+
+    def get_project_images(self, project_id: str) -> list[dict[str, Any]]:
+        """Get all images generated for a project."""
+        if not self.client:
+            return []
+
+        project_uuid = self._get_project_uuid(project_id)
+        try:
+            res = self.client.table("project_images").select("*").eq("project_id", project_uuid).order("created_at").execute()
+            return res.data or []
+        except Exception as e:
+            logger.error(f"Error fetching images for project {project_id}: {e}")
+        return []
+
+    def get_project_image(self, image_id: str) -> Optional[dict[str, Any]]:
+        """Fetch a single image record by ID."""
+        if not self.client:
+            return None
+
+        try:
+            res = self.client.table("project_images").select("*").eq("id", image_id).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception as e:
+            logger.error(f"Error fetching project image {image_id}: {e}")
+        return None
+
+    def update_project_image_url(self, image_id: str, image_url: str) -> Optional[dict[str, Any]]:
+        """Update the image URL for an existing project image (used in regeneration)."""
+        if not self.client:
+            return None
+
+        try:
+            res = self.client.table("project_images").update({
+                "image_url": image_url
+            }).eq("id", image_id).execute()
+            if res.data:
+                logger.info(f"Updated image URL for image {image_id}")
+                return res.data[0]
+        except Exception as e:
+            logger.error(f"Error updating project image URL: {e}")
+        return None
+
+    def _local_atlas_load(self) -> list[dict[str, Any]]:
+        import json
+        path = "data/atlas_projects.json"
+        if not os.path.exists(path):
+            return []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+
+    def _local_atlas_save(self, data: list[dict[str, Any]]):
+        import json
+        path = "data/atlas_projects.json"
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+        except Exception as e:
+            logger.error(f"Failed to save local atlas projects: {e}")
+
+    def save_atlas_project(
+        self,
+        atlas_id: str,
+        user_id: Optional[str],
+        source_project_id: str,
+        title: str,
+        duration: str,
+        tools: str,
+        roadmap: list[dict],
+        structure: list[str],
+        flow_map: list[str],
+        dependency_map: list[str],
+        tasks: dict,
+        generated_files: dict,
+        zip_path: Optional[str] = None
+    ) -> Optional[dict[str, Any]]:
+        """Save/upsert an Atlas Project record in Supabase."""
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        db_user_id = self._resolve_user_uuid(user_id) if user_id and self.client else (user_id or "spotifysahir007@gmail.com")
+        db_source_project_id = self._get_project_uuid(source_project_id)
+
+        import datetime
+        created_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        atlas_data = {
+            "id": atlas_uuid,
+            "user_id": db_user_id,
+            "source_project_id": db_source_project_id,
+            "title": title,
+            "duration": duration,
+            "tools": tools,
+            "roadmap": roadmap,
+            "structure": structure,
+            "flow_map": flow_map,
+            "dependency_map": dependency_map,
+            "tasks": tasks,
+            "generated_files": generated_files,
+            "zip_path": zip_path,
+            "created_at": created_str
+        }
+
+        if not self.client:
+            logger.warning("Supabase client not initialized. Saving Atlas Project locally.")
+            local_data = self._local_atlas_load()
+            local_data = [x for x in local_data if x.get("id") != atlas_uuid]
+            local_data.append(atlas_data)
+            self._local_atlas_save(local_data)
+            return atlas_data
+
+        try:
+            res = self.client.table("atlas_projects").upsert(atlas_data).execute()
+            if res.data:
+                logger.info(f"Atlas Project saved to Supabase: {atlas_id} (UUID: {atlas_uuid})")
+                return res.data[0]
+        except Exception as e:
+            err_msg = str(e)
+            if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
+                logger.warning("atlas_projects table not found in Supabase. Falling back to local data/atlas_projects.json.")
+                local_data = self._local_atlas_load()
+                local_data = [x for x in local_data if x.get("id") != atlas_uuid]
+                local_data.append(atlas_data)
+                self._local_atlas_save(local_data)
+                return atlas_data
+            else:
+                logger.error(f"Error saving Atlas Project: {e}")
+        return None
+
+    def get_atlas_project(self, atlas_id: str) -> Optional[dict[str, Any]]:
+        """Fetch an Atlas project by ID."""
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        if not self.client:
+            local_data = self._local_atlas_load()
+            return next((x for x in local_data if x.get("id") == atlas_uuid), None)
+
+        try:
+            res = self.client.table("atlas_projects").select("*").eq("id", atlas_uuid).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception as e:
+            err_msg = str(e)
+            if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
+                local_data = self._local_atlas_load()
+                return next((x for x in local_data if x.get("id") == atlas_uuid), None)
+            else:
+                logger.error(f"Error fetching Atlas Project '{atlas_id}': {e}")
+        return None
+
+    def get_atlas_projects_by_source(self, source_project_id: str) -> list[dict[str, Any]]:
+        """Fetch all Atlas projects linked to a source project ID."""
+        db_source_project_id = self._get_project_uuid(source_project_id)
+        if not self.client:
+            local_data = self._local_atlas_load()
+            return [x for x in local_data if x.get("source_project_id") == db_source_project_id]
+
+        try:
+            res = self.client.table("atlas_projects").select("*").eq("source_project_id", db_source_project_id).order("created_at").execute()
+            return res.data or []
+        except Exception as e:
+            err_msg = str(e)
+            if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
+                local_data = self._local_atlas_load()
+                return [x for x in local_data if x.get("source_project_id") == db_source_project_id]
+            else:
+                logger.error(f"Error fetching Atlas projects for source project '{source_project_id}': {e}")
+        return []
+
+    def list_atlas_projects(self, user_id: Optional[str] = None) -> list[dict[str, Any]]:
+        """List all Atlas projects, optionally filtered by user_id."""
+        db_user_id = self._resolve_user_uuid(user_id) if user_id and self.client else user_id
+
+        if not self.client:
+            local_data = self._local_atlas_load()
+            if db_user_id:
+                local_data = [x for x in local_data if x.get("user_id") == db_user_id]
+            local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            return local_data
+
+        try:
+            query = self.client.table("atlas_projects").select("*")
+            if user_id:
+                db_user_id = self._resolve_user_uuid(user_id)
+                if db_user_id:
+                    query = query.eq("user_id", db_user_id)
+                else:
+                    return []
+            res = query.order("created_at", descending=True).execute()
+            return res.data or []
+        except Exception as e:
+            err_msg = str(e)
+            if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
+                local_data = self._local_atlas_load()
+                if db_user_id:
+                    local_data = [x for x in local_data if x.get("user_id") == db_user_id]
+                local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+                return local_data
+            else:
+                logger.error(f"Error listing Atlas projects: {e}")
+        return []
+
+    def delete_atlas_project(self, atlas_id: str) -> bool:
+        """Delete an Atlas project from Supabase."""
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        if not self.client:
+            local_data = self._local_atlas_load()
+            initial_len = len(local_data)
+            local_data = [x for x in local_data if x.get("id") != atlas_uuid]
+            self._local_atlas_save(local_data)
+            return len(local_data) < initial_len
+
+        try:
+            res = self.client.table("atlas_projects").delete().eq("id", atlas_uuid).execute()
+            if res.data:
+                logger.info(f"Atlas Project deleted: {atlas_id} (UUID: {atlas_uuid})")
+                return True
+        except Exception as e:
+            err_msg = str(e)
+            if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
+                local_data = self._local_atlas_load()
+                initial_len = len(local_data)
+                local_data = [x for x in local_data if x.get("id") != atlas_uuid]
+                self._local_atlas_save(local_data)
+                return len(local_data) < initial_len
+            else:
+                logger.error(f"Error deleting Atlas Project '{atlas_id}': {e}")
+        return False
