@@ -29,3 +29,6 @@ websockets>=13.0
 
 # --- Hashing & Security ---
 bcrypt>=4.0.0
+
+# --- Data Server ---
+supabase>=2.5.0
