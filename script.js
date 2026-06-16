@@ -968,7 +968,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     updatePipelineVisualization(readyStatuses);
                     return;
                 }
-                const projectObj = data.data || {};
+                const projectObj = data.project || data.data || {};
                 console.log("[DreamXV] Project generation completed:", projectObj);
 
                 activeStatuses.forEach(s => s.status = "completed");

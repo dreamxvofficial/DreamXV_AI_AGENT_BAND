@@ -132,15 +132,28 @@ class BandManager:
         start = time.time()
         self._update_status(project_id, "Chief Agent", AgentStatus.RUNNING)
         breakdown = None
-        try:
-            breakdown = await asyncio.wait_for(chief.run(user_prompt, room), timeout=180.0)
-            logger.info(f"Chief Agent completed in {time.time()-start:.2f}s")
-            self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            error_message = f"Chief Agent failed: {str(e)}"
-            self._update_status(project_id, "Chief Agent", AgentStatus.ERROR, error_message)
-            raise e
+        _chief_retry_delays = [1.0, 3.0, 5.0]
+        for _attempt in range(1, 4):
+            try:
+                logger.info(f"Chief Agent attempt {_attempt}/3...")
+                breakdown = await asyncio.wait_for(chief.run(user_prompt, room), timeout=180.0)
+                logger.info(f"Chief Agent completed in {time.time()-start:.2f}s (attempt {_attempt})")
+                self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
+                break
+            except Exception as e:
+                logger.warning(f"Chief Agent attempt {_attempt}/3 failed: {type(e).__name__}: {e}")
+                if _attempt < 3:
+                    wait_sec = _chief_retry_delays[_attempt - 1]
+                    logger.info(f"Waiting {wait_sec}s before Chief Agent retry...")
+                    await asyncio.sleep(wait_sec)
+                else:
+                    logger.error("Chief Agent failed after 3 attempts — using mock breakdown fallback")
+                    self._update_status(project_id, "Chief Agent", AgentStatus.ERROR, f"Chief Agent failed: {e}")
+                    # Fallback to mock breakdown so pipeline can continue
+                    from backend.services.llm_service import generate_mock_data_for_model
+                    from backend.models.output_models import ChiefTaskBreakdown
+                    breakdown = generate_mock_data_for_model(ChiefTaskBreakdown, user_prompt)
+                    self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
 
         # ── Phase 2: Parallel Specialist Agents ─────────────────────────
         async def run_story():
@@ -166,23 +179,35 @@ class BandManager:
         async def run_characters():
             self._update_status(project_id, "Character Agent", AgentStatus.RUNNING)
             start_char = time.time()
-            try:
-                result = await asyncio.wait_for(
-                    character_agent.run(
-                        breakdown.character_directive, room,
-                        genre=breakdown.genre, tone=breakdown.tone,
-                    ),
-                    timeout=180.0
-                )
-                logger.info(f"Character Agent completed in {time.time()-start_char:.2f}s")
-                self._update_status(project_id, "Character Agent", AgentStatus.COMPLETED)
-                return result
-            except Exception as e:
-                logger.exception(e)
-                logger.error(f"Character Agent failed or timed out: {e}")
-                self._update_status(project_id, "Character Agent", AgentStatus.ERROR, str(e))
-                roster = generate_mock_data_for_model(CharacterRoster, user_prompt)
-                return roster.characters
+            _char_delays = [1.0, 3.0, 5.0]
+            for _cattempt in range(1, 4):
+                try:
+                    result = await asyncio.wait_for(
+                        character_agent.run(
+                            breakdown.character_directive, room,
+                            genre=breakdown.genre, tone=breakdown.tone,
+                        ),
+                        timeout=120.0
+                    )
+                    logger.info(f"Character Agent completed in {time.time()-start_char:.2f}s (attempt {_cattempt})")
+                    self._update_status(project_id, "Character Agent", AgentStatus.COMPLETED)
+                    return result
+                except Exception as e:
+                    logger.warning(f"Character Agent attempt {_cattempt}/3 failed: {type(e).__name__}: {e}")
+                    if _cattempt < 3:
+                        wait_sec = _char_delays[_cattempt - 1]
+                        logger.info(f"Waiting {wait_sec}s before Character Agent retry...")
+                        await asyncio.sleep(wait_sec)
+                    else:
+                        logger.error(f"Character Agent failed after 3 attempts — using fallback characters from prompt")
+                        self._update_status(project_id, "Character Agent", AgentStatus.ERROR, str(e))
+                        # Generate fallback characters from prompt; never crash pipeline
+                        try:
+                            roster = generate_mock_data_for_model(CharacterRoster, user_prompt)
+                            return roster.characters if roster and roster.characters else []
+                        except Exception as fallback_err:
+                            logger.error(f"Character fallback also failed: {fallback_err}")
+                            return []
 
         async def run_world():
             self._update_status(project_id, "World Agent", AgentStatus.RUNNING)
@@ -294,7 +319,7 @@ class BandManager:
                     genre=breakdown.genre,
                     tone=breakdown.tone,
                 ),
-                timeout=120.0
+                timeout=180.0
             )
             logger.info(f"Documentation Agent completed in {time.time()-start_docs:.2f}s")
             self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)

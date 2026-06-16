@@ -8,7 +8,8 @@ with automatic fallback to AIMLAPI. Users never see provider selection.
 from __future__ import annotations
 
 import inspect
-from typing import Optional, Type, TypeVar, Union, List
+import asyncio
+from typing import Optional, Type, TypeVar, Union, List, get_origin, get_args
 
 from pydantic import BaseModel
 
@@ -339,6 +340,27 @@ class LLMService:
         self._primary = FeatherlessService()
         self._fallback = AIMLService()
 
+    async def _try_primary(self, func, *args, **kwargs):
+        delays = [1.0, 3.0, 5.0]
+        for attempt in range(1, 4):
+            try:
+                logger.info(f"Featherless AI primary call: Attempt {attempt}")
+                return await func(*args, **kwargs)
+            except Exception as exc:
+                logger.warning(
+                    f"Featherless AI primary call failed on Attempt {attempt} "
+                    f"({type(exc).__name__}: {exc})"
+                )
+                if attempt < 3:
+                    delay = delays[attempt - 1]
+                    logger.info(f"Waiting {delay} sec before next attempt...")
+                    await asyncio.sleep(delay)
+                else:
+                    delay = delays[2]
+                    logger.info(f"Attempt 3 failed. Waiting {delay} sec before fallback to AIMLAPI...")
+                    await asyncio.sleep(delay)
+                    raise exc
+
     async def generate(
         self,
         messages: list[dict[str, str]],
@@ -360,7 +382,8 @@ class LLMService:
             Generated text from whichever provider succeeds.
         """
         try:
-            result = await self._primary.generate(
+            result = await self._try_primary(
+                self._primary.generate,
                 messages,
                 model=model,
                 temperature=temperature,
@@ -369,7 +392,7 @@ class LLMService:
             return result
         except Exception as exc:
             logger.warning(
-                f"Featherless AI failed ({type(exc).__name__}: {exc}), "
+                f"Featherless AI failed after retries ({type(exc).__name__}: {exc}), "
                 f"falling back to AIMLAPI"
             )
             try:
@@ -407,7 +430,8 @@ class LLMService:
             Validated Pydantic model instance.
         """
         try:
-            result = await self._primary.generate_structured(
+            result = await self._try_primary(
+                self._primary.generate_structured,
                 messages,
                 response_model,
                 model=model,
@@ -416,7 +440,7 @@ class LLMService:
             return result
         except Exception as exc:
             logger.warning(
-                f"Featherless AI structured generation failed "
+                f"Featherless AI structured generation failed after retries "
                 f"({type(exc).__name__}: {exc}), falling back to AIMLAPI"
             )
             try:

@@ -11,8 +11,8 @@ import os
 from pathlib import Path
 from functools import lru_cache
 
-# Force Vercel stateless execution mode globally to prevent filesystem writes
-os.environ["VERCEL"] = "1"
+# NOTE: Do NOT force VERCEL=1 here — this breaks local /tmp path usage on Windows.
+# Vercel serverless sets this env var automatically in its runtime.
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
