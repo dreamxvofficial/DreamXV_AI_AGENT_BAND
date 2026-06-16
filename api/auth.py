@@ -165,18 +165,17 @@ async def signup(req: SignupRequest):
         email_lower = req.email.strip().lower()
         logger.info(f"Signup attempt — username: {username_lower}, email: {email_lower}")
 
-        # Check for duplicates using SupabaseService
-        existing_user = db.get_user_by_username_or_email(username_lower)
-        if not existing_user:
-            existing_user = db.get_user_by_username_or_email(email_lower)
+        # Check for duplicate username (case-insensitive)
+        user_by_username = db.get_user_by_username_or_email(username_lower)
+        if user_by_username and user_by_username.get("username", "").lower() == username_lower:
+            logger.info(f"Signup rejected: username '{username_lower}' already exists")
+            return {"success": False, "error": "Username already exists."}
 
-        if existing_user:
-            if existing_user.get("username", "").lower() == username_lower:
-                logger.info(f"Signup rejected: username '{username_lower}' already exists")
-                return {"success": False, "error": "Username already exists."}
-            if existing_user.get("email", "").lower() == email_lower:
-                logger.info(f"Signup rejected: email '{email_lower}' already registered")
-                return {"success": False, "error": "Email already registered."}
+        # Check for duplicate email (case-insensitive)
+        user_by_email = db.get_user_by_username_or_email(email_lower)
+        if user_by_email and user_by_email.get("email", "").lower() == email_lower:
+            logger.info(f"Signup rejected: email '{email_lower}' already registered")
+            return {"success": False, "error": "Email already registered."}
 
         # Hash password
         hashed = hash_password(req.password)
@@ -238,7 +237,7 @@ async def login(req: LoginRequest):
             "success": True,
             "user": {
                 "id": target_user.get("id"),
-                "name": target_user.get("name"),
+                "name": target_user.get("full_name") or target_user.get("name"),
                 "username": target_username,
                 "email": target_user.get("email"),
                 "onboarded": target_user.get("onboarded", False),
@@ -273,7 +272,7 @@ async def save_onboarding(req: OnboardingRequest):
             "success": True,
             "user": {
                 "id": updated_user.get("id"),
-                "name": updated_user.get("name"),
+                "name": updated_user.get("full_name") or updated_user.get("name"),
                 "username": req.username,
                 "email": updated_user.get("email"),
                 "onboarded": True,

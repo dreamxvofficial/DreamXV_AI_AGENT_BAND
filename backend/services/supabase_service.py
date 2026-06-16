@@ -92,7 +92,7 @@ class SupabaseService:
         user_data = {
             "id": user_id,
             "username": username,
-            "name": name,
+            "full_name": name,
             "email": email.strip().lower(),
             "password_hash": password_hash,
             "onboarded": False,
@@ -182,7 +182,7 @@ class SupabaseService:
                     logger.warning(f"Could not resolve user UUID for listing projects: {user_id}")
                     return [] # Return empty list if user filter was requested but not found
 
-            res = query.order("created_at", descending=True).execute()
+            res = query.order("created_at", desc=True).execute()
             return res.data or []
         except Exception as e:
             logger.error(f"Error listing projects from Supabase: {e}")
@@ -442,7 +442,7 @@ class SupabaseService:
                     query = query.eq("user_id", db_user_id)
                 else:
                     return []
-            res = query.order("created_at", descending=True).execute()
+            res = query.order("created_at", desc=True).execute()
             return res.data or []
         except Exception as e:
             err_msg = str(e)

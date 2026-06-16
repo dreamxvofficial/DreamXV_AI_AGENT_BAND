@@ -143,11 +143,14 @@ function transitionToMainSite() {
     if (mainContent) {
         mainContent.classList.remove("hidden");
         // Check session and route to the correct screen
-        const user = safeStorage.getItem("dreamxv_user");
+        const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
         const onboarded = safeStorage.getItem("dreamxv_onboarded");
 
-        if (user && onboarded) {
+        if (user && onboarded === "true") {
             showView("dashboard-view");
+            initDashboard();
+        } else if (user) {
+            startOnboarding();
         } else {
             showView("landing-view");
         }

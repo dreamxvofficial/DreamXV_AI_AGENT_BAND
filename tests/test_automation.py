@@ -527,5 +527,136 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all_passed, f"Some tests failed: {[k for k, v in results.items() if not v]}")
 
 
+    async def test_auth_unit_flows(self):
+        """Unit tests for all auth pathways: Signup, Duplicates, Logins, Wrong Password, Session, Logout."""
+        print("\n" + "=" * 60)
+        print("  DreamXV AI Studio -- AUTH UNIT FLOWS TEST SUITE")
+        print("=" * 60)
+
+        transport_auth = httpx.ASGITransport(app=auth_app)
+        async with httpx.AsyncClient(transport=transport_auth, base_url="http://test") as client:
+            # Clean up first to ensure clean state (literal check)
+            try:
+                from backend.services.supabase_service import SupabaseService
+                db = SupabaseService()
+                if db.client:
+                    db.client.table("users").delete().eq("username", "test_user_unit").execute()
+                    db.client.table("users").delete().eq("email", "test_unit_email@gmail.com").execute()
+                    db.client.table("users").delete().eq("username", "test_user_dup").execute()
+            except Exception as e:
+                print(f"Cleanup failure in test: {e}")
+
+            # 1. Signup new user
+            print("\n  Sub-test 1: Signup new user")
+            payload = {
+                "name": "Unit Tester",
+                "username": "test_user_unit",
+                "email": "test_unit_email@gmail.com",
+                "password": "unitpassword123"
+            }
+            res = await client.post("/api/auth/signup", json=payload)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertTrue(data.get("success"), f"Signup failed: {data.get('error')}")
+            self.assertEqual(data.get("user", {}).get("email"), "test_unit_email@gmail.com")
+            self.assertEqual(data.get("user", {}).get("name"), "Unit Tester")
+            print("  [PASS] Signup new user")
+
+            # 2. Duplicate email rejection
+            print("\n  Sub-test 2: Duplicate email")
+            payload_dup_email = {
+                "name": "Different Name",
+                "username": "test_user_dup",
+                "email": "test_unit_email@gmail.com", # Same email
+                "password": "anotherpassword123"
+            }
+            res = await client.post("/api/auth/signup", json=payload_dup_email)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertFalse(data.get("success"))
+            self.assertEqual(data.get("error"), "Email already registered.")
+            print("  [PASS] Duplicate email rejection")
+
+            # 3. Duplicate username rejection
+            print("\n  Sub-test 3: Duplicate username")
+            payload_dup_username = {
+                "name": "Different Name",
+                "username": "test_user_unit", # Same username
+                "email": "different_email@gmail.com",
+                "password": "anotherpassword123"
+            }
+            res = await client.post("/api/auth/signup", json=payload_dup_username)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertFalse(data.get("success"))
+            self.assertEqual(data.get("error"), "Username already exists.")
+            print("  [PASS] Duplicate username rejection")
+
+            # 4. Login with username
+            print("\n  Sub-test 4: Login with username")
+            login_payload_username = {
+                "username_or_email": "test_user_unit",
+                "password": "unitpassword123"
+            }
+            res = await client.post("/api/auth/login", json=login_payload_username)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertTrue(data.get("success"), f"Login failed: {data.get('error')}")
+            self.assertEqual(data.get("user", {}).get("username"), "test_user_unit")
+            self.assertEqual(data.get("user", {}).get("name"), "Unit Tester")
+            print("  [PASS] Login with username")
+
+            # 5. Login with email (case-insensitive)
+            print("\n  Sub-test 5: Login with email (case-insensitive)")
+            login_payload_email = {
+                "username_or_email": "TeSt_UnIt_EmAiL@gMaIl.CoM",
+                "password": "unitpassword123"
+            }
+            res = await client.post("/api/auth/login", json=login_payload_email)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertTrue(data.get("success"), f"Login failed: {data.get('error')}")
+            self.assertEqual(data.get("user", {}).get("email"), "test_unit_email@gmail.com")
+            print("  [PASS] Login with email")
+
+            # 6. Wrong password rejection
+            print("\n  Sub-test 6: Wrong password")
+            login_payload_wrong = {
+                "username_or_email": "test_user_unit",
+                "password": "wrongpassword"
+            }
+            res = await client.post("/api/auth/login", json=login_payload_wrong)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertFalse(data.get("success"))
+            self.assertEqual(data.get("error"), "Incorrect password.")
+            print("  [PASS] Wrong password rejection")
+
+            # 7. Session persistence
+            print("\n  Sub-test 7: Session persistence (/me)")
+            res = await client.get("/api/auth/me")
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("status"), "authenticated")
+            print("  [PASS] Session persistence")
+
+            # 8. Logout
+            print("\n  Sub-test 8: Logout")
+            res = await client.post("/api/auth/logout")
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertTrue(data.get("success"))
+            print("  [PASS] Logout")
+
+            # Cleanup after test finishes
+            try:
+                if db.client:
+                    db.client.table("users").delete().eq("username", "test_user_unit").execute()
+                    print("  [Cleanup] Cleaned up unit test user records.")
+            except Exception as e:
+                print(f"Cleanup failure at end: {e}")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
