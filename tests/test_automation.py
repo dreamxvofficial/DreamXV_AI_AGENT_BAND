@@ -45,17 +45,32 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Reset user DB before each test run for a clean state."""
         load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
-        # Wipe users to ensure duplicate checks don't interfere
-        users_filepath = auth.get_users_file_path()
-        print(f"\n[Setup] Users file path: {users_filepath}")
-        if os.path.exists(users_filepath):
-            try:
-                os.remove(users_filepath)
-                print("[Setup] Removed existing users.json")
-            except Exception as e:
-                print(f"[Setup] Could not remove users.json: {e}")
-        auth.save_users({})
-        print("[Setup] Clean users.json created")
+        
+        # Clean up test database records in Supabase
+        try:
+            from backend.services.supabase_service import SupabaseService
+            db = SupabaseService()
+            if db.client:
+                # 1. Fetch user to get ID
+                user = db.get_user_by_username_or_email("dreamxv")
+                if not user:
+                    user = db.get_user_by_username_or_email("spotifysahir007@gmail.com")
+                
+                if user:
+                    user_id = user.get("id")
+                    print(f"\n[Setup] Found existing test user UUID: {user_id}. Cleaning up projects...")
+                    # 2. Delete projects first to avoid foreign key errors
+                    db.client.table("projects").delete().eq("user_id", user_id).execute()
+                    # 3. Delete user
+                    db.client.table("users").delete().eq("id", user_id).execute()
+                    print("[Setup] Cleaned up existing test user and projects in Supabase.")
+                else:
+                    # Clean up by literal fields just in case
+                    db.client.table("users").delete().eq("username", "dreamxv").execute()
+                    db.client.table("users").delete().eq("email", "spotifysahir007@gmail.com").execute()
+                    print("[Setup] Cleaned up test user fields in Supabase.")
+        except Exception as e:
+            print(f"\n[Setup] Warning: Failed to clean up Supabase test records: {e}")
 
     async def test_all_flows(self):
         """End-to-end test: Signup -> Login -> Generate -> Verify."""

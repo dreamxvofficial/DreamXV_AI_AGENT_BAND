@@ -354,6 +354,56 @@ class BandManager:
 
         # Persist and clean up
         logger.info("Saving project...")
+        
+        # Convert image file paths to base64 inline data URLs before saving to Supabase
+        try:
+            import base64
+            from pathlib import Path
+            if project.art and hasattr(project.art, "image_paths") and project.art.image_paths:
+                base64_images = []
+                for path_str in project.art.image_paths:
+                    try:
+                        if str(path_str).startswith("data:image/"):
+                            base64_images.append(path_str)
+                            continue
+                        img_path = Path(path_str)
+                        if img_path.exists():
+                            img_bytes = img_path.read_bytes()
+                            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                            base64_images.append(f"data:image/png;base64,{img_b64}")
+                            try:
+                                img_path.unlink()
+                            except Exception:
+                                pass
+                        else:
+                            base64_images.append(path_str)
+                    except Exception as img_err:
+                        logger.error(f"Failed to convert image {path_str} to base64: {img_err}")
+                        base64_images.append(path_str)
+                project.art.image_paths = base64_images
+        except Exception as e:
+            logger.warning(f"Error preparing base64 images: {e}")
+
+        # Save to Supabase first
+        try:
+            from backend.services.supabase_service import SupabaseService
+            db = SupabaseService()
+            user_id = self._memory._active_projects.get(project.project_id, {}).get("user_id")
+            prompt = self._memory._active_projects.get(project.project_id, {}).get("user_prompt", "")
+            
+            import json
+            project_json = json.loads(project.model_dump_json())
+            
+            db.save_project(
+                project_id=project.project_id,
+                user_id=user_id,
+                title=project.title,
+                prompt=prompt,
+                project_json=project_json
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save project to Supabase: {e}")
+
         try:
             self._export.save_project(project)
         except Exception as e:
@@ -383,18 +433,46 @@ class BandManager:
 
     def list_projects(self) -> list[dict]:
         """List all completed projects."""
-        # Combine in-memory and disk-persisted projects
+        # 1. Fetch from Supabase
+        try:
+            from backend.services.supabase_service import SupabaseService
+            db = SupabaseService()
+            supabase_projects = db.list_projects()
+        except Exception as exc:
+            logger.warning(f"Failed to fetch projects from Supabase in list_projects: {exc}")
+            supabase_projects = []
+
+        projects_list = []
+        for p in supabase_projects:
+            proj_json = p.get("project_json", {})
+            proj_id = proj_json.get("project_id") or p.get("id")
+            created = p.get("created_at")
+            created_str = created.isoformat() if hasattr(created, "isoformat") else (str(created) if created else "")
+            
+            projects_list.append({
+                "project_id": proj_id,
+                "title": p.get("title") or proj_json.get("title") or "Untitled",
+                "created_at": created_str,
+                "status": proj_json.get("status") or "completed",
+            })
+
+        # Merge in-memory and disk-persisted projects
         memory_projects = self._memory.list_completed_projects()
         disk_projects = self._export.list_projects()
 
-        # Merge, preferring memory (more recent)
-        seen_ids = {p["project_id"] for p in memory_projects}
-        all_projects = list(memory_projects)
+        seen_ids = {p["project_id"] for p in projects_list}
+        
+        for p in memory_projects:
+            if p["project_id"] not in seen_ids:
+                projects_list.append(p)
+                seen_ids.add(p["project_id"])
+                
         for p in disk_projects:
             if p["project_id"] not in seen_ids:
-                all_projects.append(p)
+                projects_list.append(p)
+                seen_ids.add(p["project_id"])
 
-        return all_projects
+        return projects_list
 
     async def close(self) -> None:
         """Shut down all services."""

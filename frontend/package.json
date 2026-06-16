@@ -1,0 +1,8 @@
+{
+  "name": "dreamxv-frontend",
+  "version": "1.0.0",
+  "description": "DreamXV AI Studio frontend packages",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2"
+  }
+}

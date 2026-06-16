@@ -74,6 +74,20 @@ class Settings(BaseSettings):
         description="Band SDK base URL",
     )
 
+    # --- Supabase (Persistent Database) ---
+    supabase_url: str = Field(
+        default="your_supabase_url_here",
+        description="Supabase project URL",
+    )
+    supabase_anon_key: str = Field(
+        default="your_supabase_anon_key_here",
+        description="Supabase anonymous key",
+    )
+    supabase_service_role_key: str = Field(
+        default="your_supabase_service_role_key_here",
+        description="Supabase service role key",
+    )
+
     # --- Application Paths ---
     project_root: Path = _PROJECT_ROOT
     outputs_dir: Path = _PROJECT_ROOT / "outputs"

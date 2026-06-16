@@ -286,6 +286,7 @@ function initApp() {
                 showToast("Account created successfully!", "success");
                 
                 const userObj = {
+                    id: data.user.id,
                     name: data.user.name,
                     username: data.user.username,
                     email: data.user.email,
@@ -322,6 +323,7 @@ function initApp() {
                 }
                 
                 const userObj = {
+                    id: data.user.id,
                     name: data.user.name,
                     username: data.user.username,
                     email: data.user.email,
@@ -928,7 +930,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Get user from session
             const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
-            const userId = user ? user.email : "anonymous";
+            const userId = user ? (user.id || user.email) : "anonymous";
 
             try {
                 const response = await fetch("/api/generate-project", {
@@ -1140,11 +1142,30 @@ async function fetchAndRenderProjects() {
     const emptyState = document.getElementById("projects-empty-state");
     if (!container) return;
 
-    // Load local projects from localStorage
-    const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
-    const localProjects = safeJsonParse(localProjectsStr) || [];
+    let mergedProjects = [];
 
-    let mergedProjects = [...localProjects];
+    // Try loading projects from database
+    const user = safeJsonParse(safeStorage.getItem("dreamxv_user"));
+    if (user) {
+        try {
+            const userQueryId = user.id || user.email || user.username;
+            const res = await fetch(`/api/projects?user_id=${encodeURIComponent(userQueryId)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.projects) {
+                    mergedProjects = data.projects;
+                }
+            }
+        } catch (err) {
+            console.warn("[DreamXV] Failed to fetch projects from backend, falling back to local cache:", err);
+        }
+    }
+
+    // Fall back to local storage cache if fetch failed or empty
+    if (mergedProjects.length === 0) {
+        const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+        mergedProjects = safeJsonParse(localProjectsStr) || [];
+    }
 
     // Sort by created_at descending
     mergedProjects.sort((a, b) => {
@@ -1180,13 +1201,31 @@ async function fetchAndRenderProjects() {
     }
 }
 
-function showProjectDetails(projectId) {
-    const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
-    const localProjects = safeJsonParse(localProjectsStr) || [];
-    const project = localProjects.find(p => p.project_id === projectId);
+async function showProjectDetails(projectId) {
+    let project = null;
+
+    // Try fetching details from the backend first
+    try {
+        const res = await fetch(`/api/projects?project_id=${encodeURIComponent(projectId)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.success) {
+                project = data.project;
+            }
+        }
+    } catch (err) {
+        console.warn("[DreamXV] Failed to fetch project details from backend:", err);
+    }
+
+    // Fall back to local storage
+    if (!project) {
+        const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+        const localProjects = safeJsonParse(localProjectsStr) || [];
+        project = localProjects.find(p => p.project_id === projectId);
+    }
 
     if (!project) {
-        showToast("Project details not found in local storage.", "error");
+        showToast("Project details not found.", "error");
         return;
     }
 

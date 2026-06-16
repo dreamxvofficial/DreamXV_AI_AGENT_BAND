@@ -11,6 +11,9 @@ import traceback
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.utils.logger import logger
+from backend.services.supabase_service import SupabaseService
+
+db = SupabaseService()
 
 app = FastAPI()
 
@@ -158,39 +161,43 @@ class OnboardingRequest(BaseModel):
 @app.post("/signup")
 async def signup(req: SignupRequest):
     try:
-        users = load_users()
         username_lower = req.username.strip().lower()
         email_lower = req.email.strip().lower()
         logger.info(f"Signup attempt — username: {username_lower}, email: {email_lower}")
 
-        # Check for duplicates
-        for u_key, u_val in users.items():
-            if u_key.lower() == username_lower:
+        # Check for duplicates using SupabaseService
+        existing_user = db.get_user_by_username_or_email(username_lower)
+        if not existing_user:
+            existing_user = db.get_user_by_username_or_email(email_lower)
+
+        if existing_user:
+            if existing_user.get("username", "").lower() == username_lower:
                 logger.info(f"Signup rejected: username '{username_lower}' already exists")
                 return {"success": False, "error": "Username already exists."}
-            if u_val.get("email", "").lower() == email_lower:
+            if existing_user.get("email", "").lower() == email_lower:
                 logger.info(f"Signup rejected: email '{email_lower}' already registered")
                 return {"success": False, "error": "Email already registered."}
 
         # Hash password
         hashed = hash_password(req.password)
 
-        # Store using original-casing username as key
-        users[req.username] = {
-            "username": req.username,
-            "name": req.name,
-            "email": email_lower,
-            "password_hash": hashed,
-            "onboarded": False,
-            "onboarding_answers": {}
-        }
-        save_users(users)
+        # Create user in Supabase
+        new_user = db.create_user(
+            username=req.username,
+            name=req.name,
+            email=email_lower,
+            password_hash=hashed
+        )
+        if not new_user:
+            return {"success": False, "error": "Failed to create user record in Supabase."}
+
         logger.info(f"Signup successful for '{req.username}' / '{email_lower}'")
 
         return {
             "success": True,
             "message": "Account created successfully",
             "user": {
+                "id": new_user.get("id"),
                 "name": req.name,
                 "username": req.username,
                 "email": email_lower,
@@ -207,36 +214,17 @@ async def signup(req: SignupRequest):
 @app.post("/login")
 async def login(req: LoginRequest):
     try:
-        users = load_users()
         identifier = req.username_or_email.strip()
-        query = identifier.lower()
-
         logger.info(f"Login attempt: {identifier}")
-        logger.info(f"Total users in DB: {len(users)}")
 
-        target_user = None
-        target_username = None
-
-        # Search by username (case-insensitive) OR email (case-insensitive)
-        for username, u_val in users.items():
-            username_match = username.lower() == query
-            email_match = u_val.get("email", "").lower() == query
-            logger.info(
-                f"Checking user '{username}' (email='{u_val.get('email', '')}') "
-                f"-> username_match={username_match}, email_match={email_match}"
-            )
-            if username_match or email_match:
-                target_user = u_val
-                target_username = username
-                break
-
-        logger.info(f"User found: {target_user is not None}")
-        if target_user:
-            logger.info(f"Matched username: '{target_username}', email: '{target_user.get('email')}'")
+        target_user = db.get_user_by_username_or_email(identifier)
 
         if not target_user:
             logger.warning(f"Login failed: no user found for identifier '{identifier}'")
             return {"success": False, "error": "User not found. Please check your username or email."}
+
+        target_username = target_user.get("username")
+        logger.info(f"User found: {target_username} (email={target_user.get('email')})")
 
         stored_hash = target_user.get("password_hash", "")
         logger.info(f"Stored hash prefix: '{stored_hash[:10]}...' (len={len(stored_hash)})")
@@ -249,6 +237,7 @@ async def login(req: LoginRequest):
         return {
             "success": True,
             "user": {
+                "id": target_user.get("id"),
                 "name": target_user.get("name"),
                 "username": target_username,
                 "email": target_user.get("email"),
@@ -266,28 +255,29 @@ async def login(req: LoginRequest):
 @app.post("/onboarding")
 async def save_onboarding(req: OnboardingRequest):
     try:
-        users = load_users()
-        if req.username not in users:
-            return {"success": False, "error": "User not found."}
-
-        users[req.username]["onboarded"] = True
-        users[req.username]["onboarding_answers"] = {
+        answers = {
             "name": req.name,
             "creator_type": req.creator_type,
             "favorite_genres": req.favorite_genres,
             "dream_project": req.dream_project
         }
-
-        save_users(users)
+        updated_user = db.update_user_onboarding(
+            username=req.username,
+            onboarded=True,
+            onboarding_answers=answers
+        )
+        if not updated_user:
+            return {"success": False, "error": "User not found or failed to update onboarding answers."}
 
         return {
             "success": True,
             "user": {
-                "name": users[req.username].get("name"),
+                "id": updated_user.get("id"),
+                "name": updated_user.get("name"),
                 "username": req.username,
-                "email": users[req.username].get("email"),
+                "email": updated_user.get("email"),
                 "onboarded": True,
-                "onboarding_answers": users[req.username]["onboarding_answers"]
+                "onboarding_answers": updated_user.get("onboarding_answers")
             }
         }
     except Exception as e:
