@@ -284,158 +284,186 @@ class BandManager:
             run_gameplay(),
         )
 
-        # ── Phase 3: Art Agent (needs context from prior agents) ────────
-        self._update_status(project_id, "Art Agent", AgentStatus.RUNNING)
-        start_art = time.time()
-        try:
-            art = await asyncio.wait_for(
-                art_agent.run(
-                    breakdown.art_directive, room,
-                    project_id=project_id,
-                    genre=breakdown.genre, tone=breakdown.tone,
-                ),
-                timeout=180.0
-            )
-            logger.info(f"Art Agent completed in {time.time()-start_art:.2f}s")
-            self._update_status(project_id, "Art Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Art Agent failed or timed out: {e}")
-            self._update_status(project_id, "Art Agent", AgentStatus.ERROR, str(e))
-            art = generate_mock_data_for_model(ArtOutput, user_prompt)
-        agent_runtimes["Art Agent"] = time.time() - start_art
+        # ── Phase 3: Parallel Specialist Planning and Review Agents ───
+        # Run Art, QA, Reviewer, Documentation, Timeline, Risk, Feasibility, and Project Planner in parallel.
 
-        # ── Phase 4: QA Agent (reviews everything) ─────────────────────
-        self._update_status(project_id, "QA Agent", AgentStatus.RUNNING)
-        start_qa = time.time()
-        try:
-            qa = await asyncio.wait_for(qa_agent.run(breakdown.qa_directive, room), timeout=180.0)
-            logger.info(f"QA Agent completed in {time.time()-start_qa:.2f}s")
-            self._update_status(project_id, "QA Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"QA Agent failed or timed out: {e}")
-            self._update_status(project_id, "QA Agent", AgentStatus.ERROR, str(e))
-            qa = generate_mock_data_for_model(QAOutput, user_prompt)
-        agent_runtimes["QA Agent"] = time.time() - start_qa
-
-        # ── Phase 5: Reviewer Agent (cross-agent consistency) ──────────
-        self._update_status(project_id, "Reviewer Agent", AgentStatus.RUNNING)
-        start_reviewer = time.time()
-        review = None
-        try:
-            review = await asyncio.wait_for(reviewer_agent.run(breakdown.reviewer_directive, room), timeout=180.0)
-            logger.info(f"Reviewer Agent completed in {time.time()-start_reviewer:.2f}s")
-            self._update_status(project_id, "Reviewer Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Reviewer Agent failed or timed out: {e}")
-            self._update_status(project_id, "Reviewer Agent", AgentStatus.ERROR, str(e))
-            review = generate_mock_data_for_model(ReviewerOutput, user_prompt)
-        agent_runtimes["Reviewer Agent"] = time.time() - start_reviewer
-
-        # ── Phase 6: Documentation Agent (generates docs) ─────────────
-        logger.info("Starting Documentation Agent")
-        self._update_status(project_id, "Documentation Agent", AgentStatus.RUNNING)
-        start_docs = time.time()
-        documentation = None
-        try:
-            project_title = story.title if story else "Untitled Project"
-            documentation = await asyncio.wait_for(
-                documentation_agent.run(
-                    breakdown.documentation_directive,
-                    room,
-                    title=project_title,
-                    genre=breakdown.genre,
-                    tone=breakdown.tone,
-                ),
-                timeout=180.0
-            )
-            logger.info(f"Documentation Agent completed in {time.time()-start_docs:.2f}s")
-            self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Documentation Agent failed or timed out: {e}")
-            self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, str(e))
+        async def run_art():
+            self._update_status(project_id, "Art Agent", AgentStatus.RUNNING)
+            start_art = time.time()
             try:
-                documentation = generate_mock_data_for_model(DocumentationOutput, user_prompt)
-            except Exception as fallback_exc:
-                logger.exception(fallback_exc)
-                documentation = DocumentationOutput(
-                    readme=f"# {story.title if story else 'Untitled Project'}\n\nFallback README content. Generation succeeded with partial documentation.",
-                    gdd=f"# Game Design Document: {story.title if story else 'Untitled Project'}\n\nFallback Game Design Document. Generation succeeded with partial documentation."
+                result = await asyncio.wait_for(
+                    art_agent.run(
+                        breakdown.art_directive, room,
+                        project_id=project_id,
+                        genre=breakdown.genre, tone=breakdown.tone,
+                    ),
+                    timeout=180.0
                 )
-        agent_runtimes["Documentation Agent"] = time.time() - start_docs
+                logger.info(f"Art Agent completed in {time.time()-start_art:.2f}s")
+                self._update_status(project_id, "Art Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Art Agent"] = time.time() - start_art
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Art Agent failed or timed out: {e}")
+                self._update_status(project_id, "Art Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Art Agent"] = time.time() - start_art
+                return generate_mock_data_for_model(ArtOutput, user_prompt)
 
-        # ── Phase 7: Timeline Agent ────────────────────────────────────
-        self._update_status(project_id, "Timeline Agent", AgentStatus.RUNNING)
-        start_timeline = time.time()
-        try:
-            timeline_directive = f"Generate detailed weekly and monthly roadmaps for development of this {breakdown.genre} game based on the concept and narrative."
-            timeline = await asyncio.wait_for(
-                timeline_agent.run(timeline_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                timeout=180.0
-            )
-            self._update_status(project_id, "Timeline Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Timeline Agent failed or timed out: {e}")
-            self._update_status(project_id, "Timeline Agent", AgentStatus.ERROR, str(e))
-            timeline = generate_mock_data_for_model(TimelineOutput, user_prompt)
-        agent_runtimes["Timeline Agent"] = time.time() - start_timeline
+        async def run_qa():
+            self._update_status(project_id, "QA Agent", AgentStatus.RUNNING)
+            start_qa = time.time()
+            try:
+                result = await asyncio.wait_for(qa_agent.run(breakdown.qa_directive, room), timeout=180.0)
+                logger.info(f"QA Agent completed in {time.time()-start_qa:.2f}s")
+                self._update_status(project_id, "QA Agent", AgentStatus.COMPLETED)
+                agent_runtimes["QA Agent"] = time.time() - start_qa
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"QA Agent failed or timed out: {e}")
+                self._update_status(project_id, "QA Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["QA Agent"] = time.time() - start_qa
+                return generate_mock_data_for_model(QAOutput, user_prompt)
 
-        # ── Phase 8: Risk Agent ────────────────────────────────────────
-        self._update_status(project_id, "Risk Agent", AgentStatus.RUNNING)
-        start_risk = time.time()
-        try:
-            risk_directive = f"Detect delivery/scope/budget/asset risks and suggest mitigations for this {breakdown.genre} game."
-            risk = await asyncio.wait_for(
-                risk_agent.run(risk_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                timeout=180.0
-            )
-            self._update_status(project_id, "Risk Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Risk Agent failed or timed out: {e}")
-            self._update_status(project_id, "Risk Agent", AgentStatus.ERROR, str(e))
-            risk = generate_mock_data_for_model(RiskOutput, user_prompt)
-        agent_runtimes["Risk Agent"] = time.time() - start_risk
+        async def run_reviewer():
+            self._update_status(project_id, "Reviewer Agent", AgentStatus.RUNNING)
+            start_reviewer = time.time()
+            try:
+                result = await asyncio.wait_for(reviewer_agent.run(breakdown.reviewer_directive, room), timeout=180.0)
+                logger.info(f"Reviewer Agent completed in {time.time()-start_reviewer:.2f}s")
+                self._update_status(project_id, "Reviewer Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Reviewer Agent"] = time.time() - start_reviewer
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Reviewer Agent failed or timed out: {e}")
+                self._update_status(project_id, "Reviewer Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Reviewer Agent"] = time.time() - start_reviewer
+                return generate_mock_data_for_model(ReviewerOutput, user_prompt)
 
-        # ── Phase 9: Feasibility Agent ─────────────────────────────────
-        self._update_status(project_id, "Feasibility Agent", AgentStatus.RUNNING)
-        start_feasibility = time.time()
-        try:
-            feasibility_directive = f"Assess completion feasibility, success probability, team size, and hours for this {breakdown.genre} game."
-            feasibility = await asyncio.wait_for(
-                feasibility_agent.run(feasibility_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                timeout=180.0
-            )
-            self._update_status(project_id, "Feasibility Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Feasibility Agent failed or timed out: {e}")
-            self._update_status(project_id, "Feasibility Agent", AgentStatus.ERROR, str(e))
-            feasibility = generate_mock_data_for_model(FeasibilityOutput, user_prompt)
-        agent_runtimes["Feasibility Agent"] = time.time() - start_feasibility
+        async def run_documentation():
+            self._update_status(project_id, "Documentation Agent", AgentStatus.RUNNING)
+            start_docs = time.time()
+            try:
+                project_title = story.title if story else "Untitled Project"
+                result = await asyncio.wait_for(
+                    documentation_agent.run(
+                        breakdown.documentation_directive,
+                        room,
+                        title=project_title,
+                        genre=breakdown.genre,
+                        tone=breakdown.tone,
+                    ),
+                    timeout=180.0
+                )
+                logger.info(f"Documentation Agent completed in {time.time()-start_docs:.2f}s")
+                self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Documentation Agent"] = time.time() - start_docs
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Documentation Agent failed or timed out: {e}")
+                self._update_status(project_id, "Documentation Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Documentation Agent"] = time.time() - start_docs
+                try:
+                    return generate_mock_data_for_model(DocumentationOutput, user_prompt)
+                except Exception as fallback_exc:
+                    logger.exception(fallback_exc)
+                    return DocumentationOutput(
+                        readme=f"# {story.title if story else 'Untitled Project'}\n\nFallback README content. Generation succeeded with partial documentation.",
+                        gdd=f"# Game Design Document: {story.title if story else 'Untitled Project'}\n\nFallback Game Design Document. Generation succeeded with partial documentation."
+                    )
 
-        # ── Phase 10: Project Planner Agent ──────────────────────────────
-        self._update_status(project_id, "Project Planner Agent", AgentStatus.RUNNING)
-        start_planner = time.time()
-        try:
-            planner_directive = f"Create sprint plans, milestones, Kanban board tasks, and dependency flow maps for this {breakdown.genre} game."
-            planner = await asyncio.wait_for(
-                project_planner_agent.run(planner_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                timeout=180.0
-            )
-            self._update_status(project_id, "Project Planner Agent", AgentStatus.COMPLETED)
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Project Planner Agent failed or timed out: {e}")
-            self._update_status(project_id, "Project Planner Agent", AgentStatus.ERROR, str(e))
-            planner = generate_mock_data_for_model(ProjectPlannerOutput, user_prompt)
-        agent_runtimes["Project Planner Agent"] = time.time() - start_planner
+        async def run_timeline():
+            self._update_status(project_id, "Timeline Agent", AgentStatus.RUNNING)
+            start_timeline = time.time()
+            try:
+                timeline_directive = f"Generate detailed weekly and monthly roadmaps for development of this {breakdown.genre} game based on the concept and narrative."
+                result = await asyncio.wait_for(
+                    timeline_agent.run(timeline_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                    timeout=180.0
+                )
+                self._update_status(project_id, "Timeline Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Timeline Agent"] = time.time() - start_timeline
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Timeline Agent failed or timed out: {e}")
+                self._update_status(project_id, "Timeline Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Timeline Agent"] = time.time() - start_timeline
+                return generate_mock_data_for_model(TimelineOutput, user_prompt)
 
-        # ── Phase 11: Analytics Agent ──────────────────────────────────
+        async def run_risk():
+            self._update_status(project_id, "Risk Agent", AgentStatus.RUNNING)
+            start_risk = time.time()
+            try:
+                risk_directive = f"Detect delivery/scope/budget/asset risks and suggest mitigations for this {breakdown.genre} game."
+                result = await asyncio.wait_for(
+                    risk_agent.run(risk_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                    timeout=180.0
+                )
+                self._update_status(project_id, "Risk Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Risk Agent"] = time.time() - start_risk
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Risk Agent failed or timed out: {e}")
+                self._update_status(project_id, "Risk Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Risk Agent"] = time.time() - start_risk
+                return generate_mock_data_for_model(RiskOutput, user_prompt)
+
+        async def run_feasibility():
+            self._update_status(project_id, "Feasibility Agent", AgentStatus.RUNNING)
+            start_feasibility = time.time()
+            try:
+                feasibility_directive = f"Assess completion feasibility, success probability, team size, and hours for this {breakdown.genre} game."
+                result = await asyncio.wait_for(
+                    feasibility_agent.run(feasibility_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                    timeout=180.0
+                )
+                self._update_status(project_id, "Feasibility Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Feasibility Agent"] = time.time() - start_feasibility
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Feasibility Agent failed or timed out: {e}")
+                self._update_status(project_id, "Feasibility Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Feasibility Agent"] = time.time() - start_feasibility
+                return generate_mock_data_for_model(FeasibilityOutput, user_prompt)
+
+        async def run_planner():
+            self._update_status(project_id, "Project Planner Agent", AgentStatus.RUNNING)
+            start_planner = time.time()
+            try:
+                planner_directive = f"Create sprint plans, milestones, Kanban board tasks, and dependency flow maps for this {breakdown.genre} game."
+                result = await asyncio.wait_for(
+                    project_planner_agent.run(planner_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                    timeout=180.0
+                )
+                self._update_status(project_id, "Project Planner Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Project Planner Agent"] = time.time() - start_planner
+                return result
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Project Planner Agent failed or timed out: {e}")
+                self._update_status(project_id, "Project Planner Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Project Planner Agent"] = time.time() - start_planner
+                return generate_mock_data_for_model(ProjectPlannerOutput, user_prompt)
+
+        # Execute intermediate specialist and planning tasks in parallel
+        art, qa, review, documentation, timeline, risk, feasibility, planner = await asyncio.gather(
+            run_art(),
+            run_qa(),
+            run_reviewer(),
+            run_documentation(),
+            run_timeline(),
+            run_risk(),
+            run_feasibility(),
+            run_planner(),
+        )
+
+        # ── Phase 4: Analytics Agent ──────────────────────────────────
         self._update_status(project_id, "Analytics Agent", AgentStatus.RUNNING)
         start_analytics = time.time()
         try:
@@ -452,7 +480,7 @@ class BandManager:
             analytics = generate_mock_data_for_model(AnalyticsOutput, user_prompt)
         agent_runtimes["Analytics Agent"] = time.time() - start_analytics
 
-        # ── Phase 12: Export Agent ─────────────────────────────────────
+        # ── Phase 5: Export Agent ─────────────────────────────────────
         self._update_status(project_id, "Export Agent", AgentStatus.RUNNING)
         start_export = time.time()
         try:
