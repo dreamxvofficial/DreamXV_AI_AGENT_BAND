@@ -1,4 +1,6 @@
 {
+  "framework": null,
+  "outputDirectory": ".",
   "functions": {
     "api/*.py": {
       "maxDuration": 120
