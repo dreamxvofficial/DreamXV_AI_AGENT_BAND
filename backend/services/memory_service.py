@@ -26,6 +26,12 @@ AGENT_NAMES: list[str] = [
     "QA Agent",
     "Reviewer Agent",
     "Documentation Agent",
+    "Timeline Agent",
+    "Risk Agent",
+    "Feasibility Agent",
+    "Project Planner Agent",
+    "Analytics Agent",
+    "Export Agent",
 ]
 
 

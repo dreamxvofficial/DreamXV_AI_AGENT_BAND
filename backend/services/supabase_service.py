@@ -331,7 +331,11 @@ class SupabaseService:
         dependency_map: list[str],
         tasks: dict,
         generated_files: dict,
-        zip_path: Optional[str] = None
+        zip_path: Optional[str] = None,
+        feasibility_score: float = 0.0,
+        success_probability: float = 0.0,
+        estimated_completion_days: int = 0,
+        required_hours_per_day: float = 0.0
     ) -> Optional[dict[str, Any]]:
         """Save/upsert an Atlas Project record in Supabase."""
         atlas_uuid = self._get_project_uuid(atlas_id)
@@ -355,7 +359,11 @@ class SupabaseService:
             "tasks": tasks,
             "generated_files": generated_files,
             "zip_path": zip_path,
-            "created_at": created_str
+            "created_at": created_str,
+            "feasibility_score": feasibility_score,
+            "success_probability": success_probability,
+            "estimated_completion_days": estimated_completion_days,
+            "required_hours_per_day": required_hours_per_day
         }
 
         if not self.client:
@@ -383,6 +391,140 @@ class SupabaseService:
             else:
                 logger.error(f"Error saving Atlas Project: {e}")
         return None
+
+    def save_atlas_tasks(self, atlas_id: str, tasks_list: list) -> None:
+        """Save tasks list to atlas_tasks table if it exists."""
+        if not self.client:
+            return
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        try:
+            # Delete old tasks for this atlas project first
+            try:
+                self.client.table("atlas_tasks").delete().eq("atlas_id", atlas_uuid).execute()
+            except Exception:
+                pass
+            for t in tasks_list:
+                db_task = {
+                    "atlas_id": atlas_uuid,
+                    "task_id": t.get("task_id", ""),
+                    "title": t.get("title", ""),
+                    "status": t.get("status", "Todo"),
+                    "assignee": t.get("assignee", ""),
+                    "dependencies": t.get("dependencies", [])
+                }
+                self.client.table("atlas_tasks").insert(db_task).execute()
+            logger.info(f"Saved {len(tasks_list)} tasks to atlas_tasks in Supabase")
+        except Exception as e:
+            logger.warning(f"Could not save to atlas_tasks (table may not exist): {e}")
+
+    def save_atlas_milestones(self, atlas_id: str, milestones_list: list) -> None:
+        """Save milestones list to atlas_milestones table if it exists."""
+        if not self.client:
+            return
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        try:
+            try:
+                self.client.table("atlas_milestones").delete().eq("atlas_id", atlas_uuid).execute()
+            except Exception:
+                pass
+            for m in milestones_list:
+                db_milestone = {
+                    "atlas_id": atlas_uuid,
+                    "title": m.get("title") or str(m),
+                    "description": m.get("description", ""),
+                    "due_date": m.get("due_date")
+                }
+                self.client.table("atlas_milestones").insert(db_milestone).execute()
+            logger.info(f"Saved {len(milestones_list)} milestones to atlas_milestones in Supabase")
+        except Exception as e:
+            logger.warning(f"Could not save to atlas_milestones (table may not exist): {e}")
+
+    def save_atlas_flow(self, atlas_id: str, flow_list: list) -> None:
+        """Save flow list to atlas_flow table if it exists."""
+        if not self.client:
+            return
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        try:
+            try:
+                self.client.table("atlas_flow").delete().eq("atlas_id", atlas_uuid).execute()
+            except Exception:
+                pass
+            for idx, step in enumerate(flow_list):
+                db_flow = {
+                    "atlas_id": atlas_uuid,
+                    "step_order": idx + 1,
+                    "step_name": step
+                }
+                self.client.table("atlas_flow").insert(db_flow).execute()
+            logger.info(f"Saved {len(flow_list)} flow steps to atlas_flow in Supabase")
+        except Exception as e:
+            logger.warning(f"Could not save to atlas_flow (table may not exist): {e}")
+
+    def save_atlas_risks(self, atlas_id: str, risks_list: list) -> None:
+        """Save risks list to atlas_risks table if it exists."""
+        if not self.client:
+            return
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        try:
+            try:
+                self.client.table("atlas_risks").delete().eq("atlas_id", atlas_uuid).execute()
+            except Exception:
+                pass
+            for r in risks_list:
+                db_risk = {
+                    "atlas_id": atlas_uuid,
+                    "category": r.get("category", ""),
+                    "description": r.get("description", ""),
+                    "severity": r.get("severity", ""),
+                    "mitigation": r.get("mitigation", "")
+                }
+                self.client.table("atlas_risks").insert(db_risk).execute()
+            logger.info(f"Saved {len(risks_list)} risks to atlas_risks in Supabase")
+        except Exception as e:
+            logger.warning(f"Could not save to atlas_risks (table may not exist): {e}")
+
+    def save_atlas_images(self, atlas_id: str, images_list: list) -> None:
+        """Save images list to atlas_images table if it exists."""
+        if not self.client:
+            return
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        try:
+            try:
+                self.client.table("atlas_images").delete().eq("atlas_id", atlas_uuid).execute()
+            except Exception:
+                pass
+            for img in images_list:
+                db_image = {
+                    "atlas_id": atlas_uuid,
+                    "image_url": img.get("image_url", ""),
+                    "category": img.get("category", "")
+                }
+                self.client.table("atlas_images").insert(db_image).execute()
+            logger.info(f"Saved {len(images_list)} images to atlas_images in Supabase")
+        except Exception as e:
+            logger.warning(f"Could not save to atlas_images (table may not exist): {e}")
+
+    def save_atlas_exports(self, atlas_id: str, exports_list: list) -> None:
+        """Save exports list to atlas_exports table if it exists."""
+        if not self.client:
+            return
+        atlas_uuid = self._get_project_uuid(atlas_id)
+        try:
+            try:
+                self.client.table("atlas_exports").delete().eq("atlas_id", atlas_uuid).execute()
+            except Exception:
+                pass
+            for exp in exports_list:
+                db_export = {
+                    "atlas_id": atlas_uuid,
+                    "file_name": exp.get("file_name", ""),
+                    "file_type": exp.get("file_type", ""),
+                    "file_url": exp.get("file_url", "")
+                }
+                self.client.table("atlas_exports").insert(db_export).execute()
+            logger.info(f"Saved {len(exports_list)} exports to atlas_exports in Supabase")
+        except Exception as e:
+            logger.warning(f"Could not save to atlas_exports (table may not exist): {e}")
 
     def get_atlas_project(self, atlas_id: str) -> Optional[dict[str, Any]]:
         """Fetch an Atlas project by ID."""

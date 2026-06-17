@@ -242,6 +242,73 @@ class ChiefTaskBreakdown(BaseModel):
     tone: str = Field(default="", description="Identified tone/mood")
 
 
+# ─── Timeline Agent ──────────────────────────────────────────────────────────
+class TimelineMilestone(BaseModel):
+    week: str = Field(..., description="E.g., Week 1")
+    title: str = Field(..., description="E.g., Story & Characters")
+    details: list[str] = Field(default_factory=list, description="Milestone tasks/details")
+
+class TimelineOutput(BaseModel):
+    roadmap_weekly: list[TimelineMilestone] = Field(default_factory=list)
+    roadmap_monthly: list[str] = Field(default_factory=list)
+
+
+# ─── Feasibility Agent ───────────────────────────────────────────────────────
+class FeasibilityOutput(BaseModel):
+    success_probability: float = Field(..., description="Success probability percentage (e.g. 78.0)")
+    estimated_completion_days: int = Field(..., description="Estimated completion days (e.g. 42)")
+    required_team_size: int = Field(..., description="Estimated required team size")
+    required_hours_per_day: float = Field(..., description="Required hours per day per person")
+    risk_level: str = Field(..., description="Low, Medium, or High")
+
+
+# ─── Risk Agent ──────────────────────────────────────────────────────────────
+class RiskItem(BaseModel):
+    category: str = Field(..., description="scope_creep, missing_assets, unrealistic_deadlines, budget_issues")
+    description: str = Field(..., description="Details of the risk")
+    severity: str = Field(..., description="Low, Medium, High, Critical")
+    mitigation: str = Field(..., description="Mitigation suggestion")
+
+class RiskOutput(BaseModel):
+    risks: list[RiskItem] = Field(default_factory=list)
+
+
+# ─── Project Planner Agent ───────────────────────────────────────────────────
+class SprintPlan(BaseModel):
+    sprint_name: str = Field(..., description="Sprint name, e.g., Sprint 1")
+    goal: str = Field(..., description="Sprint goal")
+    tasks: list[str] = Field(default_factory=list)
+
+class KanbanTask(BaseModel):
+    task_id: str
+    title: str
+    status: str = Field(default="Todo", description="Todo, InProgress, InQA, Done")
+    assignee: str
+    dependencies: list[str] = Field(default_factory=list)
+
+class ProjectPlannerOutput(BaseModel):
+    milestones: list[str] = Field(default_factory=list)
+    sprints: list[SprintPlan] = Field(default_factory=list)
+    kanban: list[KanbanTask] = Field(default_factory=list)
+    dependency_graph: list[str] = Field(default_factory=list, description="Format: Task A -> Task B")
+
+
+# ─── Analytics Agent ─────────────────────────────────────────────────────────
+class AnalyticsOutput(BaseModel):
+    token_usage: int = Field(default=0)
+    api_cost: float = Field(default=0.0)
+    agent_runtime_seconds: dict[str, float] = Field(default_factory=dict)
+    productivity_score: float = Field(default=0.0, description="Productivity score out of 100")
+
+
+# ─── Export Agent ────────────────────────────────────────────────────────────
+class ExportOutput(BaseModel):
+    markdown_reports: dict[str, str] = Field(default_factory=dict, description="Key is report name, value is MD text")
+    json_export: str = Field(..., description="Master JSON string export")
+    pdf_exports: dict[str, str] = Field(default_factory=dict, description="Base64 mock PDF files or content summaries")
+    zip_archive_path: str = Field(default="", description="Path to project export ZIP")
+
+
 class ProjectOutput(BaseModel):
     """Aggregated output of all agents for a complete project."""
     project_id: str = Field(..., description="Unique project identifier")
@@ -255,6 +322,12 @@ class ProjectOutput(BaseModel):
     qa: Optional[QAOutput] = None
     review: Optional[ReviewerOutput] = None
     documentation: Optional[DocumentationOutput] = None
+    timeline: Optional[TimelineOutput] = None
+    feasibility: Optional[FeasibilityOutput] = None
+    risk: Optional[RiskOutput] = None
+    planner: Optional[ProjectPlannerOutput] = None
+    analytics: Optional[AnalyticsOutput] = None
+    exports: Optional[ExportOutput] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

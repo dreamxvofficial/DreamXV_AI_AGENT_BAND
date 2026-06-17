@@ -315,6 +315,19 @@ async def generate_atlas(req: AtlasRequest):
             "generated_files": generated_files
         }
 
+        # Extract feasibility metrics
+        feasibility_score = 0.0
+        success_probability = 0.0
+        estimated_completion_days = 0
+        required_hours_per_day = 0.0
+        
+        if "feasibility" in project_data and project_data["feasibility"]:
+            feas = project_data["feasibility"]
+            success_probability = feas.get("success_probability", 0.0)
+            feasibility_score = success_probability
+            estimated_completion_days = feas.get("estimated_completion_days", 0)
+            required_hours_per_day = feas.get("required_hours_per_day", 0.0)
+
         # 4. Fetch source project images (if available)
         images = []
         if project_record:
@@ -337,8 +350,82 @@ async def generate_atlas(req: AtlasRequest):
             dependency_map=atlas_data["dependency_map"],
             tasks=atlas_data["tasks"],
             generated_files=generated_files,
-            zip_path=zip_path
+            zip_path=zip_path,
+            feasibility_score=feasibility_score,
+            success_probability=success_probability,
+            estimated_completion_days=estimated_completion_days,
+            required_hours_per_day=required_hours_per_day
         )
+
+        # Save to granular atlas tables
+        # Tasks
+        tasks_list = []
+        if "planner" in project_data and project_data["planner"] and "kanban" in project_data["planner"]:
+            tasks_list = project_data["planner"]["kanban"]
+        else:
+            tb = atlas_out.task_breakdown
+            crit = tb.critical_tasks if hasattr(tb, "critical_tasks") else tb.get("critical_tasks", [])
+            opt = tb.optional_tasks if hasattr(tb, "optional_tasks") else tb.get("optional_tasks", [])
+            for idx, t in enumerate(crit):
+                tasks_list.append({
+                    "task_id": f"CRIT-{idx+1:03d}",
+                    "title": t,
+                    "status": "Todo",
+                    "assignee": "Lead Developer",
+                    "dependencies": []
+                })
+            for idx, t in enumerate(opt):
+                tasks_list.append({
+                    "task_id": f"OPT-{idx+1:03d}",
+                    "title": t,
+                    "status": "Todo",
+                    "assignee": "Developer",
+                    "dependencies": []
+                })
+        db.save_atlas_tasks(atlas_id, tasks_list)
+
+        # Milestones
+        milestones_list = []
+        if "planner" in project_data and project_data["planner"] and "milestones" in project_data["planner"]:
+            milestones_list = [{"title": m, "description": "", "due_date": None} for m in project_data["planner"]["milestones"]]
+        else:
+            for phase in atlas_out.roadmap:
+                name = phase.name if hasattr(phase, "name") else phase.get("name", "")
+                tasks_desc = ", ".join(phase.tasks if hasattr(phase, "tasks") else phase.get("tasks", []))
+                milestones_list.append({
+                    "title": name,
+                    "description": tasks_desc,
+                    "due_date": None
+                })
+        db.save_atlas_milestones(atlas_id, milestones_list)
+
+        # Flow
+        db.save_atlas_flow(atlas_id, atlas_out.production_flow_map)
+
+        # Risks
+        risks_list = []
+        if "risk" in project_data and project_data["risk"] and "risks" in project_data["risk"]:
+            risks_list = project_data["risk"]["risks"]
+        db.save_atlas_risks(atlas_id, risks_list)
+
+        # Images
+        images_list = []
+        for img in images:
+            images_list.append({
+                "image_url": img.get("image_url", ""),
+                "category": img.get("category", "")
+            })
+        db.save_atlas_images(atlas_id, images_list)
+
+        # Exports
+        exports_list = []
+        if zip_path:
+            exports_list.append({
+                "file_name": os.path.basename(zip_path),
+                "file_type": "zip",
+                "file_url": f"/api/atlas/download?atlas_id={atlas_id}"
+            })
+        db.save_atlas_exports(atlas_id, exports_list)
 
         return {
             "success": True,

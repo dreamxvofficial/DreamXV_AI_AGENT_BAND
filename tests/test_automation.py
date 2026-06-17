@@ -61,6 +61,32 @@ class TestAutomation(unittest.IsolatedAsyncioTestCase):
         self.patcher = patch.object(ImageService, "generate_image", self.generate_image_mock)
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
+
+        # Mock LLMService to use local mock data generators for speed and reliability in unit tests
+        from backend.services.llm_service import LLMService, generate_mock_data_for_model
+        
+        async def mock_generate_structured(messages, response_model, **kwargs):
+            user_prompt = ""
+            for m in reversed(messages):
+                if isinstance(m, dict) and m.get("role") == "user":
+                    user_prompt = m.get("content", "")
+                    break
+            return generate_mock_data_for_model(response_model, user_prompt)
+
+        async def mock_generate(messages, **kwargs):
+            return "Mocked text response from LLMService."
+
+        self.llm_structured_mock = AsyncMock(side_effect=mock_generate_structured)
+        self.llm_generate_mock = AsyncMock(side_effect=mock_generate)
+        
+        self.patcher_llm_struct = patch.object(LLMService, "generate_structured", self.llm_structured_mock)
+        self.patcher_llm_gen = patch.object(LLMService, "generate", self.llm_generate_mock)
+        
+        self.patcher_llm_struct.start()
+        self.patcher_llm_gen.start()
+        
+        self.addCleanup(self.patcher_llm_struct.stop)
+        self.addCleanup(self.patcher_llm_gen.stop)
         
         # Clean up test database records in Supabase
         try:

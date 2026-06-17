@@ -531,7 +531,7 @@
                         <!-- Agent Pipeline Visualization -->
                         <div class="dashboard-panel-card" id="agent-pipeline-panel">
                             <h3 class="dashboard-section-title">Agent Pipeline</h3>
-                            <div class="pipeline-visualization" id="pipeline-viz">
+                            <div class="pipeline-visualization" id="pipeline-viz" style="flex-wrap: wrap; justify-content: center; gap: 8px;">
                                 <div class="pipeline-node pipeline-chief" data-agent="Chief Agent">
                                     <div class="pipeline-node-dot"></div>
                                     <span>Chief</span>
@@ -551,6 +551,18 @@
                                 <div class="pipeline-node" data-agent="Reviewer Agent"><div class="pipeline-node-dot"></div><span>Review</span></div>
                                 <div class="pipeline-connector"></div>
                                 <div class="pipeline-node" data-agent="Documentation Agent"><div class="pipeline-node-dot"></div><span>Docs</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Timeline Agent"><div class="pipeline-node-dot"></div><span>Timeline</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Risk Agent"><div class="pipeline-node-dot"></div><span>Risk</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Feasibility Agent"><div class="pipeline-node-dot"></div><span>Feasib</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Project Planner Agent"><div class="pipeline-node-dot"></div><span>Planner</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Analytics Agent"><div class="pipeline-node-dot"></div><span>Analytics</span></div>
+                                <div class="pipeline-connector"></div>
+                                <div class="pipeline-node" data-agent="Export Agent"><div class="pipeline-node-dot"></div><span>Export</span></div>
                             </div>
                         </div>
 
@@ -588,6 +600,8 @@
                     <button class="tab-btn" data-atlas-tab="atlas-structure">Structure</button>
                     <button class="tab-btn" data-atlas-tab="atlas-flow">Flow Map</button>
                     <button class="tab-btn" data-atlas-tab="atlas-tasks">Tasks</button>
+                    <button class="tab-btn" data-atlas-tab="atlas-simulator">Roadmap Simulator</button>
+                    <button class="tab-btn" data-atlas-tab="atlas-risks">Risk Dashboard</button>
                     <button class="tab-btn" data-atlas-tab="atlas-export">Export</button>
                 </div>
 
@@ -630,6 +644,83 @@
                                 
                                 <span style="font-family: var(--font-code); font-size: 11px; color: var(--sunrise-amber); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-3);">FUTURE EXPANSION</span>
                                 <ul id="atlas-future-expansion" style="font-size: 14px; line-height: 1.8; padding-left: var(--space-4); color: var(--starlight); list-style-type: disc;"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Roadmap Simulator -->
+                    <div id="atlas-simulator" class="atlas-tab-content hidden">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+                            <div>
+                                <h3 style="color: var(--lunar-gold); font-size: 20px; margin-bottom: 15px;">Can I Finish In Time?</h3>
+                                <div style="display: flex; flex-direction: column; gap: 15px;">
+                                    <div>
+                                        <label for="sim-team-size" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">TEAM SIZE (BUILDERS)</label>
+                                        <input type="number" id="sim-team-size" value="5" min="1" max="100" style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px; color: var(--starlight); font-size: 14px; box-sizing: border-box;">
+                                    </div>
+                                    <div>
+                                        <label for="sim-hours-day" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">DAILY HOURS PER BUILDER</label>
+                                        <input type="number" id="sim-hours-day" value="8" min="1" max="24" style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px; color: var(--starlight); font-size: 14px; box-sizing: border-box;">
+                                    </div>
+                                    <div>
+                                        <label for="sim-target-days" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px;">TARGET DAYS TO RELEASE</label>
+                                        <input type="number" id="sim-target-days" value="14" min="1" max="365" style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px; color: var(--starlight); font-size: 14px; box-sizing: border-box;">
+                                    </div>
+                                    <button class="btn btn-primary" id="btn-run-simulation" style="padding: 10px;">RE-RUN SIMULATION</button>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 style="color: var(--lunar-gold); font-size: 20px; margin-bottom: 15px;">AI Producer Recommendations</h3>
+                                <div id="sim-recommendations-panel" style="background: rgba(12, 26, 46, 0.6); padding: var(--space-4); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4); font-size: 14px; line-height: 1.6; color: var(--starlight); min-height: 150px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+                                    <p id="sim-producer-message">Fill in parameters and run simulation to receive AI producer guidance.</p>
+                                    <div id="sim-result-pill" style="display: none; padding: 8px 12px; border-radius: 4px; font-family: var(--font-code); font-size: 12px; font-weight: bold; text-align: center; margin-top: 15px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 30px;">
+                            <h3 style="color: var(--lunar-gold); font-size: 20px; margin-bottom: 15px;">Burn-Down Estimation Chart</h3>
+                            <div style="position: relative; width: 100%; height: 250px; background: rgba(12, 26, 46, 0.8); border: 1px solid rgba(26, 48, 72, 0.4); border-radius: 6px; overflow: hidden; padding: 10px; box-sizing: border-box;">
+                                <svg id="sim-burndown-chart" style="width: 100%; height: 100%;">
+                                    <!-- Dynamic lines and text rendered by script.js -->
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Risk Dashboard -->
+                    <div id="atlas-risks" class="atlas-tab-content hidden">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+                            <div>
+                                <h3 style="color: var(--lunar-gold); font-size: 20px; margin-bottom: 15px;">Risk Assessment</h3>
+                                <div style="display: flex; flex-direction: column; gap: 15px;">
+                                    <div style="display: flex; justify-content: space-between; background: rgba(12, 26, 46, 0.6); padding: var(--space-3); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4);">
+                                        <span class="font-code" style="color: var(--earth-teal); font-size: 12px;">FEASIBILITY SCORE</span>
+                                        <span id="risk-feasibility-score" style="font-family: var(--font-code); font-weight: bold; font-size: 16px; color: var(--lunar-gold);">--</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; background: rgba(12, 26, 46, 0.6); padding: var(--space-3); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4);">
+                                        <span class="font-code" style="color: var(--earth-teal); font-size: 12px;">SUCCESS PROBABILITY</span>
+                                        <span id="risk-success-probability" style="font-family: var(--font-code); font-weight: bold; font-size: 16px; color: var(--earth-teal);">--</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; background: rgba(12, 26, 46, 0.6); padding: var(--space-3); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4);">
+                                        <span class="font-code" style="color: var(--earth-teal); font-size: 12px;">TOTAL RUNTIME</span>
+                                        <span id="risk-total-runtime" style="font-family: var(--font-code); font-weight: bold; font-size: 16px; color: var(--starlight);">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 style="color: var(--lunar-gold); font-size: 20px; margin-bottom: 15px;">Detected Vulnerabilities</h3>
+                                <div id="risk-alerts-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto;">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="color: var(--lunar-gold); font-size: 20px; margin-bottom: 15px;">Dependency Map Graph</h3>
+                            <div style="position: relative; width: 100%; height: 350px; background: rgba(12, 26, 46, 0.8); border: 1px solid rgba(26, 48, 72, 0.4); border-radius: 6px; overflow: hidden; box-sizing: border-box;">
+                                <canvas id="dependency-graph-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"></canvas>
+                                <div id="dependency-graph-nodes" style="position: relative; width: 100%; height: 100%; z-index: 2;">
+                                    <!-- Dynamic nodes rendered by script.js -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1132,6 +1223,70 @@
             </div>
         </div>
     </div>
+    </div>
+
+    <!-- Agent Output Inspector Modal -->
+    <div id="agent-inspect-modal" class="modal-overlay hidden" style="z-index: 10003;">
+        <div class="modal-content" style="max-width: 700px; max-height: 85vh; height: 600px; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: rgba(17, 34, 64, 0.85); backdrop-filter: blur(10px); flex-shrink: 0;">
+                <h3 id="inspect-agent-title" style="color: var(--lunar-gold); font-family: var(--font-display); letter-spacing: 0.05em;">Agent Output Inspector</h3>
+                <button class="modal-close" id="close-inspect-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: var(--space-6); background: rgba(12, 26, 46, 0.4); display: flex; flex-direction: column; gap: var(--space-4);">
+                <div style="margin-bottom: var(--space-2);">
+                    <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-1);">AGENT ROLE</span>
+                    <h4 id="inspect-agent-name" style="font-size: 18px; color: var(--starlight); margin: 0;">-</h4>
+                </div>
+                <hr style="border: 0; border-top: 1px solid rgba(26, 48, 72, 0.4); margin: var(--space-2) 0;">
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <span style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); letter-spacing: 0.1em; display: block; margin-bottom: var(--space-2);">INTERMEDIATE OUTPUT SCHEMA</span>
+                    <pre id="inspect-agent-schema" style="flex: 1; white-space: pre-wrap; font-family: var(--font-code); font-size: 13px; line-height: 1.6; color: var(--starlight); background: rgba(12, 26, 46, 0.8); padding: var(--space-4); border-radius: 6px; border: 1px solid rgba(26, 48, 72, 0.4); overflow-y: auto; box-sizing: border-box;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase Setup Wizard Modal -->
+    <div id="setup-wizard-modal" class="modal-overlay hidden" style="z-index: 10002;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Supabase Configuration Wizard</h3>
+                <button class="modal-close" id="close-setup-wizard-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: var(--space-4); display: flex; justify-content: center;">
+                    <img src="assets/logo/logo.jpg" alt="Dream XV Logo" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--earth-teal); box-shadow: 0 0 15px rgba(27, 138, 122, 0.4);">
+                </div>
+                <p style="margin-bottom: var(--space-6); color: rgba(240, 232, 208, 0.7); text-align: center;">Set up your Supabase database connection dynamically. This will automatically write connection parameters to your configuration variables.</p>
+
+                <!-- Supabase URL -->
+                <div style="margin-bottom: var(--space-4); text-align: left;">
+                    <label for="setup-supabase-url" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">SUPABASE URL</label>
+                    <input type="text" id="setup-supabase-url" placeholder="https://your-project.supabase.co" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <!-- Supabase Service Role Key / Anon Key -->
+                <div style="margin-bottom: var(--space-4); text-align: left;">
+                    <label for="setup-supabase-key" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">SUPABASE ANON KEY</label>
+                    <input type="password" id="setup-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div id="setup-wizard-error" style="display: none; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 6px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); color: #f87171; font-size: 13px;"></div>
+                <div id="setup-wizard-success" style="display: none; background: rgba(27, 138, 122, 0.1); border: 1px solid rgba(27, 138, 122, 0.3); border-radius: 6px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); color: var(--earth-teal); font-size: 13px;">Connection successful! Saving credentials...</div>
+
+                <div style="display: flex; gap: var(--space-4); justify-content: flex-end; margin-top: var(--space-6);">
+                    <button class="btn btn-secondary" id="cancel-setup-wizard-btn" style="padding: 12px 24px;">Cancel</button>
+                    <button class="btn btn-primary" id="submit-setup-wizard-btn" style="padding: 12px 32px;">
+                        <span id="submit-setup-wizard-text">CONNECT & CONFIGURE</span>
+                        <span id="submit-setup-wizard-spinner" style="display: none; margin-left: 8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Global Error Boundary UI Overlay -->

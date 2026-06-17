@@ -1,4 +1,5 @@
 const video = document.getElementById("introVideo");
+let currentInspectedProject = null;
 
 /* ==========================================
    SAFE STORAGE & PARSING UTILITIES
@@ -562,10 +563,92 @@ function initApp() {
         });
     }
 
+    // Supabase Setup Wizard handling
+    const setupModal = document.getElementById("setup-wizard-modal");
+    const closeSetupBtn = document.getElementById("close-setup-wizard-btn");
+    const cancelSetupBtn = document.getElementById("cancel-setup-wizard-btn");
+    const submitSetupBtn = document.getElementById("submit-setup-wizard-btn");
+    const setupErrorBox = document.getElementById("setup-wizard-error");
+    const setupSuccessBox = document.getElementById("setup-wizard-success");
+
+    async function checkConfigStatus() {
+        try {
+            const res = await fetch("/api/config/status");
+            if (res.ok) {
+                const data = await res.json();
+                if (data.status === "pending" && setupModal) {
+                    setupModal.classList.remove("hidden");
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to check config status:", e);
+        }
+    }
+
+    if (closeSetupBtn && setupModal) {
+        closeSetupBtn.addEventListener("click", () => setupModal.classList.add("hidden"));
+    }
+    if (cancelSetupBtn && setupModal) {
+        cancelSetupBtn.addEventListener("click", () => setupModal.classList.add("hidden"));
+    }
+    if (submitSetupBtn) {
+        submitSetupBtn.addEventListener("click", async () => {
+            const url = document.getElementById("setup-supabase-url").value.trim();
+            const key = document.getElementById("setup-supabase-key").value.trim();
+
+            if (!url || !key) {
+                if (setupErrorBox) {
+                    setupErrorBox.textContent = "Please fill in all fields.";
+                    setupErrorBox.style.display = "block";
+                }
+                return;
+            }
+
+            if (setupErrorBox) setupErrorBox.style.display = "none";
+            if (setupSuccessBox) setupSuccessBox.style.display = "none";
+
+            document.getElementById("submit-setup-wizard-text").textContent = "CONNECTING...";
+            document.getElementById("submit-setup-wizard-spinner").style.display = "inline-block";
+            submitSetupBtn.disabled = true;
+
+            try {
+                const res = await fetch("/api/config/setup", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ supabase_url: url, supabase_key: key })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (setupSuccessBox) setupSuccessBox.style.display = "block";
+                    showToast("Database configured successfully!", "success");
+                    setTimeout(() => {
+                        if (setupModal) setupModal.classList.add("hidden");
+                        location.reload();
+                    }, 2000);
+                } else {
+                    if (setupErrorBox) {
+                        setupErrorBox.textContent = data.error || "Failed to configure database.";
+                        setupErrorBox.style.display = "block";
+                    }
+                }
+            } catch (err) {
+                if (setupErrorBox) {
+                    setupErrorBox.textContent = "Error reaching server. Check backend logs.";
+                    setupErrorBox.style.display = "block";
+                }
+            } finally {
+                document.getElementById("submit-setup-wizard-text").textContent = "CONNECT & CONFIGURE";
+                document.getElementById("submit-setup-wizard-spinner").style.display = "none";
+                submitSetupBtn.disabled = false;
+            }
+        });
+    }
+
     const userObj = safeStorage.getItem("dreamxv_user");
     const onboardedObj = safeStorage.getItem("dreamxv_onboarded");
     if (userObj && onboardedObj === "true") {
         initDashboard();
+        checkConfigStatus();
     }
 }
 
@@ -830,6 +913,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 { agent_name: "QA Agent", status: "ready" },
                 { agent_name: "Reviewer Agent", status: "ready" },
                 { agent_name: "Documentation Agent", status: "ready" },
+                { agent_name: "Timeline Agent", status: "ready" },
+                { agent_name: "Risk Agent", status: "ready" },
+                { agent_name: "Feasibility Agent", status: "ready" },
+                { agent_name: "Project Planner Agent", status: "ready" },
+                { agent_name: "Analytics Agent", status: "ready" },
+                { agent_name: "Export Agent", status: "ready" },
             ];
 
             updateModalAgentStatus(initialStatuses);
@@ -904,6 +993,48 @@ document.addEventListener("DOMContentLoaded", () => {
                     updates: [
                         { agent_name: "Reviewer Agent", status: "completed" },
                         { agent_name: "Documentation Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Documentation Agent", status: "completed" },
+                        { agent_name: "Timeline Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Timeline Agent", status: "completed" },
+                        { agent_name: "Risk Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Risk Agent", status: "completed" },
+                        { agent_name: "Feasibility Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Feasibility Agent", status: "completed" },
+                        { agent_name: "Project Planner Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Project Planner Agent", status: "completed" },
+                        { agent_name: "Analytics Agent", status: "running" }
+                    ],
+                    delay: 1500
+                },
+                {
+                    updates: [
+                        { agent_name: "Analytics Agent", status: "completed" },
+                        { agent_name: "Export Agent", status: "running" }
                     ],
                     delay: 1500
                 }
@@ -1243,6 +1374,8 @@ async function showProjectDetails(projectId) {
         showToast("Project details not found.", "error");
         return;
     }
+
+    currentInspectedProject = project;
 
     const modal = document.getElementById("project-details-modal");
     if (!modal) return;
@@ -2524,6 +2657,10 @@ document.addEventListener("DOMContentLoaded", () => {
         renderAtlasFlow(atlas.production_flow_map || [], atlas.dependency_map || []);
         renderAtlasTasks(atlas.task_breakdown || {});
 
+        // Initialize advanced widgets
+        initRoadmapSimulator(atlas);
+        initRiskDashboard(atlas);
+
         // Reset tab buttons
         const tabBtns = document.querySelectorAll("[data-atlas-tab]");
         tabBtns.forEach(btn => btn.classList.remove("active"));
@@ -2811,3 +2948,468 @@ async function regenerateAtlasProjectInPlace(projectId, duration, tools, atlasId
         submitBtn.click();
     }
 }
+
+/* ==========================================
+   ADVANCED PLANNING & RISK SIMULATOR WIDGETS
+   ========================================== */
+
+function initRoadmapSimulator(atlas) {
+    const teamSizeInput = document.getElementById("sim-team-size");
+    const hoursDayInput = document.getElementById("sim-hours-day");
+    const targetDaysInput = document.getElementById("sim-target-days");
+    const runBtn = document.getElementById("btn-run-simulation");
+
+    if (!teamSizeInput || !hoursDayInput || !targetDaysInput || !runBtn) return;
+
+    // Use feasibility data from atlas/project if available as initial values
+    if (atlas.feasibility) {
+        if (atlas.feasibility.required_team_size) {
+            teamSizeInput.value = atlas.feasibility.required_team_size;
+        }
+        if (atlas.feasibility.required_hours_per_day) {
+            hoursDayInput.value = Math.ceil(atlas.feasibility.required_hours_per_day);
+        }
+        if (atlas.feasibility.estimated_completion_days) {
+            targetDaysInput.value = atlas.feasibility.estimated_completion_days;
+        }
+    }
+
+    const runSimulation = () => {
+        const team = parseInt(teamSizeInput.value) || 1;
+        const hours = parseFloat(hoursDayInput.value) || 1;
+        const targetDays = parseInt(targetDaysInput.value) || 1;
+
+        // Tasks count
+        let totalTasks = 0;
+        if (atlas.roadmap) {
+            atlas.roadmap.forEach(phase => {
+                if (phase.tasks) totalTasks += phase.tasks.length;
+            });
+        }
+        if (totalTasks === 0) totalTasks = 15; // default fallback
+
+        // Math: capacity = team * hours * targetDays
+        const capacity = team * hours * targetDays;
+        
+        // Velocity (tasks/day) = team * hours * 0.1
+        const velocity = team * hours * 0.1;
+        
+        // Estimated days = totalTasks / velocity
+        const estDays = Math.ceil(totalTasks / velocity);
+
+        const onTrack = estDays <= targetDays;
+
+        // Recommendations panel
+        const messageEl = document.getElementById("sim-producer-message");
+        const pillEl = document.getElementById("sim-result-pill");
+
+        if (messageEl) {
+            if (onTrack) {
+                const buffer = targetDays - estDays;
+                messageEl.innerHTML = `
+                    <p style="margin-bottom: 8px; color: var(--starlight);"><strong>Simulation Status: FEASIBLE</strong></p>
+                    <p>A team of <strong>${team}</strong> members working <strong>${hours}h/day</strong> has a total capacity of <strong>${capacity} hours</strong>.</p>
+                    <p>Estimated time to complete all <strong>${totalTasks}</strong> tasks is <strong>${estDays} days</strong>, which is within your <strong>${targetDays}-day</strong> limit (with a <strong>${buffer}-day</strong> buffer).</p>
+                    <p style="margin-top: 8px; color: var(--earth-teal);">Recommendation: Proceed with current scope. Developer capacity is sufficient!</p>
+                `;
+            } else {
+                const overrun = estDays - targetDays;
+                const minTeam = Math.ceil(totalTasks / (hours * 0.1 * targetDays));
+                messageEl.innerHTML = `
+                    <p style="margin-bottom: 8px; color: #f87171;"><strong>Simulation Status: AT RISK</strong></p>
+                    <p>Timeline is squeezed. Your team can only complete <strong>${(velocity * targetDays).toFixed(1)}</strong> tasks in <strong>${targetDays} days</strong>.</p>
+                    <p>Completing all <strong>${totalTasks}</strong> tasks will take <strong>${estDays} days</strong>, resulting in a <strong>${overrun}-day</strong> delay.</p>
+                    <p style="margin-top: 8px; color: var(--sunrise-amber);">Recommendation: De-scope non-critical path tasks, or increase team size to at least <strong>${minTeam}</strong> developers.</p>
+                `;
+            }
+        }
+
+        if (pillEl) {
+            pillEl.style.display = "block";
+            pillEl.textContent = onTrack ? "ON TRACK" : "AT RISK";
+            pillEl.style.background = onTrack ? "rgba(27, 138, 122, 0.2)" : "rgba(220, 38, 38, 0.2)";
+            pillEl.style.color = onTrack ? "var(--earth-teal)" : "#f87171";
+            pillEl.style.border = `1px solid ${onTrack ? 'var(--earth-teal)' : '#f87171'}`;
+        }
+
+        // Draw Burndown Chart
+        drawBurndownChart(totalTasks, targetDays, estDays);
+    };
+
+    // Bind Re-run button click
+    runBtn.onclick = runSimulation;
+
+    // Run once on load
+    runSimulation();
+}
+
+function drawBurndownChart(totalTasks, targetDays, estDays) {
+    const svg = document.getElementById("sim-burndown-chart");
+    if (!svg) return;
+
+    svg.innerHTML = "";
+
+    const width = 600;
+    const height = 220;
+    const leftMargin = 50;
+    const rightMargin = 40;
+    const topMargin = 20;
+    const bottomMargin = 30;
+
+    const plotWidth = width - leftMargin - rightMargin;
+    const plotHeight = height - topMargin - bottomMargin;
+
+    const maxDays = Math.max(targetDays, estDays, 1);
+
+    // Helpers for scales
+    const xScale = (day) => leftMargin + plotWidth * (day / maxDays);
+    const yScale = (tasks) => topMargin + plotHeight * (1 - tasks / totalTasks);
+
+    // Grid lines (horizontal & vertical)
+    let gridLinesHtml = "";
+    
+    // Y-axis grid lines (4 lines)
+    for (let i = 0; i <= 4; i++) {
+        const val = (totalTasks * (i / 4));
+        const y = yScale(val);
+        gridLinesHtml += `
+            <line x1="${leftMargin}" y1="${y}" x2="${width - rightMargin}" y2="${y}" stroke="rgba(240, 232, 208, 0.08)" stroke-width="1"/>
+            <text x="${leftMargin - 10}" y="${y + 4}" fill="rgba(240, 232, 208, 0.4)" font-size="10" text-anchor="end" font-family="monospace">${Math.round(val)}</text>
+        `;
+    }
+
+    // X-axis grid lines (5 lines)
+    for (let i = 0; i <= 5; i++) {
+        const day = Math.round(maxDays * (i / 5));
+        const x = xScale(day);
+        gridLinesHtml += `
+            <line x1="${x}" y1="${topMargin}" x2="${x}" y2="${height - bottomMargin}" stroke="rgba(240, 232, 208, 0.08)" stroke-width="1"/>
+            <text x="${x}" y="${height - bottomMargin + 15}" fill="rgba(240, 232, 208, 0.4)" font-size="10" text-anchor="middle" font-family="monospace">Day ${day}</text>
+        `;
+    }
+
+    // Target Line (Ideal Burn)
+    const targetLineHtml = `
+        <line x1="${xScale(0)}" y1="${yScale(totalTasks)}" x2="${xScale(targetDays)}" y2="${yScale(0)}" 
+              stroke="var(--lunar-gold)" stroke-dasharray="4" stroke-width="2"/>
+        <text x="${xScale(targetDays)}" y="${yScale(0) - 6}" fill="var(--lunar-gold)" font-size="9" text-anchor="middle" font-family="sans-serif">Target (${targetDays}d)</text>
+    `;
+
+    // Projected Line (Actual Burn)
+    const isSuccess = estDays <= targetDays;
+    const projectedColor = isSuccess ? "var(--earth-teal)" : "#f87171";
+    const projectedLineHtml = `
+        <line x1="${xScale(0)}" y1="${yScale(totalTasks)}" x2="${xScale(estDays)}" y2="${yScale(0)}" 
+              stroke="${projectedColor}" stroke-width="3"/>
+        <text x="${xScale(estDays)}" y="${yScale(0) - 10}" fill="${projectedColor}" font-size="10" font-weight="bold" text-anchor="middle" font-family="sans-serif">Est (${estDays}d)</text>
+        <circle cx="${xScale(estDays)}" cy="${yScale(0)}" r="4" fill="${projectedColor}"/>
+    `;
+
+    svg.innerHTML = `
+        ${gridLinesHtml}
+        ${targetLineHtml}
+        ${projectedLineHtml}
+    `;
+}
+
+function initRiskDashboard(atlas) {
+    const feasibilityScoreEl = document.getElementById("risk-feasibility-score");
+    const successProbEl = document.getElementById("risk-success-probability");
+    const totalRuntimeEl = document.getElementById("risk-total-runtime");
+
+    // Default fallbacks
+    let riskLevel = "Medium";
+    let successProbability = 75;
+    let totalRuntime = 118.4;
+
+    if (atlas.feasibility) {
+        if (atlas.feasibility.risk_level) riskLevel = atlas.feasibility.risk_level;
+        if (atlas.feasibility.success_probability) successProbability = atlas.feasibility.success_probability;
+    }
+
+    if (currentInspectedProject && currentInspectedProject.analytics && currentInspectedProject.analytics.agent_runtime_seconds) {
+        const runtimes = currentInspectedProject.analytics.agent_runtime_seconds;
+        const sum = Object.values(runtimes).reduce((a, b) => a + b, 0);
+        if (sum > 0) totalRuntime = sum;
+    }
+
+    if (feasibilityScoreEl) {
+        feasibilityScoreEl.textContent = riskLevel;
+        if (riskLevel === "Low") feasibilityScoreEl.style.color = "var(--earth-teal)";
+        else if (riskLevel === "High") feasibilityScoreEl.style.color = "#f87171";
+        else feasibilityScoreEl.style.color = "var(--sunrise-amber)";
+    }
+
+    if (successProbEl) {
+        successProbEl.textContent = `${successProbability.toFixed(1)}%`;
+        if (successProbability >= 80) successProbEl.style.color = "var(--earth-teal)";
+        else if (successProbability < 60) successProbEl.style.color = "#f87171";
+        else successProbEl.style.color = "var(--sunrise-amber)";
+    }
+
+    if (totalRuntimeEl) {
+        totalRuntimeEl.textContent = `${totalRuntime.toFixed(1)}s`;
+    }
+
+    // Detected risks list
+    const alertsList = document.getElementById("risk-alerts-list");
+    if (alertsList) {
+        alertsList.innerHTML = "";
+        let risks = [];
+        if (atlas.risk && atlas.risk.risks) {
+            risks = atlas.risk.risks;
+        } else if (currentInspectedProject && currentInspectedProject.risk && currentInspectedProject.risk.risks) {
+            risks = currentInspectedProject.risk.risks;
+        }
+
+        if (risks.length > 0) {
+            risks.forEach(r => {
+                const card = document.createElement("div");
+                card.style.background = "rgba(7, 14, 26, 0.4)";
+                card.style.border = "1px solid rgba(26, 48, 72, 0.6)";
+                card.style.borderRadius = "6px";
+                card.style.padding = "10px";
+                card.style.fontSize = "13px";
+                card.style.lineHeight = "1.5";
+
+                const sevColor = r.severity === "Critical" || r.severity === "High" ? "#f87171" : "var(--sunrise-amber)";
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-family: var(--font-code); color: var(--starlight); font-weight: 500;">${escapeHtml(r.category || "General")}</span>
+                        <span style="font-family: var(--font-code); color: ${sevColor}; font-size: 11px; font-weight: bold; border: 1px solid ${sevColor}; padding: 1px 6px; border-radius: 4px;">${escapeHtml(r.severity || "Warning")}</span>
+                    </div>
+                    <div style="color: rgba(240, 232, 208, 0.7); margin-bottom: 6px;">${escapeHtml(r.description || "")}</div>
+                    <div style="font-size: 11px; color: var(--earth-teal);"><span style="font-weight:bold;">MITIGATION:</span> ${escapeHtml(r.mitigation || "N/A")}</div>
+                `;
+                alertsList.appendChild(card);
+            });
+        } else {
+            alertsList.innerHTML = `<div style="color: rgba(240, 232, 208, 0.4); text-align: center; padding: 20px 0; font-size: 13px;">No critical risks detected in current configuration.</div>`;
+        }
+    }
+
+    // Draw dependency map visual graph
+    renderVisualDependencyGraph(atlas);
+}
+
+function renderVisualDependencyGraph(atlas) {
+    const relations = atlas.dependency_map || [];
+    const nodeSet = new Set();
+    const edges = [];
+
+    relations.forEach(rel => {
+        const parts = rel.split("->").map(p => p.trim());
+        if (parts.length === 2) {
+            nodeSet.add(parts[0]);
+            nodeSet.add(parts[1]);
+            edges.push({ from: parts[0], to: parts[1] });
+        }
+    });
+
+    let nodes = Array.from(nodeSet);
+
+    if (nodes.length === 0) {
+        const tasks = ["Setup", "Core Loop", "Characters", "Visuals", "QA"];
+        tasks.forEach((t, idx) => {
+            nodeSet.add(t);
+            if (idx > 0) {
+                edges.push({ from: tasks[idx - 1], to: t });
+            }
+        });
+        nodes = Array.from(nodeSet);
+    }
+
+    const canvas = document.getElementById("dependency-graph-canvas");
+    const nodesContainer = document.getElementById("dependency-graph-nodes");
+    if (!canvas || !nodesContainer) return;
+
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width || 550;
+    canvas.height = rect.height || 350;
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    nodesContainer.innerHTML = "";
+
+    const numNodes = nodes.length;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const rx = Math.min(cx * 0.7, 180);
+    const ry = Math.min(cy * 0.7, 100);
+
+    const nodePositions = {};
+    nodes.forEach((node, idx) => {
+        const angle = (idx / numNodes) * 2 * Math.PI - Math.PI / 2;
+        const x = cx + rx * Math.cos(angle);
+        const y = cy + ry * Math.sin(angle);
+        nodePositions[node] = { x, y };
+
+        const div = document.createElement("div");
+        div.style.position = "absolute";
+        div.style.left = `${x - 45}px`;
+        div.style.top = `${y - 18}px`;
+        div.style.width = "90px";
+        div.style.height = "36px";
+        div.style.background = "rgba(7, 14, 26, 0.95)";
+        div.style.border = "1px solid var(--earth-teal)";
+        div.style.borderRadius = "6px";
+        div.style.display = "flex";
+        div.style.alignItems = "center";
+        div.style.justifyContent = "center";
+        div.style.fontSize = "11px";
+        div.style.color = "var(--starlight)";
+        div.style.textAlign = "center";
+        div.style.padding = "4px";
+        div.style.boxSizing = "border-box";
+        div.style.zIndex = "10";
+        div.style.textOverflow = "ellipsis";
+        div.style.overflow = "hidden";
+        div.style.whiteSpace = "nowrap";
+        div.title = node;
+        div.textContent = node;
+        nodesContainer.appendChild(div);
+    });
+
+    ctx.strokeStyle = "rgba(27, 138, 122, 0.4)";
+    ctx.lineWidth = 2;
+    ctx.fillStyle = "rgba(27, 138, 122, 0.8)";
+
+    edges.forEach(edge => {
+        const fromPos = nodePositions[edge.from];
+        const toPos = nodePositions[edge.to];
+        if (fromPos && toPos) {
+            ctx.beginPath();
+            ctx.moveTo(fromPos.x, fromPos.y);
+            ctx.lineTo(toPos.x, toPos.y);
+            ctx.stroke();
+
+            const angle = Math.atan2(toPos.y - fromPos.y, toPos.x - fromPos.x);
+            const arrowX = toPos.x - 45 * Math.cos(angle);
+            const arrowY = toPos.y - 18 * Math.sin(angle);
+
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 8 * Math.cos(angle - Math.PI / 6), arrowY - 8 * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(arrowX - 8 * Math.cos(angle + Math.PI / 6), arrowY - 8 * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+    });
+}
+
+/* ==========================================
+   AGENT PIPELINE INSPECTION MODAL MODULE
+   ========================================== */
+
+function openAgentInspectModal(agentName) {
+    if (!currentInspectedProject) {
+        showToast("Please select a project to inspect first.", "info");
+        return;
+    }
+    const modal = document.getElementById("agent-inspect-modal");
+    const titleEl = document.getElementById("inspect-agent-title");
+    const nameEl = document.getElementById("inspect-agent-name");
+    const schemaEl = document.getElementById("inspect-agent-schema");
+
+    if (!modal || !nameEl || !schemaEl) return;
+
+    nameEl.textContent = agentName;
+    if (titleEl) titleEl.textContent = `Inspector: ${agentName}`;
+
+    let outputData = null;
+    switch (agentName) {
+        case "Chief Agent":
+            outputData = currentInspectedProject.chief || {
+                genre: currentInspectedProject.genre || "Creative Project",
+                tone: currentInspectedProject.tone || "Cinematic & Realistic",
+                story_directive: "Develop a narrative and outline key acts based on user's concept.",
+                character_directive: "Create a diverse cast with detailed backstories, role definitions, and visual descriptors.",
+                world_directive: "Design setting lore, regions, atmosphere and key historical landmarks.",
+                gameplay_directive: "Formulate core loop mechanics, progression systems, and difficulty curves.",
+                art_directive: "Prepare cover art prompts and characters prompts utilizing cinematic aesthetics.",
+                qa_directive: "Validate narrative elements and mechanics for coherence and alignment.",
+                reviewer_directive: "Analyze all agent outputs for structural integrity and logical consistency.",
+                documentation_directive: "Compile the README.md and Game Design Document."
+            };
+            break;
+        case "Story Agent":
+            outputData = currentInspectedProject.story;
+            break;
+        case "Character Agent":
+            outputData = currentInspectedProject.characters;
+            break;
+        case "World Agent":
+            outputData = currentInspectedProject.world;
+            break;
+        case "Gameplay Agent":
+            outputData = currentInspectedProject.gameplay;
+            break;
+        case "Art Agent":
+            outputData = currentInspectedProject.art;
+            break;
+        case "QA Agent":
+            outputData = currentInspectedProject.qa;
+            break;
+        case "Reviewer Agent":
+            outputData = currentInspectedProject.review;
+            break;
+        case "Documentation Agent":
+            outputData = currentInspectedProject.documentation;
+            break;
+        case "Timeline Agent":
+            outputData = currentInspectedProject.timeline;
+            break;
+        case "Risk Agent":
+            outputData = currentInspectedProject.risk;
+            break;
+        case "Feasibility Agent":
+            outputData = currentInspectedProject.feasibility;
+            break;
+        case "Project Planner Agent":
+            outputData = currentInspectedProject.planner;
+            break;
+        case "Analytics Agent":
+            outputData = currentInspectedProject.analytics;
+            break;
+        case "Export Agent":
+            outputData = currentInspectedProject.exports;
+            break;
+        default:
+            outputData = null;
+    }
+
+    if (outputData) {
+        schemaEl.textContent = JSON.stringify(outputData, null, 4);
+    } else {
+        schemaEl.textContent = "No intermediate output recorded for this agent.\nMake sure the agent has completed successfully in this project.";
+    }
+
+    modal.classList.remove("hidden");
+}
+
+(function initPipelineInspector() {
+    document.addEventListener("click", (e) => {
+        const node = e.target.closest(".pipeline-node");
+        if (!node) return;
+        const agentName = node.getAttribute("data-agent");
+        if (!agentName) return;
+        openAgentInspectModal(agentName);
+    });
+
+    const closeBtn = document.getElementById("close-inspect-btn");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+            const modal = document.getElementById("agent-inspect-modal");
+            if (modal) modal.classList.add("hidden");
+        });
+    }
+
+    const modal = document.getElementById("agent-inspect-modal");
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                modal.classList.add("hidden");
+            }
+        });
+    }
+})();

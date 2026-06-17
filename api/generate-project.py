@@ -200,6 +200,69 @@ def _build_project_data(project, base64_images: list) -> dict:
             "technical_summary": project.documentation.technical_summary if project.documentation else "",
             "elevator_pitch": project.documentation.elevator_pitch if project.documentation else ""
         } if project.documentation else None,
+        "timeline": {
+            "roadmap_weekly": [
+                {
+                    "week": m.week,
+                    "title": m.title,
+                    "details": m.details
+                }
+                for m in (project.timeline.roadmap_weekly or [])
+            ] if project.timeline else [],
+            "roadmap_monthly": project.timeline.roadmap_monthly if project.timeline else []
+        } if project.timeline else None,
+        "feasibility": {
+            "success_probability": project.feasibility.success_probability if project.feasibility else 0.0,
+            "estimated_completion_days": project.feasibility.estimated_completion_days if project.feasibility else 0,
+            "required_team_size": project.feasibility.required_team_size if project.feasibility else 0,
+            "required_hours_per_day": project.feasibility.required_hours_per_day if project.feasibility else 0.0,
+            "risk_level": project.feasibility.risk_level if project.feasibility else ""
+        } if project.feasibility else None,
+        "risk": {
+            "risks": [
+                {
+                    "category": r.category,
+                    "description": r.description,
+                    "severity": r.severity,
+                    "mitigation": r.mitigation
+                }
+                for r in (project.risk.risks or [])
+            ] if project.risk else []
+        } if project.risk else None,
+        "planner": {
+            "milestones": project.planner.milestones if project.planner else [],
+            "sprints": [
+                {
+                    "sprint_name": s.sprint_name,
+                    "goal": s.goal,
+                    "tasks": s.tasks
+                }
+                for s in (project.planner.sprints or [])
+            ] if project.planner else [],
+            "kanban": [
+                {
+                    "task_id": k.task_id,
+                    "title": k.title,
+                    "status": k.status,
+                    "assignee": k.assignee,
+                    "dependencies": k.dependencies
+                }
+                for k in (project.planner.kanban or [])
+            ] if project.planner else [],
+            "dependency_graph": project.planner.dependency_graph if project.planner else []
+        } if project.planner else None,
+        "analytics": {
+            "token_usage": project.analytics.token_usage if project.analytics else 0,
+            "api_cost": project.analytics.api_cost if project.analytics else 0.0,
+            "agent_runtime_seconds": project.analytics.agent_runtime_seconds if project.analytics else {},
+            "productivity_score": project.analytics.productivity_score if project.analytics else 0.0
+        } if project.analytics else None,
+        "exports": {
+            "markdown_reports": project.exports.markdown_reports if project.exports else {},
+            "json_export": project.exports.json_export if project.exports else "",
+            "pdf_exports": project.exports.pdf_exports if project.exports else {},
+            "zip_archive_path": project.exports.zip_archive_path if project.exports else ""
+        } if project.exports else None,
         "images": base64_images,
         "art_gallery": getattr(project, "art_gallery", [])
     }

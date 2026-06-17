@@ -23,6 +23,12 @@ from backend.agents.art_agent import ArtAgent
 from backend.agents.qa_agent import QAAgent
 from backend.agents.reviewer_agent import ReviewerAgent
 from backend.agents.documentation_agent import DocumentationAgent
+from backend.agents.timeline_agent import TimelineAgent
+from backend.agents.feasibility_agent import FeasibilityAgent
+from backend.agents.risk_agent import RiskAgent
+from backend.agents.project_planner_agent import ProjectPlannerAgent
+from backend.agents.analytics_agent import AnalyticsAgent
+from backend.agents.export_agent import ExportAgent
 
 from backend.models.output_models import (
     ProjectOutput,
@@ -33,7 +39,13 @@ from backend.models.output_models import (
     GameplayOutput,
     ArtOutput,
     QAOutput,
-    ReviewerOutput
+    ReviewerOutput,
+    TimelineOutput,
+    FeasibilityOutput,
+    RiskOutput,
+    ProjectPlannerOutput,
+    AnalyticsOutput,
+    ExportOutput
 )
 from backend.services.llm_service import generate_mock_data_for_model
 from backend.models.schemas import AgentStatus
@@ -126,9 +138,16 @@ class BandManager:
         qa_agent = QAAgent(self._llm)
         reviewer_agent = ReviewerAgent(self._llm)
         documentation_agent = DocumentationAgent(self._llm)
+        timeline_agent = TimelineAgent(self._llm)
+        feasibility_agent = FeasibilityAgent(self._llm)
+        risk_agent = RiskAgent(self._llm)
+        project_planner_agent = ProjectPlannerAgent(self._llm)
+        analytics_agent = AnalyticsAgent(self._llm)
+        export_agent = ExportAgent(self._llm, self._export)
 
         # ── Phase 1: Chief Agent Breakdown ──────────────────────────────
         import time
+        agent_runtimes = {}
         start = time.time()
         self._update_status(project_id, "Chief Agent", AgentStatus.RUNNING)
         breakdown = None
@@ -149,11 +168,11 @@ class BandManager:
                 else:
                     logger.error("Chief Agent failed after 3 attempts — using mock breakdown fallback")
                     self._update_status(project_id, "Chief Agent", AgentStatus.ERROR, f"Chief Agent failed: {e}")
-                    # Fallback to mock breakdown so pipeline can continue
-                    from backend.services.llm_service import generate_mock_data_for_model
                     from backend.models.output_models import ChiefTaskBreakdown
                     breakdown = generate_mock_data_for_model(ChiefTaskBreakdown, user_prompt)
+
                     self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
+        agent_runtimes["Chief Agent"] = time.time() - start
 
         # ── Phase 2: Parallel Specialist Agents ─────────────────────────
         async def run_story():
@@ -169,11 +188,13 @@ class BandManager:
                 )
                 logger.info(f"Story Agent completed in {time.time()-start_story:.2f}s")
                 self._update_status(project_id, "Story Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Story Agent"] = time.time() - start_story
                 return result
             except Exception as e:
                 logger.exception(e)
                 logger.error(f"Story Agent failed or timed out: {e}")
                 self._update_status(project_id, "Story Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Story Agent"] = time.time() - start_story
                 return generate_mock_data_for_model(StoryOutput, user_prompt)
 
         async def run_characters():
@@ -191,6 +212,7 @@ class BandManager:
                     )
                     logger.info(f"Character Agent completed in {time.time()-start_char:.2f}s (attempt {_cattempt})")
                     self._update_status(project_id, "Character Agent", AgentStatus.COMPLETED)
+                    agent_runtimes["Character Agent"] = time.time() - start_char
                     return result
                 except Exception as e:
                     logger.warning(f"Character Agent attempt {_cattempt}/3 failed: {type(e).__name__}: {e}")
@@ -201,6 +223,7 @@ class BandManager:
                     else:
                         logger.error(f"Character Agent failed after 3 attempts — using fallback characters from prompt")
                         self._update_status(project_id, "Character Agent", AgentStatus.ERROR, str(e))
+                        agent_runtimes["Character Agent"] = time.time() - start_char
                         # Generate fallback characters from prompt; never crash pipeline
                         try:
                             roster = generate_mock_data_for_model(CharacterRoster, user_prompt)
@@ -222,11 +245,13 @@ class BandManager:
                 )
                 logger.info(f"World Agent completed in {time.time()-start_world:.2f}s")
                 self._update_status(project_id, "World Agent", AgentStatus.COMPLETED)
+                agent_runtimes["World Agent"] = time.time() - start_world
                 return result
             except Exception as e:
                 logger.exception(e)
                 logger.error(f"World Agent failed or timed out: {e}")
                 self._update_status(project_id, "World Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["World Agent"] = time.time() - start_world
                 return generate_mock_data_for_model(WorldOutput, user_prompt)
 
         async def run_gameplay():
@@ -242,11 +267,13 @@ class BandManager:
                 )
                 logger.info(f"Gameplay Agent completed in {time.time()-start_gameplay:.2f}s")
                 self._update_status(project_id, "Gameplay Agent", AgentStatus.COMPLETED)
+                agent_runtimes["Gameplay Agent"] = time.time() - start_gameplay
                 return result
             except Exception as e:
                 logger.exception(e)
                 logger.error(f"Gameplay Agent failed or timed out: {e}")
                 self._update_status(project_id, "Gameplay Agent", AgentStatus.ERROR, str(e))
+                agent_runtimes["Gameplay Agent"] = time.time() - start_gameplay
                 return generate_mock_data_for_model(GameplayOutput, user_prompt)
 
         # Run parallel specialists
@@ -276,6 +303,7 @@ class BandManager:
             logger.error(f"Art Agent failed or timed out: {e}")
             self._update_status(project_id, "Art Agent", AgentStatus.ERROR, str(e))
             art = generate_mock_data_for_model(ArtOutput, user_prompt)
+        agent_runtimes["Art Agent"] = time.time() - start_art
 
         # ── Phase 4: QA Agent (reviews everything) ─────────────────────
         self._update_status(project_id, "QA Agent", AgentStatus.RUNNING)
@@ -289,6 +317,7 @@ class BandManager:
             logger.error(f"QA Agent failed or timed out: {e}")
             self._update_status(project_id, "QA Agent", AgentStatus.ERROR, str(e))
             qa = generate_mock_data_for_model(QAOutput, user_prompt)
+        agent_runtimes["QA Agent"] = time.time() - start_qa
 
         # ── Phase 5: Reviewer Agent (cross-agent consistency) ──────────
         self._update_status(project_id, "Reviewer Agent", AgentStatus.RUNNING)
@@ -303,6 +332,7 @@ class BandManager:
             logger.error(f"Reviewer Agent failed or timed out: {e}")
             self._update_status(project_id, "Reviewer Agent", AgentStatus.ERROR, str(e))
             review = generate_mock_data_for_model(ReviewerOutput, user_prompt)
+        agent_runtimes["Reviewer Agent"] = time.time() - start_reviewer
 
         # ── Phase 6: Documentation Agent (generates docs) ─────────────
         logger.info("Starting Documentation Agent")
@@ -335,6 +365,109 @@ class BandManager:
                     readme=f"# {story.title if story else 'Untitled Project'}\n\nFallback README content. Generation succeeded with partial documentation.",
                     gdd=f"# Game Design Document: {story.title if story else 'Untitled Project'}\n\nFallback Game Design Document. Generation succeeded with partial documentation."
                 )
+        agent_runtimes["Documentation Agent"] = time.time() - start_docs
+
+        # ── Phase 7: Timeline Agent ────────────────────────────────────
+        self._update_status(project_id, "Timeline Agent", AgentStatus.RUNNING)
+        start_timeline = time.time()
+        try:
+            timeline_directive = f"Generate detailed weekly and monthly roadmaps for development of this {breakdown.genre} game based on the concept and narrative."
+            timeline = await asyncio.wait_for(
+                timeline_agent.run(timeline_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                timeout=180.0
+            )
+            self._update_status(project_id, "Timeline Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            logger.exception(e)
+            logger.error(f"Timeline Agent failed or timed out: {e}")
+            self._update_status(project_id, "Timeline Agent", AgentStatus.ERROR, str(e))
+            timeline = generate_mock_data_for_model(TimelineOutput, user_prompt)
+        agent_runtimes["Timeline Agent"] = time.time() - start_timeline
+
+        # ── Phase 8: Risk Agent ────────────────────────────────────────
+        self._update_status(project_id, "Risk Agent", AgentStatus.RUNNING)
+        start_risk = time.time()
+        try:
+            risk_directive = f"Detect delivery/scope/budget/asset risks and suggest mitigations for this {breakdown.genre} game."
+            risk = await asyncio.wait_for(
+                risk_agent.run(risk_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                timeout=180.0
+            )
+            self._update_status(project_id, "Risk Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            logger.exception(e)
+            logger.error(f"Risk Agent failed or timed out: {e}")
+            self._update_status(project_id, "Risk Agent", AgentStatus.ERROR, str(e))
+            risk = generate_mock_data_for_model(RiskOutput, user_prompt)
+        agent_runtimes["Risk Agent"] = time.time() - start_risk
+
+        # ── Phase 9: Feasibility Agent ─────────────────────────────────
+        self._update_status(project_id, "Feasibility Agent", AgentStatus.RUNNING)
+        start_feasibility = time.time()
+        try:
+            feasibility_directive = f"Assess completion feasibility, success probability, team size, and hours for this {breakdown.genre} game."
+            feasibility = await asyncio.wait_for(
+                feasibility_agent.run(feasibility_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                timeout=180.0
+            )
+            self._update_status(project_id, "Feasibility Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            logger.exception(e)
+            logger.error(f"Feasibility Agent failed or timed out: {e}")
+            self._update_status(project_id, "Feasibility Agent", AgentStatus.ERROR, str(e))
+            feasibility = generate_mock_data_for_model(FeasibilityOutput, user_prompt)
+        agent_runtimes["Feasibility Agent"] = time.time() - start_feasibility
+
+        # ── Phase 10: Project Planner Agent ──────────────────────────────
+        self._update_status(project_id, "Project Planner Agent", AgentStatus.RUNNING)
+        start_planner = time.time()
+        try:
+            planner_directive = f"Create sprint plans, milestones, Kanban board tasks, and dependency flow maps for this {breakdown.genre} game."
+            planner = await asyncio.wait_for(
+                project_planner_agent.run(planner_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                timeout=180.0
+            )
+            self._update_status(project_id, "Project Planner Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            logger.exception(e)
+            logger.error(f"Project Planner Agent failed or timed out: {e}")
+            self._update_status(project_id, "Project Planner Agent", AgentStatus.ERROR, str(e))
+            planner = generate_mock_data_for_model(ProjectPlannerOutput, user_prompt)
+        agent_runtimes["Project Planner Agent"] = time.time() - start_planner
+
+        # ── Phase 11: Analytics Agent ──────────────────────────────────
+        self._update_status(project_id, "Analytics Agent", AgentStatus.RUNNING)
+        start_analytics = time.time()
+        try:
+            analytics_directive = f"Calculate resource/budget costs and performance analytics based on actual runtimes."
+            analytics = await asyncio.wait_for(
+                analytics_agent.run(analytics_directive, room, genre=breakdown.genre, tone=breakdown.tone, agent_runtimes=agent_runtimes),
+                timeout=180.0
+            )
+            self._update_status(project_id, "Analytics Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            logger.exception(e)
+            logger.error(f"Analytics Agent failed or timed out: {e}")
+            self._update_status(project_id, "Analytics Agent", AgentStatus.ERROR, str(e))
+            analytics = generate_mock_data_for_model(AnalyticsOutput, user_prompt)
+        agent_runtimes["Analytics Agent"] = time.time() - start_analytics
+
+        # ── Phase 12: Export Agent ─────────────────────────────────────
+        self._update_status(project_id, "Export Agent", AgentStatus.RUNNING)
+        start_export = time.time()
+        try:
+            export_directive = f"Compile the final project documentation and bundle the assets into markdown, JSON, PDF, and ZIP specifications."
+            exports = await asyncio.wait_for(
+                export_agent.run(export_directive, room, genre=breakdown.genre, tone=breakdown.tone),
+                timeout=180.0
+            )
+            self._update_status(project_id, "Export Agent", AgentStatus.COMPLETED)
+        except Exception as e:
+            logger.exception(e)
+            logger.error(f"Export Agent failed or timed out: {e}")
+            self._update_status(project_id, "Export Agent", AgentStatus.ERROR, str(e))
+            exports = generate_mock_data_for_model(ExportOutput, user_prompt)
+        agent_runtimes["Export Agent"] = time.time() - start_export
 
         logger.info("Documentation Agent complete")
 
@@ -351,6 +484,12 @@ class BandManager:
             qa=qa,
             review=review,
             documentation=documentation,
+            timeline=timeline,
+            feasibility=feasibility,
+            risk=risk,
+            planner=planner,
+            analytics=analytics,
+            exports=exports,
         )
 
         # Persist and clean up

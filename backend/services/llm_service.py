@@ -288,6 +288,139 @@ def generate_mock_data_for_model(model_class: Type[T], user_prompt: str = "") ->
                 elevator_pitch=f"{title} is an AI-crafted adventure where every element — from story to gameplay — was designed by a collaborative team of intelligent agents. Experience a game that was dreamed into existence.",
             )
 
+    elif model_name == "TimelineOutput":
+        from backend.models.output_models import TimelineMilestone
+        return model_class(
+            roadmap_weekly=[
+                TimelineMilestone(week="Week 1", title="Story & Characters", details=["Write narrative outline", "Create core character roster"]),
+                TimelineMilestone(week="Week 2", title="Gameplay Prototype", details=["Block out basic mechanics", "Establish movement controller"]),
+                TimelineMilestone(week="Week 3", title="Art Production", details=["Generate environment tiles", "Render character models"]),
+                TimelineMilestone(week="Week 4", title="QA & Launch", details=["Resolve gameplay bugs", "Deploy initial playable build"])
+            ],
+            roadmap_monthly=["Month 1: Technical Foundation & Alpha Sandbox", "Month 2: Content Production & Beta Polish"]
+        )
+
+    elif model_name == "FeasibilityOutput":
+        return model_class(
+            success_probability=78.0,
+            estimated_completion_days=42,
+            required_team_size=3,
+            required_hours_per_day=6.0,
+            risk_level="Medium"
+        )
+
+    elif model_name == "RiskOutput":
+        from backend.models.output_models import RiskItem
+        return model_class(
+            risks=[
+                RiskItem(category="scope_creep", description="Adding too many biomes could cause delays", severity="Medium", mitigation="Focus on core MVP biomes first"),
+                RiskItem(category="unrealistic_deadlines", description="42 days requires high commitment", severity="High", mitigation="Set up strict sprint goals")
+            ]
+        )
+
+    elif model_name == "ProjectPlannerOutput":
+        from backend.models.output_models import SprintPlan, KanbanTask
+        return model_class(
+            milestones=["Core Mechanics Prototype Complete", "Visual Art Style Finalized", "Playable Beta Release"],
+            sprints=[
+                SprintPlan(sprint_name="Sprint 1: Mechanics Setup", goal="Deliver working protagonist controls", tasks=["Set up gravity script", "Wire jump mechanic"]),
+                SprintPlan(sprint_name="Sprint 2: Art Integration", goal="Implement environment tiles", tasks=["Design level ruins", "Place lighting nodes"])
+            ],
+            kanban=[
+                KanbanTask(task_id="TSK-001", title="Define movement parameters", status="Done", assignee="Gameplay Engineer", dependencies=[]),
+                KanbanTask(task_id="TSK-002", title="Draw ruined street concept", status="InProgress", assignee="Art Director", dependencies=[])
+            ],
+            dependency_graph=["Movement Script -> Level Geometry", "Character Sprites -> Animation Rig"]
+        )
+
+    elif model_name == "AnalyticsOutput":
+        return model_class(
+            token_usage=125000,
+            api_cost=0.15,
+            agent_runtime_seconds={
+                "Chief Agent": 12.5,
+                "Story Agent": 18.2,
+                "Character Agent": 9.4,
+                "World Agent": 15.1,
+                "Gameplay Agent": 14.6,
+                "Art Agent": 11.2,
+                "QA Agent": 8.9,
+                "Reviewer Agent": 10.5,
+                "Documentation Agent": 13.8,
+                "Timeline Agent": 11.5,
+                "Risk Agent": 9.2,
+                "Feasibility Agent": 7.4,
+                "Project Planner Agent": 12.8,
+                "Analytics Agent": 5.2,
+                "Export Agent": 6.8
+            },
+            productivity_score=88.5
+        )
+
+    elif model_name == "ExportOutput":
+        return model_class(
+            markdown_reports={"Readme": "# Project Readme", "GDD": "# Game Design Document"},
+            json_export='{"project_name": "Test project"}',
+            pdf_exports={"ExecutiveSummary": "Mock PDF Summary base64 data"},
+            zip_archive_path="public/exports/project_design_kit.zip"
+        )
+
+    elif model_name == "AtlasOutput":
+        from backend.models.output_models import AtlasPhase, AtlasTaskBreakdown
+        tools_line = user_prompt.lower()
+        for line in user_prompt.splitlines():
+            if "user specified tools & technologies:" in line.lower():
+                tools_line = line.lower()
+                break
+        is_web = any(term in tools_line for term in ["react", "fastapi", "supabase", "django", "flask", "node", "html", "css"])
+        if not is_web:
+            words = tools_line.replace(",", " ").replace(":", " ").split()
+            is_web = any(w in words for w in ["web", "js", "ts", "javascript", "typescript"])
+        if is_web:
+            return model_class(
+                project_id=user_prompt or "mock-project",
+                roadmap=[
+                    AtlasPhase(name="Phase 1: Project Setup", tasks=["Setup repository", "Initialize folders"]),
+                    AtlasPhase(name="Phase 2: Database Setup", tasks=["Setup Supabase database"])
+                ],
+                project_structure=[
+                    "frontend/",
+                    "frontend/src/",
+                    "backend/",
+                    "backend/api/",
+                    "README.md"
+                ],
+                production_flow_map=["Create Database", "Build API"],
+                dependency_map=["Database -> API"],
+                task_breakdown=AtlasTaskBreakdown(
+                    critical_tasks=["Setup Git repository"],
+                    optional_tasks=["Add dark mode"],
+                    future_expansion=["Add caching"]
+                )
+            )
+        else:
+            return model_class(
+                project_id=user_prompt or "mock-project",
+                roadmap=[
+                    AtlasPhase(name="Phase 1: Project Setup", tasks=["Setup game repository", "Configure asset folders"]),
+                    AtlasPhase(name="Phase 2: Core Mechanics", tasks=["Implement player controller"])
+                ],
+                project_structure=[
+                    "Assets/",
+                    "Assets/Scripts/",
+                    "Docs/",
+                    "Docs/GDD.md",
+                    "README.md"
+                ],
+                production_flow_map=["Create Asset Designs", "Import to Engine"],
+                dependency_map=["InputManager -> PlayerController"],
+                task_breakdown=AtlasTaskBreakdown(
+                    critical_tasks=["Map camera behaviors", "Code move behaviors"],
+                    optional_tasks=["Design settings panel"],
+                    future_expansion=["Create secondary levels"]
+                )
+            )
+
     # 2. Dynamic Fallback Builder if any other class is added later
     mock_values = {}
     for field_name, field_info in model_class.model_fields.items():
