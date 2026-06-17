@@ -537,6 +537,9 @@ class SupabaseService:
             res = self.client.table("atlas_projects").select("*").eq("id", atlas_uuid).execute()
             if res.data and len(res.data) > 0:
                 return res.data[0]
+            # Fallback to local data if not found in Supabase table
+            local_data = self._local_atlas_load()
+            return next((x for x in local_data if x.get("id") == atlas_uuid), None)
         except Exception as e:
             err_msg = str(e)
             if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
@@ -544,6 +547,9 @@ class SupabaseService:
                 return next((x for x in local_data if x.get("id") == atlas_uuid), None)
             else:
                 logger.error(f"Error fetching Atlas Project '{atlas_id}': {e}")
+                # Generic fallback to local data on exception
+                local_data = self._local_atlas_load()
+                return next((x for x in local_data if x.get("id") == atlas_uuid), None)
         return None
 
     def get_atlas_projects_by_source(self, source_project_id: str) -> list[dict[str, Any]]:
@@ -555,7 +561,11 @@ class SupabaseService:
 
         try:
             res = self.client.table("atlas_projects").select("*").eq("source_project_id", db_source_project_id).order("created_at").execute()
-            return res.data or []
+            if res.data and len(res.data) > 0:
+                return res.data
+            # Fallback to local data
+            local_data = self._local_atlas_load()
+            return [x for x in local_data if x.get("source_project_id") == db_source_project_id]
         except Exception as e:
             err_msg = str(e)
             if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
@@ -563,6 +573,8 @@ class SupabaseService:
                 return [x for x in local_data if x.get("source_project_id") == db_source_project_id]
             else:
                 logger.error(f"Error fetching Atlas projects for source project '{source_project_id}': {e}")
+                local_data = self._local_atlas_load()
+                return [x for x in local_data if x.get("source_project_id") == db_source_project_id]
         return []
 
     def list_atlas_projects(self, user_id: Optional[str] = None) -> list[dict[str, Any]]:
@@ -571,8 +583,8 @@ class SupabaseService:
 
         if not self.client:
             local_data = self._local_atlas_load()
-            if db_user_id:
-                local_data = [x for x in local_data if x.get("user_id") == db_user_id]
+            if user_id:
+                local_data = [x for x in local_data if x.get("user_id") == db_user_id or x.get("user_id") == user_id]
             local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
             return local_data
 
@@ -583,20 +595,27 @@ class SupabaseService:
                 if db_user_id:
                     query = query.eq("user_id", db_user_id)
                 else:
-                    return []
+                    # If user UUID doesn't exist in Supabase users table, check local data
+                    local_data = self._local_atlas_load()
+                    local_data = [x for x in local_data if x.get("user_id") == user_id]
+                    local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+                    return local_data
             res = query.order("created_at", desc=True).execute()
-            return res.data or []
+            if res.data and len(res.data) > 0:
+                return res.data
+            # Fallback to local data if query returns nothing
+            local_data = self._local_atlas_load()
+            if user_id:
+                local_data = [x for x in local_data if x.get("user_id") == db_user_id or x.get("user_id") == user_id]
+            local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            return local_data
         except Exception as e:
             err_msg = str(e)
-            if "atlas_projects" in err_msg and ("PGRST205" in err_msg or "schema cache" in err_msg or "not found" in err_msg):
-                local_data = self._local_atlas_load()
-                if db_user_id:
-                    local_data = [x for x in local_data if x.get("user_id") == db_user_id]
-                local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-                return local_data
-            else:
-                logger.error(f"Error listing Atlas projects: {e}")
-        return []
+            local_data = self._local_atlas_load()
+            if user_id:
+                local_data = [x for x in local_data if x.get("user_id") == db_user_id or x.get("user_id") == user_id]
+            local_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            return local_data
 
     def delete_atlas_project(self, atlas_id: str) -> bool:
         """Delete an Atlas project from Supabase."""
