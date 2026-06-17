@@ -12,6 +12,7 @@ Pipeline flow:
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Callable, Optional
 
 from backend.agents.chief_agent import ChiefAgent
@@ -149,28 +150,32 @@ class BandManager:
         import time
         agent_runtimes = {}
         start = time.time()
+
+        is_vercel = os.getenv("VERCEL") is not None
+        agent_timeout = 5.0 if is_vercel else 180.0
+        _chief_retry_delays = [0.1, 0.2] if is_vercel else [1.0, 3.0, 5.0]
+        _chief_attempts = 2 if is_vercel else 3
+
         self._update_status(project_id, "Chief Agent", AgentStatus.RUNNING)
         breakdown = None
-        _chief_retry_delays = [1.0, 3.0, 5.0]
-        for _attempt in range(1, 4):
+        for _attempt in range(1, _chief_attempts + 1):
             try:
-                logger.info(f"Chief Agent attempt {_attempt}/3...")
-                breakdown = await asyncio.wait_for(chief.run(user_prompt, room), timeout=180.0)
+                logger.info(f"Chief Agent attempt {_attempt}/{_chief_attempts}...")
+                breakdown = await asyncio.wait_for(chief.run(user_prompt, room), timeout=agent_timeout)
                 logger.info(f"Chief Agent completed in {time.time()-start:.2f}s (attempt {_attempt})")
                 self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
                 break
             except Exception as e:
-                logger.warning(f"Chief Agent attempt {_attempt}/3 failed: {type(e).__name__}: {e}")
-                if _attempt < 3:
+                logger.warning(f"Chief Agent attempt {_attempt}/{_chief_attempts} failed: {type(e).__name__}: {e}")
+                if _attempt < _chief_attempts:
                     wait_sec = _chief_retry_delays[_attempt - 1]
                     logger.info(f"Waiting {wait_sec}s before Chief Agent retry...")
                     await asyncio.sleep(wait_sec)
                 else:
-                    logger.error("Chief Agent failed after 3 attempts — using mock breakdown fallback")
+                    logger.error(f"Chief Agent failed after {_chief_attempts} attempts — using mock breakdown fallback")
                     self._update_status(project_id, "Chief Agent", AgentStatus.ERROR, f"Chief Agent failed: {e}")
                     from backend.models.output_models import ChiefTaskBreakdown
                     breakdown = generate_mock_data_for_model(ChiefTaskBreakdown, user_prompt)
-
                     self._update_status(project_id, "Chief Agent", AgentStatus.COMPLETED)
         agent_runtimes["Chief Agent"] = time.time() - start
 
@@ -184,7 +189,7 @@ class BandManager:
                         breakdown.story_directive, room,
                         genre=breakdown.genre, tone=breakdown.tone,
                     ),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 logger.info(f"Story Agent completed in {time.time()-start_story:.2f}s")
                 self._update_status(project_id, "Story Agent", AgentStatus.COMPLETED)
@@ -200,28 +205,29 @@ class BandManager:
         async def run_characters():
             self._update_status(project_id, "Character Agent", AgentStatus.RUNNING)
             start_char = time.time()
-            _char_delays = [1.0, 3.0, 5.0]
-            for _cattempt in range(1, 4):
+            _char_delays = [0.1, 0.2] if is_vercel else [1.0, 3.0, 5.0]
+            _char_attempts = 2 if is_vercel else 3
+            for _cattempt in range(1, _char_attempts + 1):
                 try:
                     result = await asyncio.wait_for(
                         character_agent.run(
                             breakdown.character_directive, room,
                             genre=breakdown.genre, tone=breakdown.tone,
                         ),
-                        timeout=120.0
+                        timeout=agent_timeout
                     )
                     logger.info(f"Character Agent completed in {time.time()-start_char:.2f}s (attempt {_cattempt})")
                     self._update_status(project_id, "Character Agent", AgentStatus.COMPLETED)
                     agent_runtimes["Character Agent"] = time.time() - start_char
                     return result
                 except Exception as e:
-                    logger.warning(f"Character Agent attempt {_cattempt}/3 failed: {type(e).__name__}: {e}")
-                    if _cattempt < 3:
+                    logger.warning(f"Character Agent attempt {_cattempt}/{_char_attempts} failed: {type(e).__name__}: {e}")
+                    if _cattempt < _char_attempts:
                         wait_sec = _char_delays[_cattempt - 1]
                         logger.info(f"Waiting {wait_sec}s before Character Agent retry...")
                         await asyncio.sleep(wait_sec)
                     else:
-                        logger.error(f"Character Agent failed after 3 attempts — using fallback characters from prompt")
+                        logger.error(f"Character Agent failed after {_char_attempts} attempts — using fallback characters from prompt")
                         self._update_status(project_id, "Character Agent", AgentStatus.ERROR, str(e))
                         agent_runtimes["Character Agent"] = time.time() - start_char
                         # Generate fallback characters from prompt; never crash pipeline
@@ -241,7 +247,7 @@ class BandManager:
                         breakdown.world_directive, room,
                         genre=breakdown.genre, tone=breakdown.tone,
                     ),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 logger.info(f"World Agent completed in {time.time()-start_world:.2f}s")
                 self._update_status(project_id, "World Agent", AgentStatus.COMPLETED)
@@ -263,7 +269,7 @@ class BandManager:
                         breakdown.gameplay_directive, room,
                         genre=breakdown.genre, tone=breakdown.tone,
                     ),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 logger.info(f"Gameplay Agent completed in {time.time()-start_gameplay:.2f}s")
                 self._update_status(project_id, "Gameplay Agent", AgentStatus.COMPLETED)
@@ -297,7 +303,7 @@ class BandManager:
                         project_id=project_id,
                         genre=breakdown.genre, tone=breakdown.tone,
                     ),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 logger.info(f"Art Agent completed in {time.time()-start_art:.2f}s")
                 self._update_status(project_id, "Art Agent", AgentStatus.COMPLETED)
@@ -314,7 +320,7 @@ class BandManager:
             self._update_status(project_id, "QA Agent", AgentStatus.RUNNING)
             start_qa = time.time()
             try:
-                result = await asyncio.wait_for(qa_agent.run(breakdown.qa_directive, room), timeout=180.0)
+                result = await asyncio.wait_for(qa_agent.run(breakdown.qa_directive, room), timeout=agent_timeout)
                 logger.info(f"QA Agent completed in {time.time()-start_qa:.2f}s")
                 self._update_status(project_id, "QA Agent", AgentStatus.COMPLETED)
                 agent_runtimes["QA Agent"] = time.time() - start_qa
@@ -330,7 +336,7 @@ class BandManager:
             self._update_status(project_id, "Reviewer Agent", AgentStatus.RUNNING)
             start_reviewer = time.time()
             try:
-                result = await asyncio.wait_for(reviewer_agent.run(breakdown.reviewer_directive, room), timeout=180.0)
+                result = await asyncio.wait_for(reviewer_agent.run(breakdown.reviewer_directive, room), timeout=agent_timeout)
                 logger.info(f"Reviewer Agent completed in {time.time()-start_reviewer:.2f}s")
                 self._update_status(project_id, "Reviewer Agent", AgentStatus.COMPLETED)
                 agent_runtimes["Reviewer Agent"] = time.time() - start_reviewer
@@ -355,7 +361,7 @@ class BandManager:
                         genre=breakdown.genre,
                         tone=breakdown.tone,
                     ),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 logger.info(f"Documentation Agent completed in {time.time()-start_docs:.2f}s")
                 self._update_status(project_id, "Documentation Agent", AgentStatus.COMPLETED)
@@ -382,7 +388,7 @@ class BandManager:
                 timeline_directive = f"Generate detailed weekly and monthly roadmaps for development of this {breakdown.genre} game based on the concept and narrative."
                 result = await asyncio.wait_for(
                     timeline_agent.run(timeline_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 self._update_status(project_id, "Timeline Agent", AgentStatus.COMPLETED)
                 agent_runtimes["Timeline Agent"] = time.time() - start_timeline
@@ -401,7 +407,7 @@ class BandManager:
                 risk_directive = f"Detect delivery/scope/budget/asset risks and suggest mitigations for this {breakdown.genre} game."
                 result = await asyncio.wait_for(
                     risk_agent.run(risk_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 self._update_status(project_id, "Risk Agent", AgentStatus.COMPLETED)
                 agent_runtimes["Risk Agent"] = time.time() - start_risk
@@ -420,7 +426,7 @@ class BandManager:
                 feasibility_directive = f"Assess completion feasibility, success probability, team size, and hours for this {breakdown.genre} game."
                 result = await asyncio.wait_for(
                     feasibility_agent.run(feasibility_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 self._update_status(project_id, "Feasibility Agent", AgentStatus.COMPLETED)
                 agent_runtimes["Feasibility Agent"] = time.time() - start_feasibility
@@ -439,7 +445,7 @@ class BandManager:
                 planner_directive = f"Create sprint plans, milestones, Kanban board tasks, and dependency flow maps for this {breakdown.genre} game."
                 result = await asyncio.wait_for(
                     project_planner_agent.run(planner_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                    timeout=180.0
+                    timeout=agent_timeout
                 )
                 self._update_status(project_id, "Project Planner Agent", AgentStatus.COMPLETED)
                 agent_runtimes["Project Planner Agent"] = time.time() - start_planner
@@ -470,7 +476,7 @@ class BandManager:
             analytics_directive = f"Calculate resource/budget costs and performance analytics based on actual runtimes."
             analytics = await asyncio.wait_for(
                 analytics_agent.run(analytics_directive, room, genre=breakdown.genre, tone=breakdown.tone, agent_runtimes=agent_runtimes),
-                timeout=180.0
+                timeout=agent_timeout
             )
             self._update_status(project_id, "Analytics Agent", AgentStatus.COMPLETED)
         except Exception as e:
@@ -487,7 +493,7 @@ class BandManager:
             export_directive = f"Compile the final project documentation and bundle the assets into markdown, JSON, PDF, and ZIP specifications."
             exports = await asyncio.wait_for(
                 export_agent.run(export_directive, room, genre=breakdown.genre, tone=breakdown.tone),
-                timeout=180.0
+                timeout=agent_timeout
             )
             self._update_status(project_id, "Export Agent", AgentStatus.COMPLETED)
         except Exception as e:
