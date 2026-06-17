@@ -576,9 +576,13 @@ class BandManager:
                 project_json=project_json
             )
             
-            # Start background async image generation!
-            logger.info(f"[{project.project_id}] Launching background art generation task...")
-            asyncio.create_task(self.generate_project_images_async(project.project_id, project))
+            # Start background async image generation (await on Vercel to prevent process freeze)
+            if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+                logger.info(f"[{project.project_id}] Running art generation synchronously on Vercel...")
+                await self.generate_project_images_async(project.project_id, project)
+            else:
+                logger.info(f"[{project.project_id}] Launching background art generation task...")
+                asyncio.create_task(self.generate_project_images_async(project.project_id, project))
             
         except Exception as e:
             logger.warning(f"Failed to save project to Supabase: {e}")
