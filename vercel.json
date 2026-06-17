@@ -1,26 +1,21 @@
 {
-  "buildCommand": null,
-  "installCommand": null,
   "functions": {
     "api/*.py": {
       "maxDuration": 120
     }
   },
-  "routes": [
-    { "src": "/api/auth/(.*)", "dest": "api/auth.py" },
-    { "src": "/api/generate-project", "dest": "api/generate-project.py" },
-    { "src": "/api/agents", "dest": "api/agents.py" },
-    { "src": "/api/agent-status", "dest": "api/agents.py" },
-    { "src": "/api/health", "dest": "api/health.py" },
-    { "src": "/api/image", "dest": "api/image.py" },
-    { "src": "/api/projects/regenerate-image", "dest": "api/projects.py" },
-    { "src": "/api/projects", "dest": "api/projects.py" },
-    { "src": "/api/config/(.*)", "dest": "api/config.py" },
-    { "src": "/api/config", "dest": "api/config.py" },
-    { "src": "/api/atlas/(.*)", "dest": "api/atlas.py" },
-    { "src": "/api/atlas", "dest": "api/atlas.py" },
-    { "src": "/atlas", "dest": "api/atlas.py" },
-    { "src": "/videos/(.*)", "dest": "public/videos/$1" },
-    { "src": "/(.*)", "dest": "$1" }
+  "rewrites": [
+    { "source": "/api/auth/:path*", "destination": "/api/auth.py" },
+    { "source": "/api/generate-project", "destination": "/api/generate-project.py" },
+    { "source": "/api/agents", "destination": "/api/agents.py" },
+    { "source": "/api/agent-status", "destination": "/api/agents.py" },
+    { "source": "/api/health", "destination": "/api/health.py" },
+    { "source": "/api/image", "destination": "/api/image.py" },
+    { "source": "/api/projects/regenerate-image", "destination": "/api/projects.py" },
+    { "source": "/api/projects", "destination": "/api/projects.py" },
+    { "source": "/api/config/:path*", "destination": "/api/config.py" },
+    { "source": "/api/atlas/:path*", "destination": "/api/atlas.py" },
+    { "source": "/atlas", "destination": "/api/atlas.py" },
+    { "source": "/videos/:path*", "destination": "/public/videos/:path*" }
   ]
 }
