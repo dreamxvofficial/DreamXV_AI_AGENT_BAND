@@ -28,6 +28,8 @@ class AtlasAgent:
         project_data: dict,
         duration: str,
         tools: str,
+        team_size: int = 1,
+        hours_per_day: float = 8.0,
     ) -> AtlasOutput:
         """
         Generate development planning outputs.
@@ -36,6 +38,8 @@ class AtlasAgent:
             project_data: Dictionary of full project data.
             duration: User specified project duration.
             tools: User specified tools & technologies.
+            team_size: Number of team members.
+            hours_per_day: Working hours per person per day.
 
         Returns:
             AtlasOutput.
@@ -68,7 +72,9 @@ class AtlasAgent:
 
         user_message = (
             f"USER SPECIFIED DURATION: {duration}\n"
-            f"USER SPECIFIED TOOLS & TECHNOLOGIES: {tools}\n\n"
+            f"USER SPECIFIED TOOLS & TECHNOLOGIES: {tools}\n"
+            f"TEAM SIZE: {team_size} person(s)\n"
+            f"HOURS PER DAY PER PERSON: {hours_per_day} hours\n\n"
             f"PROJECT SOURCE DETAILS:\n{context}\n"
         )
 

@@ -37,6 +37,8 @@ class AtlasRequest(BaseModel):
     project_id: str
     duration: str
     tools: str
+    team_size: Optional[int] = 1
+    hours_per_day: Optional[float] = 8.0
     atlas_id: Optional[str] = None  # Optional parameter to allow regeneration in-place
 
 class DuplicateRequest(BaseModel):
@@ -256,6 +258,26 @@ def create_atlas_zip_on_disk(atlas_id: str, atlas_data: dict, images: list[dict]
             
     return zip_path
 
+def parse_duration_to_days(duration: str) -> int:
+    """Parse a duration string like '50 days', '3 weeks', '1 years' to approximate number of days."""
+    try:
+        parts = duration.lower().strip().split()
+        if len(parts) >= 2:
+            val = int(parts[0])
+            unit = parts[1]
+            if "day" in unit:
+                return val
+            elif "week" in unit:
+                return val * 7
+            elif "month" in unit:
+                return val * 30
+            elif "year" in unit:
+                return val * 365
+    except Exception:
+        pass
+    return 0
+
+
 @app.post("/api/atlas/generate")
 @app.post("/api/atlas")
 @app.post("/")
@@ -287,7 +309,9 @@ async def generate_atlas(req: AtlasRequest):
             atlas_out = await agent.run(
                 project_data=project_data,
                 duration=req.duration,
-                tools=req.tools
+                tools=req.tools,
+                team_size=req.team_size,
+                hours_per_day=req.hours_per_day
             )
         except Exception as agent_exc:
             print(f"Atlas agent generation failed: {agent_exc}. Triggering fallback.")
@@ -302,6 +326,12 @@ async def generate_atlas(req: AtlasRequest):
 
         # 3. Create the Atlas data dictionary for saving & ZIP generation
         user_id = project_record.get("user_id") if project_record else "spotifysahir007@gmail.com"
+        
+        # Save team_size and hours_per_day inside the tasks JSON
+        tasks_dict = atlas_out.task_breakdown.model_dump() if hasattr(atlas_out.task_breakdown, "model_dump") else atlas_out.task_breakdown
+        tasks_dict["team_size"] = req.team_size
+        tasks_dict["hours_per_day"] = req.hours_per_day
+
         atlas_data = {
             "title": title,
             "duration": req.duration,
@@ -311,22 +341,22 @@ async def generate_atlas(req: AtlasRequest):
             "structure": atlas_out.project_structure,
             "flow_map": atlas_out.production_flow_map,
             "dependency_map": atlas_out.dependency_map,
-            "tasks": atlas_out.task_breakdown.model_dump() if hasattr(atlas_out.task_breakdown, "model_dump") else atlas_out.task_breakdown,
+            "tasks": tasks_dict,
             "generated_files": generated_files
         }
 
         # Extract feasibility metrics
         feasibility_score = 0.0
         success_probability = 0.0
-        estimated_completion_days = 0
-        required_hours_per_day = 0.0
+        estimated_completion_days = parse_duration_to_days(req.duration)
+        required_hours_per_day = float(req.hours_per_day or 8.0)
         
         if "feasibility" in project_data and project_data["feasibility"]:
             feas = project_data["feasibility"]
             success_probability = feas.get("success_probability", 0.0)
             feasibility_score = success_probability
-            estimated_completion_days = feas.get("estimated_completion_days", 0)
-            required_hours_per_day = feas.get("required_hours_per_day", 0.0)
+            if estimated_completion_days == 0:
+                estimated_completion_days = feas.get("estimated_completion_days", 0)
 
         # 4. Fetch source project images (if available)
         images = []
@@ -553,6 +583,17 @@ async def get_atlas(
             atlas["project_structure"] = atlas.get("structure") or []
             atlas["production_flow_map"] = atlas.get("flow_map") or []
             atlas["task_breakdown"] = atlas.get("tasks") or {}
+            
+            # Inject feasibility object for simulator auto-population
+            tasks_data = atlas.get("tasks") or {}
+            team_size = tasks_data.get("team_size") or 1
+            hours_per_day = tasks_data.get("hours_per_day") or 8.0
+            completion_days = atlas.get("estimated_completion_days") or parse_duration_to_days(atlas.get("duration") or "")
+            atlas["feasibility"] = {
+                "required_team_size": team_size,
+                "required_hours_per_day": hours_per_day,
+                "estimated_completion_days": completion_days
+            }
         return {
             "success": True,
             "atlas": atlas
@@ -566,6 +607,17 @@ async def get_atlas(
                 p["project_structure"] = p.get("structure") or []
                 p["production_flow_map"] = p.get("flow_map") or []
                 p["task_breakdown"] = p.get("tasks") or {}
+                
+                # Inject feasibility object
+                tasks_data = p.get("tasks") or {}
+                team_size = tasks_data.get("team_size") or 1
+                hours_per_day = tasks_data.get("hours_per_day") or 8.0
+                completion_days = p.get("estimated_completion_days") or parse_duration_to_days(p.get("duration") or "")
+                p["feasibility"] = {
+                    "required_team_size": team_size,
+                    "required_hours_per_day": hours_per_day,
+                    "estimated_completion_days": completion_days
+                }
         return {
             "success": True,
             "plans": plans
@@ -579,6 +631,17 @@ async def get_atlas(
                 p["project_structure"] = p.get("structure") or []
                 p["production_flow_map"] = p.get("flow_map") or []
                 p["task_breakdown"] = p.get("tasks") or {}
+                
+                # Inject feasibility object
+                tasks_data = p.get("tasks") or {}
+                team_size = tasks_data.get("team_size") or 1
+                hours_per_day = tasks_data.get("hours_per_day") or 8.0
+                completion_days = p.get("estimated_completion_days") or parse_duration_to_days(p.get("duration") or "")
+                p["feasibility"] = {
+                    "required_team_size": team_size,
+                    "required_hours_per_day": hours_per_day,
+                    "estimated_completion_days": completion_days
+                }
         return {
             "success": True,
             "plans": plans

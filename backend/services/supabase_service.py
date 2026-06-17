@@ -624,3 +624,17 @@ class SupabaseService:
             else:
                 logger.error(f"Error deleting Atlas Project '{atlas_id}': {e}")
         return False
+
+    def delete_project(self, project_id: str) -> bool:
+        """Delete a project from Supabase projects table."""
+        if not self.client:
+            return False
+        project_uuid = self._get_project_uuid(project_id)
+        try:
+            res = self.client.table("projects").delete().eq("id", project_uuid).execute()
+            if res.data:
+                logger.info(f"Project deleted: {project_id} (UUID: {project_uuid})")
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting project '{project_id}': {e}")
+        return False

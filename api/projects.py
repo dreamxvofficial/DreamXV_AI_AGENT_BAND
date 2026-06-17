@@ -182,3 +182,28 @@ async def regenerate_image(req: RegenerateImageRequest):
         import traceback
         tb = traceback.format_exc()
         return {"success": False, "error": f"Regeneration failed: {str(e)}", "traceback": tb}
+
+
+@app.delete("/api/projects")
+@app.delete("/")
+async def delete_project(project_id: str = Query(...)):
+    try:
+        # 1. Delete associated images from project_images
+        try:
+            db.client.table("project_images").delete().eq("project_id", db._get_project_uuid(project_id)).execute()
+        except Exception as img_err:
+            print(f"Error deleting project images: {img_err}")
+
+        # 2. Delete associated Atlas projects
+        try:
+            atlas_plans = db.get_atlas_projects_by_source(project_id)
+            for plan in atlas_plans:
+                db.delete_atlas_project(plan.get("id"))
+        except Exception as atlas_err:
+            print(f"Error deleting linked atlas projects: {atlas_err}")
+
+        # 3. Delete the project itself
+        success = db.delete_project(project_id)
+        return {"success": success}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

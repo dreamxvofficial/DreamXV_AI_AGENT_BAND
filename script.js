@@ -1325,7 +1325,28 @@ async function fetchAndRenderProjects() {
                     <div class="project-date">${formatDate(p.created_at)}</div>
                 </div>
                 <span class="project-status">${p.is_atlas ? "atlas" : (p.status || "completed")}</span>
+                <div class="project-actions">
+                    <button class="project-action-btn action-delete" title="Delete Project">DELETE</button>
+                </div>
             `;
+            
+            const delBtn = card.querySelector(".action-delete");
+            if (delBtn) {
+                delBtn.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+                    const confirmMsg = p.is_atlas 
+                        ? `Are you sure you want to delete the Atlas blueprint "${p.title || 'Untitled'}"?`
+                        : `Are you sure you want to delete the project "${p.title || 'Untitled'}"? This action is permanent and will delete all associated Atlas blueprints, concept art, and database records.`;
+                    if (confirm(confirmMsg)) {
+                        if (p.is_atlas) {
+                            await deleteAtlasProject(p.project_id);
+                        } else {
+                            await deleteProject(p.project_id);
+                        }
+                    }
+                });
+            }
+
             card.addEventListener("click", () => {
                 if (p.is_atlas) {
                     openAtlasProject(p.project_id);
@@ -1727,6 +1748,23 @@ async function showProjectDetails(projectId) {
         });
     }
 
+    // Bind Delete project button
+    const deleteDetailsBtn = document.getElementById("delete-project-details-btn");
+    if (deleteDetailsBtn) {
+        const newDelBtn = deleteDetailsBtn.cloneNode(true);
+        deleteDetailsBtn.parentNode.replaceChild(newDelBtn, deleteDetailsBtn);
+        newDelBtn.addEventListener("click", async () => {
+            if (confirm(`Are you sure you want to delete the project "${project.title || 'Untitled'}"? This action is permanent and will delete all associated Atlas blueprints, concept art, and records.`)) {
+                modal.classList.add("hidden");
+                if (_artPollInterval) {
+                    clearInterval(_artPollInterval);
+                    _artPollInterval = null;
+                }
+                await deleteProject(projectId);
+            }
+        });
+    }
+
     // Fetch associated Atlas projects if any
     const atlasSection = document.getElementById("project-details-atlas-section");
     const atlasSelect = document.getElementById("project-details-atlas-select");
@@ -2073,18 +2111,6 @@ function formatDate(dateStr) {
     }
 })();
 
-/* ==========================================
-   ATLAS ACTION CARD
-========================================== */
-
-(function initAtlasCard() {
-    const atlasCard = document.getElementById("action-atlas");
-    if (atlasCard) {
-        atlasCard.addEventListener("click", () => {
-            showToast("DreamXV Atlas: Explore worlds, ideas, lore, and inspiration. Coming Soon.", "info");
-        });
-    }
-})();
 
 /* ==========================================
    TOAST NOTIFICATIONS
@@ -2448,7 +2474,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelBtn = document.getElementById("cancel-atlas-modal-btn");
     const submitBtn = document.getElementById("submit-atlas-modal-btn");
     const selectEl = document.getElementById("atlas-project-select");
-    const durationInput = document.getElementById("atlas-duration-input");
+    const durationValueInput = document.getElementById("atlas-duration-value");
+    const durationUnitSelect = document.getElementById("atlas-duration-unit");
+    const teamSizeInput = document.getElementById("atlas-team-size-input");
+    const hoursInput = document.getElementById("atlas-hours-input");
     const toolsInput = document.getElementById("atlas-tools-input");
     const errorBox = document.getElementById("atlas-modal-error");
 
@@ -2469,7 +2498,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (progressSection) progressSection.style.display = "none";
 
         // Reset inputs
-        if (durationInput) durationInput.value = "";
+        if (durationValueInput) durationValueInput.value = "3";
+        if (durationUnitSelect) durationUnitSelect.value = "weeks";
+        if (teamSizeInput) teamSizeInput.value = "1";
+        if (hoursInput) hoursInput.value = "8";
         if (toolsInput) toolsInput.value = "";
 
         // Reset submit button state
@@ -2538,8 +2570,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Submit and Generate Plan
     submitBtn.addEventListener("click", async () => {
         const projectId = selectEl.value;
-        const duration = durationInput ? durationInput.value.trim() : "";
+        const durVal = durationValueInput ? durationValueInput.value.trim() : "";
+        const durUnit = durationUnitSelect ? durationUnitSelect.value : "";
         const tools = toolsInput ? toolsInput.value.trim() : "";
+        const teamSize = teamSizeInput ? parseInt(teamSizeInput.value) || 1 : 1;
+        const hoursPerDay = hoursInput ? parseFloat(hoursInput.value) || 8.0 : 8.0;
 
         if (errorBox) errorBox.style.display = "none";
 
@@ -2547,14 +2582,24 @@ document.addEventListener("DOMContentLoaded", () => {
             showError("Please select a project to proceed.");
             return;
         }
-        if (duration.length < 2) {
-            showError("Please enter a valid project duration (e.g. '1 week').");
+        if (!durVal || parseInt(durVal) <= 0) {
+            showError("Please enter a valid project duration quantity.");
             return;
         }
         if (tools.length < 2) {
             showError("Please enter the tools or technologies to build your project.");
             return;
         }
+        if (teamSize <= 0) {
+            showError("Team size must be at least 1 person.");
+            return;
+        }
+        if (hoursPerDay <= 0 || hoursPerDay > 24) {
+            showError("Hours per day must be between 1 and 24 hours.");
+            return;
+        }
+
+        const duration = `${durVal} ${durUnit}`;
 
         // Selected title
         const selectedOption = selectEl.options[selectEl.selectedIndex];
@@ -2591,7 +2636,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const bodyPayload = {
                 project_id: projectId,
                 duration: duration,
-                tools: tools
+                tools: tools,
+                team_size: teamSize,
+                hours_per_day: hoursPerDay
             };
             if (window.activeRegenAtlasId) {
                 bodyPayload.atlas_id = window.activeRegenAtlasId;
@@ -2926,17 +2973,59 @@ async function deleteAtlasProject(atlasId) {
     }
 }
 
+async function deleteProject(projectId) {
+    showToast("Deleting project...", "info");
+    try {
+        const res = await fetch(`/api/projects?project_id=${encodeURIComponent(projectId)}`, {
+            method: "DELETE"
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            showToast("Project deleted successfully.", "success");
+        } else {
+            console.warn("Backend deletion failed:", data?.error);
+        }
+    } catch (err) {
+        console.warn("Delete project API call failed, removing from local storage only:", err);
+    }
+    
+    // Clean up local storage cache to ensure UI sync
+    try {
+        const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+        let localProjects = safeJsonParse(localProjectsStr) || [];
+        localProjects = localProjects.filter(p => p.project_id !== projectId);
+        safeStorage.setItem("dreamxv_projects", JSON.stringify(localProjects));
+    } catch (err) {
+        console.error("Failed to clean up project from local storage:", err);
+    }
+    
+    fetchAndRenderProjects();
+}
+
 async function regenerateAtlasProjectInPlace(projectId, duration, tools, atlasId) {
     const atlasModal = document.getElementById("atlas-modal");
     if (!atlasModal) return;
 
     const selectEl = document.getElementById("atlas-project-select");
     const durationInput = document.getElementById("atlas-duration-input");
+    const durationValueInput = document.getElementById("atlas-duration-value");
+    const durationUnitSelect = document.getElementById("atlas-duration-unit");
     const toolsInput = document.getElementById("atlas-tools-input");
 
     if (selectEl) selectEl.value = projectId;
     if (durationInput) durationInput.value = duration;
     if (toolsInput) toolsInput.value = tools;
+
+    if (duration) {
+        const parts = duration.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            const val = parseInt(parts[0]);
+            let unit = parts[1].toLowerCase();
+            if (unit && !unit.endsWith("s")) unit += "s";
+            if (durationValueInput && !isNaN(val)) durationValueInput.value = val;
+            if (durationUnitSelect) durationUnitSelect.value = unit;
+        }
+    }
 
     atlasModal.classList.remove("hidden");
 
