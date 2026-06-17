@@ -251,6 +251,7 @@ class ProjectOutput(BaseModel):
     world: Optional[WorldOutput] = None
     gameplay: Optional[GameplayOutput] = None
     art: Optional[Union[ArtOutput, dict]] = None
+    art_gallery: list[str] = Field(default_factory=list)
     qa: Optional[QAOutput] = None
     review: Optional[ReviewerOutput] = None
     documentation: Optional[DocumentationOutput] = None

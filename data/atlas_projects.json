@@ -711,5 +711,251 @@
     },
     "zip_path": "public/exports/atlas/4e5d14cc-7c28-47fc-9758-ffa854dd48ac.zip",
     "created_at": "2026-06-16T17:18:34.610607+00:00"
+  },
+  {
+    "id": "07c157a4-56cd-4a1e-a713-a0216bf0ab46",
+    "user_id": "3d1034a3-5b72-4216-92fd-470e5704a8ba",
+    "source_project_id": "75d46d07-1b39-5ae6-b798-a0bdecd4957a",
+    "title": "Shadows of the Fallen",
+    "duration": "2 weeks",
+    "tools": "Unity 6, Blender, C#",
+    "roadmap": [
+      {
+        "name": "Phase 1: Project Setup",
+        "tasks": [
+          "Define project scope and goals based on the provided details.",
+          "Set up version control system and project structure.",
+          "Create asset folders and initial project files in Unity."
+        ]
+      },
+      {
+        "name": "Phase 2: Asset Creation",
+        "tasks": [
+          "Design and model key environments using Blender.",
+          "Develop character models and animations.",
+          "Create UI elements and HUD designs.",
+          "Generate textures and shaders for assets."
+        ]
+      },
+      {
+        "name": "Phase 3: Game Systems Implementation",
+        "tasks": [
+          "Implement resource management system.",
+          "Develop crafting and base building mechanics.",
+          "Integrate turn-based combat system.",
+          "Program character development and leveling system."
+        ]
+      },
+      {
+        "name": "Phase 4: Gameplay Integration",
+        "tasks": [
+          "Integrate AI systems for NPCs and enemies.",
+          "Connect asset pipelines to the game engine.",
+          "Test and refine gameplay mechanics.",
+          "Optimize performance and ensure compatibility across platforms."
+        ]
+      },
+      {
+        "name": "Phase 5: Quality Assurance and Testing",
+        "tasks": [
+          "Conduct thorough testing for bugs and glitches.",
+          "Perform user acceptance testing.",
+          "Gather feedback and make necessary adjustments."
+        ]
+      },
+      {
+        "name": "Phase 6: Deployment and Release",
+        "tasks": [
+          "Prepare final builds for release.",
+          "Submit to respective app stores and distribution channels.",
+          "Launch marketing campaign and prepare for launch day."
+        ]
+      }
+    ],
+    "structure": [
+      "Assets/",
+      "Assets/Models/",
+      "Assets/Materials/",
+      "Assets/Textures/",
+      "Assets/Scenes/",
+      "Assets/Scripts/",
+      "Assets/UI/",
+      "Assets/Sounds/",
+      "Assets/Shaders/",
+      "Assets/Animations/",
+      "Assets/Fonts/",
+      "Assets/Localization/",
+      "Assets/Documentation/"
+    ],
+    "flow_map": [
+      "Define project scope and goals.",
+      "Set up version control system and project structure.",
+      "Create asset folders and initial project files in Unity.",
+      "Design and model key environments using Blender.",
+      "Develop character models and animations.",
+      "Create UI elements and HUD designs.",
+      "Generate textures and shaders for assets.",
+      "Implement resource management system.",
+      "Develop crafting and base building mechanics.",
+      "Integrate turn-based combat system.",
+      "Program character development and leveling system.",
+      "Integrate AI systems for NPCs and enemies.",
+      "Connect asset pipelines to the game engine.",
+      "Test and refine gameplay mechanics.",
+      "Optimize performance and ensure compatibility across platforms.",
+      "Conduct thorough testing for bugs and glitches.",
+      "Perform user acceptance testing.",
+      "Gather feedback and make necessary adjustments.",
+      "Prepare final builds for release.",
+      "Submit to respective app stores and distribution channels.",
+      "Launch marketing campaign and prepare for launch day."
+    ],
+    "dependency_map": [
+      "ResourceManagementSystem -> CraftingMechanics -> BaseBuildingMechanics -> TurnBasedCombatSystem -> CharacterDevelopment -> AI -> Assets -> EngineIntegration -> PerformanceOptimization -> Testing -> FeedbackAdjustments -> FinalBuild -> Submission -> Marketing"
+    ],
+    "tasks": {
+      "critical_tasks": [
+        "Define project scope and goals based on the provided details.",
+        "Set up version control system and project structure.",
+        "Create asset folders and initial project files in Unity.",
+        "Implement resource management system.",
+        "Develop crafting and base building mechanics.",
+        "Integrate turn-based combat system.",
+        "Program character development and leveling system.",
+        "Integrate AI systems for NPCs and enemies.",
+        "Connect asset pipelines to the game engine.",
+        "Test and refine gameplay mechanics.",
+        "Optimize performance and ensure compatibility across platforms.",
+        "Prepare final builds for release.",
+        "Submit to respective app stores and distribution channels."
+      ],
+      "optional_tasks": [
+        "Expand the number of available crafting recipes.",
+        "Add more character customization options.",
+        "Include additional environmental hazards.",
+        "Enhance the visual effects of combat.",
+        "Incorporate more detailed background stories for NPCs."
+      ],
+      "future_expansion": [
+        "Develop a multiplayer mode with cooperative and competitive elements.",
+        "Create additional chapters with new locations and challenges.",
+        "Introduce new character classes with unique abilities.",
+        "Expand the lore with side quests and cutscenes.",
+        "Release regular content updates and downloadable content (DLC)."
+      ]
+    },
+    "generated_files": {
+      "README.md": "# Shadows of the Fallen \u2014 Production Plan\n\nGenerated by DreamXV Atlas AI Planner.\n\nThis archive contains the complete production layout, development roadmap, workflow maps, and source directories.\n",
+      "Roadmap.md": "# Development Roadmap\n\n## Phase 1: Project Setup\n- [ ] Define project scope and goals based on the provided details.\n- [ ] Set up version control system and project structure.\n- [ ] Create asset folders and initial project files in Unity.\n\n## Phase 2: Asset Creation\n- [ ] Design and model key environments using Blender.\n- [ ] Develop character models and animations.\n- [ ] Create UI elements and HUD designs.\n- [ ] Generate textures and shaders for assets.\n\n## Phase 3: Game Systems Implementation\n- [ ] Implement resource management system.\n- [ ] Develop crafting and base building mechanics.\n- [ ] Integrate turn-based combat system.\n- [ ] Program character development and leveling system.\n\n## Phase 4: Gameplay Integration\n- [ ] Integrate AI systems for NPCs and enemies.\n- [ ] Connect asset pipelines to the game engine.\n- [ ] Test and refine gameplay mechanics.\n- [ ] Optimize performance and ensure compatibility across platforms.\n\n## Phase 5: Quality Assurance and Testing\n- [ ] Conduct thorough testing for bugs and glitches.\n- [ ] Perform user acceptance testing.\n- [ ] Gather feedback and make necessary adjustments.\n\n## Phase 6: Deployment and Release\n- [ ] Prepare final builds for release.\n- [ ] Submit to respective app stores and distribution channels.\n- [ ] Launch marketing campaign and prepare for launch day.\n\n",
+      "FlowMap.md": "# Production Workflow & Dependencies\n\n## Step-by-Step Workflow\n1. Define project scope and goals.\n2. Set up version control system and project structure.\n3. Create asset folders and initial project files in Unity.\n4. Design and model key environments using Blender.\n5. Develop character models and animations.\n6. Create UI elements and HUD designs.\n7. Generate textures and shaders for assets.\n8. Implement resource management system.\n9. Develop crafting and base building mechanics.\n10. Integrate turn-based combat system.\n11. Program character development and leveling system.\n12. Integrate AI systems for NPCs and enemies.\n13. Connect asset pipelines to the game engine.\n14. Test and refine gameplay mechanics.\n15. Optimize performance and ensure compatibility across platforms.\n16. Conduct thorough testing for bugs and glitches.\n17. Perform user acceptance testing.\n18. Gather feedback and make necessary adjustments.\n19. Prepare final builds for release.\n20. Submit to respective app stores and distribution channels.\n21. Launch marketing campaign and prepare for launch day.\n\n## Core Dependency Graph\n- ResourceManagementSystem -> CraftingMechanics -> BaseBuildingMechanics -> TurnBasedCombatSystem -> CharacterDevelopment -> AI -> Assets -> EngineIntegration -> PerformanceOptimization -> Testing -> FeedbackAdjustments -> FinalBuild -> Submission -> Marketing\n",
+      "Tasks.md": "# Project Tasks\n\n## Critical Path Tasks (MVP)\n- [ ] Define project scope and goals based on the provided details.\n- [ ] Set up version control system and project structure.\n- [ ] Create asset folders and initial project files in Unity.\n- [ ] Implement resource management system.\n- [ ] Develop crafting and base building mechanics.\n- [ ] Integrate turn-based combat system.\n- [ ] Program character development and leveling system.\n- [ ] Integrate AI systems for NPCs and enemies.\n- [ ] Connect asset pipelines to the game engine.\n- [ ] Test and refine gameplay mechanics.\n- [ ] Optimize performance and ensure compatibility across platforms.\n- [ ] Prepare final builds for release.\n- [ ] Submit to respective app stores and distribution channels.\n\n## Optional Tasks\n- [ ] Expand the number of available crafting recipes.\n- [ ] Add more character customization options.\n- [ ] Include additional environmental hazards.\n- [ ] Enhance the visual effects of combat.\n- [ ] Incorporate more detailed background stories for NPCs.\n\n## Future Expansion\n- [ ] Develop a multiplayer mode with cooperative and competitive elements.\n- [ ] Create additional chapters with new locations and challenges.\n- [ ] Introduce new character classes with unique abilities.\n- [ ] Expand the lore with side quests and cutscenes.\n- [ ] Release regular content updates and downloadable content (DLC).\n",
+      "Structure.md": "# Project Directory Structure\n\nBelow is the folder and file layout designed for this project:\n\n```\nAssets/\nAssets/Models/\nAssets/Materials/\nAssets/Textures/\nAssets/Scenes/\nAssets/Scripts/\nAssets/UI/\nAssets/Sounds/\nAssets/Shaders/\nAssets/Animations/\nAssets/Fonts/\nAssets/Localization/\nAssets/Documentation/\n```\n"
+    },
+    "zip_path": "public/exports/atlas/07c157a4-56cd-4a1e-a713-a0216bf0ab46.zip",
+    "created_at": "2026-06-17T04:25:05.007622+00:00"
+  },
+  {
+    "id": "7873c5a2-dc0c-447d-abe0-a63d8170ca66",
+    "user_id": "3d1034a3-5b72-4216-92fd-470e5704a8ba",
+    "source_project_id": "61266eab-5a98-5c05-86fa-76da238bd9ce",
+    "title": "Mock Adventure Project",
+    "duration": "48 hours",
+    "tools": "React, FastAPI, Supabase",
+    "roadmap": [
+      {
+        "name": "Phase 1: Project Setup",
+        "tasks": [
+          "Set up project structure using React for frontend and FastAPI for backend",
+          "Initialize Supabase for database and authentication services"
+        ]
+      },
+      {
+        "name": "Phase 2: Core Game Mechanics Implementation",
+        "tasks": [
+          "Develop hero character model and basic animations",
+          "Implement scavenging system for resource gathering",
+          "Create zombie enemies and shooting mechanics",
+          "Integrate backend services for saving player progress"
+        ]
+      },
+      {
+        "name": "Phase 3: User Interface Design",
+        "tasks": [
+          "Design and implement UI elements such as HUD, menus, and inventory",
+          "Ensure UI responsiveness and accessibility"
+        ]
+      },
+      {
+        "name": "Phase 4: Testing and Debugging",
+        "tasks": [
+          "Conduct initial testing for core gameplay mechanics",
+          "Debug identified issues and optimize performance"
+        ]
+      },
+      {
+        "name": "Phase 5: Deployment",
+        "tasks": [
+          "Deploy backend services using FastAPI",
+          "Deploy frontend application using React",
+          "Configure Supabase for live usage"
+        ]
+      }
+    ],
+    "structure": [
+      "src/",
+      "src/components/",
+      "src/pages/",
+      "src/services/",
+      "src/utils/",
+      "backend/",
+      "backend/routes/",
+      "backend/models/",
+      "backend/config/",
+      "public/"
+    ],
+    "flow_map": [
+      "Set up project structure and initialize dependencies",
+      "Develop hero character model and basic animations",
+      "Implement scavenging and shooting mechanics",
+      "Design and implement user interface elements",
+      "Conduct initial testing and debugging",
+      "Deploy backend and frontend applications"
+    ],
+    "dependency_map": [
+      "HeroModel -> ScavengingSystem -> PlayerInventory -> BackendServices",
+      "ZombieModel -> ShootingMechanics -> PlayerStats -> BackendServices",
+      "Supabase -> Authentication -> UserSessions -> BackendServices",
+      "ReactComponents -> UIElements -> PlayerInteraction -> FrontendApp"
+    ],
+    "tasks": {
+      "critical_tasks": [
+        "Set up project structure using React and FastAPI",
+        "Implement scavenging and shooting mechanics",
+        "Design and implement core UI elements",
+        "Conduct initial testing and debugging",
+        "Deploy backend and frontend applications"
+      ],
+      "optional_tasks": [
+        "Add additional enemy types beyond zombies",
+        "Include more detailed character customization options",
+        "Enhance visual effects and animations",
+        "Implement social features allowing multiplayer interaction"
+      ],
+      "future_expansion": [
+        "Expand the world with new areas and challenges",
+        "Add more complex quests and storylines",
+        "Incorporate crafting and building systems",
+        "Support cross-platform deployment for mobile devices"
+      ]
+    },
+    "generated_files": {
+      "README.md": "# Mock Adventure Project \u2014 Production Plan\n\nGenerated by DreamXV Atlas AI Planner.\n\nThis archive contains the complete production layout, development roadmap, workflow maps, and source directories.\n",
+      "Roadmap.md": "# Development Roadmap\n\n## Phase 1: Project Setup\n- [ ] Set up project structure using React for frontend and FastAPI for backend\n- [ ] Initialize Supabase for database and authentication services\n\n## Phase 2: Core Game Mechanics Implementation\n- [ ] Develop hero character model and basic animations\n- [ ] Implement scavenging system for resource gathering\n- [ ] Create zombie enemies and shooting mechanics\n- [ ] Integrate backend services for saving player progress\n\n## Phase 3: User Interface Design\n- [ ] Design and implement UI elements such as HUD, menus, and inventory\n- [ ] Ensure UI responsiveness and accessibility\n\n## Phase 4: Testing and Debugging\n- [ ] Conduct initial testing for core gameplay mechanics\n- [ ] Debug identified issues and optimize performance\n\n## Phase 5: Deployment\n- [ ] Deploy backend services using FastAPI\n- [ ] Deploy frontend application using React\n- [ ] Configure Supabase for live usage\n\n",
+      "FlowMap.md": "# Production Workflow & Dependencies\n\n## Step-by-Step Workflow\n1. Set up project structure and initialize dependencies\n2. Develop hero character model and basic animations\n3. Implement scavenging and shooting mechanics\n4. Design and implement user interface elements\n5. Conduct initial testing and debugging\n6. Deploy backend and frontend applications\n\n## Core Dependency Graph\n- HeroModel -> ScavengingSystem -> PlayerInventory -> BackendServices\n- ZombieModel -> ShootingMechanics -> PlayerStats -> BackendServices\n- Supabase -> Authentication -> UserSessions -> BackendServices\n- ReactComponents -> UIElements -> PlayerInteraction -> FrontendApp\n",
+      "Tasks.md": "# Project Tasks\n\n## Critical Path Tasks (MVP)\n- [ ] Set up project structure using React and FastAPI\n- [ ] Implement scavenging and shooting mechanics\n- [ ] Design and implement core UI elements\n- [ ] Conduct initial testing and debugging\n- [ ] Deploy backend and frontend applications\n\n## Optional Tasks\n- [ ] Add additional enemy types beyond zombies\n- [ ] Include more detailed character customization options\n- [ ] Enhance visual effects and animations\n- [ ] Implement social features allowing multiplayer interaction\n\n## Future Expansion\n- [ ] Expand the world with new areas and challenges\n- [ ] Add more complex quests and storylines\n- [ ] Incorporate crafting and building systems\n- [ ] Support cross-platform deployment for mobile devices\n",
+      "Structure.md": "# Project Directory Structure\n\nBelow is the folder and file layout designed for this project:\n\n```\nsrc/\nsrc/components/\nsrc/pages/\nsrc/services/\nsrc/utils/\nbackend/\nbackend/routes/\nbackend/models/\nbackend/config/\npublic/\n```\n"
+    },
+    "zip_path": "public/exports/atlas/7873c5a2-dc0c-447d-abe0-a63d8170ca66.zip",
+    "created_at": "2026-06-17T04:25:34.496634+00:00"
   }
 ]

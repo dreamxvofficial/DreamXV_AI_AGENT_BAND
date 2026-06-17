@@ -1697,48 +1697,89 @@ function renderGallery(project) {
     galleryEl.innerHTML = "";
 
     const imagesList = project.images_list || [];
-    if (imagesList.length > 0) {
-        imagesList.forEach((imgObj) => {
+    const totalSlots = 6;
+    const status = project.art_generation_status || "pending";
+
+    for (let i = 0; i < totalSlots; i++) {
+        const imgObj = imagesList[i];
+        const card = document.createElement("div");
+        card.className = "gallery-card";
+        card.style.position = "relative";
+        card.style.borderRadius = "8px";
+        card.style.overflow = "hidden";
+        card.style.border = "1px solid rgba(26, 48, 72, 0.5)";
+        card.style.background = "var(--cosmos)";
+        card.style.transition = "transform 0.2s, box-shadow 0.2s";
+
+        if (imgObj) {
             const path = imgObj.image_url;
             const category = imgObj.category || "concept";
             const prompt = imgObj.prompt || "";
             const imageId = imgObj.id;
 
-            const card = document.createElement("div");
-            card.className = "gallery-card";
-            card.style.position = "relative";
-            card.style.borderRadius = "8px";
-            card.style.overflow = "hidden";
-            card.style.border = "1px solid rgba(26, 48, 72, 0.5)";
-            card.style.background = "var(--cosmos)";
-            card.style.transition = "transform 0.2s, box-shadow 0.2s";
+            console.log("Art prompt:", prompt);
+            console.log("Generated image URL:", path);
+            console.log("Saved images:", imagesList.length);
 
-            card.innerHTML = `
-                <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; cursor: pointer;">
-                    <img class="gallery-img" src="${path}" alt="${category} concept art" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
-                    <div class="category-badge" style="position: absolute; top: 8px; left: 8px; background: rgba(12, 26, 46, 0.85); color: var(--earth-teal); border: 1px solid var(--earth-teal); font-family: var(--font-code); font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${category}</div>
-                </div>
-                <div class="card-footer" style="padding: 8px; display: flex; gap: 8px; justify-content: space-between; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4);">
-                    <button class="gallery-download-btn" style="flex: 1; padding: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; background: transparent; border: 1px solid var(--lunar-gold); color: var(--lunar-gold); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Download
-                    </button>
-                    <button class="gallery-regen-btn" style="flex: 1; padding: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; background: transparent; border: 1px solid var(--earth-teal); color: var(--earth-teal); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">
-                        <svg class="regen-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                        Regen
-                    </button>
-                </div>
-            `;
+            const isPlaceholder = path.includes("iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA") || path === "";
 
-            // Hover effects
-            const imgWrapper = card.querySelector(".image-wrapper");
-            const img = card.querySelector(".gallery-img");
-            imgWrapper.addEventListener("mouseenter", () => {
-                img.style.transform = "scale(1.05)";
-            });
-            imgWrapper.addEventListener("mouseleave", () => {
-                img.style.transform = "scale(1)";
-            });
+            if (isPlaceholder) {
+                card.innerHTML = `
+                    <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(26, 48, 72, 0.2);">
+                        <div style="text-align: center; padding: 12px; color: rgba(240, 232, 208, 0.5);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 8px auto; opacity: 0.5;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <div style="font-size: 11px; font-family: var(--font-code);">Image Failed</div>
+                        </div>
+                        <div class="category-badge" style="position: absolute; top: 8px; left: 8px; background: rgba(239, 68, 68, 0.85); color: #fff; border: 1px solid #ef4444; font-family: var(--font-code); font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${category}</div>
+                    </div>
+                    <div class="card-footer" style="padding: 8px; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4); text-align: center; font-size: 11px; color: rgba(240, 232, 208, 0.3); font-family: var(--font-code);">
+                        Generation Failed
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; cursor: pointer;">
+                        <img class="gallery-img" src="${path}" alt="${category} concept art" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                        <div class="category-badge" style="position: absolute; top: 8px; left: 8px; background: rgba(12, 26, 46, 0.85); color: var(--earth-teal); border: 1px solid var(--earth-teal); font-family: var(--font-code); font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${category}</div>
+                    </div>
+                    <div class="card-footer" style="padding: 8px; display: flex; gap: 8px; justify-content: space-between; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4);">
+                        <button class="gallery-download-btn" style="flex: 1; padding: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; background: transparent; border: 1px solid var(--lunar-gold); color: var(--lunar-gold); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download
+                        </button>
+                        <button class="gallery-regen-btn" style="flex: 1; padding: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; background: transparent; border: 1px solid var(--earth-teal); color: var(--earth-teal); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">
+                            <svg class="regen-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            Regen
+                        </button>
+                    </div>
+                `;
+
+                const imgWrapper = card.querySelector(".image-wrapper");
+                const img = card.querySelector(".gallery-img");
+                imgWrapper.addEventListener("mouseenter", () => {
+                    img.style.transform = "scale(1.05)";
+                });
+                imgWrapper.addEventListener("mouseleave", () => {
+                    img.style.transform = "scale(1)";
+                });
+
+                imgWrapper.addEventListener("click", () => {
+                    openLightbox(path, `${category.toUpperCase()} - ${prompt}`);
+                });
+
+                card.querySelector(".gallery-download-btn").addEventListener("click", () => {
+                    triggerDirectDownload(path, `${category}_art.png`);
+                });
+
+                const regenBtn = card.querySelector(".gallery-regen-btn");
+                if (imageId && !imageId.startsWith("local_")) {
+                    regenBtn.addEventListener("click", async () => {
+                        await triggerRegenerateImage(project.project_id, imageId, card);
+                    });
+                } else {
+                    regenBtn.style.display = "none";
+                }
+            }
 
             card.addEventListener("mouseenter", () => {
                 card.style.transform = "translateY(-4px)";
@@ -1749,30 +1790,34 @@ function renderGallery(project) {
                 card.style.boxShadow = "none";
             });
 
-            // Click image to zoom/lightbox
-            imgWrapper.addEventListener("click", () => {
-                openLightbox(path, `${category.toUpperCase()} - ${prompt}`);
-            });
-
-            // Download handler
-            card.querySelector(".gallery-download-btn").addEventListener("click", () => {
-                triggerDirectDownload(path, `${category}_art.png`);
-            });
-
-            // Regenerate handler
-            const regenBtn = card.querySelector(".gallery-regen-btn");
-            if (imageId && !imageId.startsWith("local_")) {
-                regenBtn.addEventListener("click", async () => {
-                    await triggerRegenerateImage(project.project_id, imageId, card);
-                });
+        } else {
+            if (status === "generating" || status === "pending") {
+                card.innerHTML = `
+                    <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(26, 48, 72, 0.1);">
+                        <div style="text-align: center; padding: 12px; color: var(--earth-teal);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1.5s linear infinite; margin: 0 auto 8px auto;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                            <div style="font-size: 11px; font-family: var(--font-code);">Generating...</div>
+                        </div>
+                    </div>
+                    <div class="card-footer" style="padding: 8px; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4); text-align: center; font-size: 11px; color: rgba(240, 232, 208, 0.3); font-family: var(--font-code);">
+                        In Queue
+                    </div>
+                `;
             } else {
-                regenBtn.style.display = "none";
+                card.innerHTML = `
+                    <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(26, 48, 72, 0.2);">
+                        <div style="text-align: center; padding: 12px; color: rgba(240, 232, 208, 0.5);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 8px auto; opacity: 0.5;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <div style="font-size: 11px; font-family: var(--font-code);">Image Failed</div>
+                        </div>
+                    </div>
+                    <div class="card-footer" style="padding: 8px; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4); text-align: center; font-size: 11px; color: rgba(240, 232, 208, 0.3); font-family: var(--font-code);">
+                        Generation Failed
+                    </div>
+                `;
             }
-
-            galleryEl.appendChild(card);
-        });
-    } else {
-        galleryEl.innerHTML = "<div style='grid-column: span 3; text-align: center; color: rgba(240, 232, 208, 0.4); font-size: 13px; padding: 20px 0;'>No concept art generated.</div>";
+        }
+        galleryEl.appendChild(card);
     }
 }
 
@@ -2134,8 +2179,8 @@ async function exportProjectToZip(project) {
     // Project Manifest
     zip.file("project_manifest.json", JSON.stringify(project, null, 4));
 
-    // Add images folder containing binary-decoded files
-    const imagesFolder = zip.folder("images");
+    // Add art folder containing binary-decoded files
+    const artFolder = zip.folder("art");
 
     // Pull images from project.images_list (which is populated)
     let imagesList = project.images_list || [];
@@ -2150,11 +2195,10 @@ async function exportProjectToZip(project) {
 
     imagesList.forEach((imgObj, idx) => {
         const base64Url = imgObj.image_url;
-        const category = imgObj.category || "concept";
         if (base64Url && base64Url.startsWith("data:image/")) {
             const base64Data = base64Url.split(",")[1];
             if (base64Data) {
-                imagesFolder.file(`${category}_art_${idx + 1}.png`, base64Data, { base64: true });
+                artFolder.file(`concept_${idx + 1}.png`, base64Data, { base64: true });
             }
         }
     });

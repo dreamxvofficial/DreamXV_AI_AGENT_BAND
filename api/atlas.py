@@ -204,15 +204,14 @@ def create_atlas_zip_on_disk(atlas_id: str, atlas_data: dict, images: list[dict]
             for name, content in gen_files.items():
                 zip_file.writestr(f"docs/{name}", content or "")
                 
-            # 2. /generated_assets/ AI images
+            # 2. /art/ AI images
             for idx, img in enumerate(images):
                 img_url = img.get("image_url", "")
-                category = img.get("category", "asset")
                 if img_url.startswith("data:image/"):
                     try:
                         header, encoded = img_url.split(",", 1)
                         img_bytes = base64.b64decode(encoded)
-                        zip_file.writestr(f"generated_assets/image_{idx+1}_{category}.png", img_bytes)
+                        zip_file.writestr(f"art/concept_{idx+1}.png", img_bytes)
                     except Exception as e:
                         print(f"Error packing image {idx}: {e}")
                         

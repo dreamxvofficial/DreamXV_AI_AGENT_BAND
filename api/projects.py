@@ -55,6 +55,7 @@ async def get_projects(
             project_data["art_generation_status"] = project_record.get("art_generation_status") or "pending"
             project_data["total_images"] = project_record.get("total_images") or 6
             project_data["generated_images"] = project_record.get("generated_images") or 0
+            project_data["art_gallery"] = project_data.get("art_gallery") or [img.get("image_url") for img in images_list]
 
         return {
             "success": True,

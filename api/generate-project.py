@@ -200,7 +200,8 @@ def _build_project_data(project, base64_images: list) -> dict:
             "technical_summary": project.documentation.technical_summary if project.documentation else "",
             "elevator_pitch": project.documentation.elevator_pitch if project.documentation else ""
         } if project.documentation else None,
-        "images": base64_images
+        "images": base64_images,
+        "art_gallery": getattr(project, "art_gallery", [])
     }
 
 

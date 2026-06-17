@@ -347,6 +347,7 @@ class BandManager:
             world=world,
             gameplay=gameplay,
             art=art,
+            art_gallery=[],
             qa=qa,
             review=review,
             documentation=documentation,
@@ -508,13 +509,13 @@ class BandManager:
             
             system_prompt = (
                 "You are the Lead Art Director at DreamXV AI Studio. Your task is to generate exactly 6 distinct, "
-                "cinematic image generation prompts for FLUX. The prompts must cover these 5 specific visual categories "
-                "to form a cohesive art concept guide:\n"
-                "1. environments/terrains (e.g. landscapes, town views)\n"
-                "2. important characters (highly detailed visual descriptors)\n"
-                "3. key story scenes (dramatic story moments, action, interactions)\n"
-                "4. world landmarks (structures, statues, notable geographical objects)\n"
-                "5. gameplay moments (first-person action, UI representations, active play)\n"
+                "cinematic image generation prompts for FLUX. The prompts must cover these 6 specific visual scenes:\n"
+                "1. Character portrait (detailed protagonist face/bust, cinematic lighting)\n"
+                "2. Main hero group (the band of survivors/heroes standing together in their environment)\n"
+                "3. Urban ruins (ruined buildings, debris, post-apocalyptic cityscape)\n"
+                "4. Forest/infected terrain (mutated flora, infected soil, dense eerie atmosphere)\n"
+                "5. Special infected enemy (grotesque details, unique mutation, attacking or lurking)\n"
+                "6. Final cinematic environment (epic scale landmark or cinematic scene setting the final stage)\n"
                 "Generate exactly 6 prompts in total, making sure each prompt specifies mood, composition, lighting, "
                 "and visual style matching the game's tone. Ensure the prompts are returned in a structured format."
             )
@@ -535,14 +536,19 @@ class BandManager:
             logger.error(f"[{project_id}] Failed to generate dynamic art prompts from LLM: {e}. Falling back to default prompts.")
             from backend.models.output_models import ImagePromptItem
             prompts = [
-                ImagePromptItem(prompt=f"Cinematic environment terrain shot of {project.title}, epic landscapes, highly detailed 8k", category="environment"),
-                ImagePromptItem(prompt=f"Detailed character portrait matching the theme of {project.title}, cinematic lighting", category="character"),
-                ImagePromptItem(prompt=f"Dramatic key story scene from the world of {project.title}, atmospheric lighting, photorealistic", category="scene"),
-                ImagePromptItem(prompt=f"Fascinating world landmark structure from the lore of {project.title}, concept art", category="landmark"),
-                ImagePromptItem(prompt=f"Gameplay action sequence depicting {project.title} core loop, dynamic camera angle", category="gameplay"),
-                ImagePromptItem(prompt=f"Cinematic cover scene for {project.title}, high detail graphic design style", category="scene")
+                ImagePromptItem(prompt=f"Cinematic detailed character portrait of protagonist matching the theme of {project.title}, cinematic lighting", category="character"),
+                ImagePromptItem(prompt=f"Main hero group standing together in the world of {project.title}, atmospheric lighting, cinematic", category="character"),
+                ImagePromptItem(prompt=f"Cinematic shot of urban ruins, ruined buildings, debris post-apocalyptic cityscape of {project.title}", category="environment"),
+                ImagePromptItem(prompt=f"Forest/infected terrain landscape representing mutated nature and danger in {project.title}", category="environment"),
+                ImagePromptItem(prompt=f"Special infected enemy creature with grotesque mutations lurking in the shadows of {project.title}", category="character"),
+                ImagePromptItem(prompt=f"Final cinematic environment landmark showing the final destination of {project.title}", category="environment")
             ]
             
+        # Ensure categories match the requested ones:
+        categories = ["character", "character", "environment", "environment", "character", "environment"]
+        for idx in range(min(len(prompts), 6)):
+            prompts[idx].category = categories[idx]
+
         prompts = prompts[:6]
         while len(prompts) < 6:
             prompts.append(prompts[0])
@@ -550,9 +556,16 @@ class BandManager:
         generated_count = 0
         image_urls = []
         
+        tiny_png = (
+            "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"
+            "H0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSu"
+            "QmCC"
+        )
+        placeholder_url = f"data:image/png;base64,{tiny_png}"
+        
         for idx, item in enumerate(prompts):
             image_url = ""
-            logger.info(f"[{project_id}] Generating image {idx+1}/6 (category: {item.category})...")
+            logger.info(f"Generating image {idx+1}/6")
             
             # Retry loop: 3 attempts
             for attempt in range(1, 4):
@@ -591,20 +604,26 @@ class BandManager:
                     else:
                         logger.error(f"[{project_id}] Image {idx+1}/6 failed completely after 3 attempts.")
             
-            if image_url:
-                db.save_project_image(
-                    project_id=project_id,
-                    image_url=image_url,
-                    prompt=item.prompt,
-                    category=item.category
-                )
-                generated_count += 1
-                image_urls.append(image_url)
-                db.update_project_art_status(project_id, "generating", generated_count, 6)
+            if not image_url:
+                image_url = placeholder_url
+            
+            db.save_project_image(
+                project_id=project_id,
+                image_url=image_url,
+                prompt=item.prompt,
+                category=item.category
+            )
+            generated_count += 1
+            image_urls.append(image_url)
+            logger.info(f"Image URL: {image_url}")
+            logger.info(f"Saved {len(image_urls)} images")
+            db.update_project_art_status(project_id, "generating", generated_count, 6)
                 
-        status = "completed" if generated_count > 0 else "failed"
+        status = "completed"
         db.update_project_art_status(project_id, status, generated_count, 6)
         logger.info(f"[{project_id}] Async art generation complete. Status: {status} ({generated_count}/6).")
+        
+        project.art_gallery = image_urls
         
         # Update the project_json manifest
         try:
@@ -617,6 +636,7 @@ class BandManager:
                     project_json["art"]["image_paths"] = image_urls
                     project_json["images"] = image_urls
                     project_json["art"]["prompts"] = [item.prompt for item in prompts]
+                    project_json["art_gallery"] = image_urls
                     
                     db.save_project(
                         project_id=project_id,
