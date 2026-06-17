@@ -957,5 +957,269 @@
     },
     "zip_path": "public/exports/atlas/7873c5a2-dc0c-447d-abe0-a63d8170ca66.zip",
     "created_at": "2026-06-17T04:25:34.496634+00:00"
+  },
+  {
+    "id": "1335583f-b276-4aab-8eb4-86cbd03d97b3",
+    "user_id": "6edb4703-47a6-465e-838a-5b78dc7f3d73",
+    "source_project_id": "521e2979-95d2-5189-8a92-41327c47b4dd",
+    "title": "Ashes of Eden",
+    "duration": "2 weeks",
+    "tools": "Unity 6, Blender, C#",
+    "roadmap": [
+      {
+        "name": "Phase 1: Project Setup",
+        "tasks": [
+          "Set up Unity project with necessary assets and configurations",
+          "Create initial project structure and folder hierarchy",
+          "Define project goals and timelines"
+        ]
+      },
+      {
+        "name": "Phase 2: Character Design and Modeling",
+        "tasks": [
+          "Design and model main characters in Blender",
+          "Create character animations for basic actions",
+          "Import models and animations into Unity"
+        ]
+      },
+      {
+        "name": "Phase 3: Environment and Asset Creation",
+        "tasks": [
+          "Design and create environment assets in Blender",
+          "Create textures and materials for environment assets",
+          "Import environment assets into Unity"
+        ]
+      },
+      {
+        "name": "Phase 4: Core Gameplay Mechanics Development",
+        "tasks": [
+          "Implement resource management system",
+          "Develop crafting system",
+          "Build base building mechanics",
+          "Integrate stealth combat mechanics",
+          "Implement squad management and combat planning features"
+        ]
+      },
+      {
+        "name": "Phase 5: AI System Integration",
+        "tasks": [
+          "Develop behavior trees for enemy AI",
+          "Integrate AI systems with combat mechanics",
+          "Test and refine AI behaviors"
+        ]
+      },
+      {
+        "name": "Phase 6: User Interface and Experience Design",
+        "tasks": [
+          "Design UI layout and elements",
+          "Implement HUD and menus",
+          "Create tutorial and help systems"
+        ]
+      },
+      {
+        "name": "Phase 7: Testing and Quality Assurance",
+        "tasks": [
+          "Conduct alpha testing for core gameplay mechanics",
+          "Address QA assessment findings",
+          "Perform beta testing with a larger audience",
+          "Finalize game balance and polish"
+        ]
+      },
+      {
+        "name": "Phase 8: Deployment Preparation",
+        "tasks": [
+          "Prepare game assets for different platforms",
+          "Optimize game performance",
+          "Create distribution packages",
+          "Plan marketing and release strategy"
+        ]
+      }
+    ],
+    "structure": [
+      "Assets/",
+      "Assets/Characters/",
+      "Assets/Characters/Models/",
+      "Assets/Characters/Materials/",
+      "Assets/Characters/Animations/",
+      "Assets/Environment/",
+      "Assets/Environment/Models/",
+      "Assets/Environment/Materials/",
+      "Assets/Environment/Textures/",
+      "Assets/Scripts/",
+      "Assets/Scripts/CoreGameplay/",
+      "Assets/Scripts/AI/",
+      "Assets/UI/",
+      "Assets/UI/Layouts/",
+      "Assets/UI/Elements/",
+      "Assets/Sounds/",
+      "Assets/Sounds/Music/",
+      "Assets/Sounds/Effects/"
+    ],
+    "flow_map": [
+      "Setup project and initial configurations",
+      "Character design and modeling",
+      "Environment asset creation",
+      "Core gameplay mechanics development",
+      "AI system integration",
+      "User interface and experience design",
+      "Testing and quality assurance",
+      "Deployment preparation"
+    ],
+    "dependency_map": [
+      "ResourceManager -> InventorySystem -> PlayerController",
+      "CraftingSystem -> MaterialDatabase -> ItemDatabase",
+      "BaseBuildingSystem -> ConstructionQueue -> BuildingTemplates",
+      "StealthCombatSystem -> EnemyDetection -> PlayerVisibility",
+      "SquadManagement -> RoleAssignment -> SkillTrees",
+      "CombatPlanning -> Pathfinding -> TrapPlacement",
+      "BehaviorTrees -> EnemyAI -> CombatMechanics",
+      "UIManager -> HUD -> InputHandling",
+      "AlphaTesting -> BugFixing -> BetaTesting"
+    ],
+    "tasks": {
+      "critical_tasks": [
+        "Implement resource management system",
+        "Develop crafting system",
+        "Build base building mechanics",
+        "Integrate stealth combat mechanics",
+        "Implement squad management and combat planning features",
+        "Develop behavior trees for enemy AI",
+        "Conduct alpha testing for core gameplay mechanics",
+        "Prepare game assets for different platforms",
+        "Optimize game performance"
+      ],
+      "optional_tasks": [
+        "Add additional character customization options",
+        "Expand environment variety with new locations",
+        "Incorporate multiplayer functionality",
+        "Include dynamic weather effects",
+        "Enhance audio with ambient sounds and music tracks",
+        "Create detailed background stories for NPCs"
+      ],
+      "future_expansion": [
+        "Release expansion packs with new missions and challenges",
+        "Add new survivor characters with unique abilities",
+        "Introduce new enemy types and factions",
+        "Expand the storyline with additional chapters",
+        "Support modding community with tools and resources"
+      ]
+    },
+    "generated_files": {
+      "README.md": "# Ashes of Eden \u2014 Production Plan\n\nGenerated by DreamXV Atlas AI Planner.\n\nThis archive contains the complete production layout, development roadmap, workflow maps, and source directories.\n",
+      "Roadmap.md": "# Development Roadmap\n\n## Phase 1: Project Setup\n- [ ] Set up Unity project with necessary assets and configurations\n- [ ] Create initial project structure and folder hierarchy\n- [ ] Define project goals and timelines\n\n## Phase 2: Character Design and Modeling\n- [ ] Design and model main characters in Blender\n- [ ] Create character animations for basic actions\n- [ ] Import models and animations into Unity\n\n## Phase 3: Environment and Asset Creation\n- [ ] Design and create environment assets in Blender\n- [ ] Create textures and materials for environment assets\n- [ ] Import environment assets into Unity\n\n## Phase 4: Core Gameplay Mechanics Development\n- [ ] Implement resource management system\n- [ ] Develop crafting system\n- [ ] Build base building mechanics\n- [ ] Integrate stealth combat mechanics\n- [ ] Implement squad management and combat planning features\n\n## Phase 5: AI System Integration\n- [ ] Develop behavior trees for enemy AI\n- [ ] Integrate AI systems with combat mechanics\n- [ ] Test and refine AI behaviors\n\n## Phase 6: User Interface and Experience Design\n- [ ] Design UI layout and elements\n- [ ] Implement HUD and menus\n- [ ] Create tutorial and help systems\n\n## Phase 7: Testing and Quality Assurance\n- [ ] Conduct alpha testing for core gameplay mechanics\n- [ ] Address QA assessment findings\n- [ ] Perform beta testing with a larger audience\n- [ ] Finalize game balance and polish\n\n## Phase 8: Deployment Preparation\n- [ ] Prepare game assets for different platforms\n- [ ] Optimize game performance\n- [ ] Create distribution packages\n- [ ] Plan marketing and release strategy\n\n",
+      "FlowMap.md": "# Production Workflow & Dependencies\n\n## Step-by-Step Workflow\n1. Setup project and initial configurations\n2. Character design and modeling\n3. Environment asset creation\n4. Core gameplay mechanics development\n5. AI system integration\n6. User interface and experience design\n7. Testing and quality assurance\n8. Deployment preparation\n\n## Core Dependency Graph\n- ResourceManager -> InventorySystem -> PlayerController\n- CraftingSystem -> MaterialDatabase -> ItemDatabase\n- BaseBuildingSystem -> ConstructionQueue -> BuildingTemplates\n- StealthCombatSystem -> EnemyDetection -> PlayerVisibility\n- SquadManagement -> RoleAssignment -> SkillTrees\n- CombatPlanning -> Pathfinding -> TrapPlacement\n- BehaviorTrees -> EnemyAI -> CombatMechanics\n- UIManager -> HUD -> InputHandling\n- AlphaTesting -> BugFixing -> BetaTesting\n",
+      "Tasks.md": "# Project Tasks\n\n## Critical Path Tasks (MVP)\n- [ ] Implement resource management system\n- [ ] Develop crafting system\n- [ ] Build base building mechanics\n- [ ] Integrate stealth combat mechanics\n- [ ] Implement squad management and combat planning features\n- [ ] Develop behavior trees for enemy AI\n- [ ] Conduct alpha testing for core gameplay mechanics\n- [ ] Prepare game assets for different platforms\n- [ ] Optimize game performance\n\n## Optional Tasks\n- [ ] Add additional character customization options\n- [ ] Expand environment variety with new locations\n- [ ] Incorporate multiplayer functionality\n- [ ] Include dynamic weather effects\n- [ ] Enhance audio with ambient sounds and music tracks\n- [ ] Create detailed background stories for NPCs\n\n## Future Expansion\n- [ ] Release expansion packs with new missions and challenges\n- [ ] Add new survivor characters with unique abilities\n- [ ] Introduce new enemy types and factions\n- [ ] Expand the storyline with additional chapters\n- [ ] Support modding community with tools and resources\n",
+      "Structure.md": "# Project Directory Structure\n\nBelow is the folder and file layout designed for this project:\n\n```\nAssets/\nAssets/Characters/\nAssets/Characters/Models/\nAssets/Characters/Materials/\nAssets/Characters/Animations/\nAssets/Environment/\nAssets/Environment/Models/\nAssets/Environment/Materials/\nAssets/Environment/Textures/\nAssets/Scripts/\nAssets/Scripts/CoreGameplay/\nAssets/Scripts/AI/\nAssets/UI/\nAssets/UI/Layouts/\nAssets/UI/Elements/\nAssets/Sounds/\nAssets/Sounds/Music/\nAssets/Sounds/Effects/\n```\n"
+    },
+    "zip_path": "public/exports/atlas/1335583f-b276-4aab-8eb4-86cbd03d97b3.zip",
+    "created_at": "2026-06-17T04:49:19.511767+00:00"
+  },
+  {
+    "id": "14ee39f2-df9a-457a-abce-938b6d903809",
+    "user_id": "6edb4703-47a6-465e-838a-5b78dc7f3d73",
+    "source_project_id": "61266eab-5a98-5c05-86fa-76da238bd9ce",
+    "title": "Mock Adventure Project",
+    "duration": "48 hours",
+    "tools": "React, FastAPI, Supabase",
+    "roadmap": [
+      {
+        "name": "Phase 1: Project Setup",
+        "tasks": [
+          "Set up project structure using React for frontend and FastAPI for backend",
+          "Initialize Supabase for database and authentication services",
+          "Create basic project files and directories"
+        ]
+      },
+      {
+        "name": "Phase 2: Core Game Loop Development",
+        "tasks": [
+          "Develop scavenging resource system",
+          "Implement zombie shooting mechanics",
+          "Integrate user authentication and authorization"
+        ]
+      },
+      {
+        "name": "Phase 3: User Interface Design",
+        "tasks": [
+          "Design UI elements for scavenging and combat",
+          "Create player character and zombie sprites",
+          "Implement responsive design for different screen sizes"
+        ]
+      },
+      {
+        "name": "Phase 4: Testing and Debugging",
+        "tasks": [
+          "Conduct unit tests for core functionalities",
+          "Perform integration testing between frontend and backend",
+          "Debug identified issues"
+        ]
+      },
+      {
+        "name": "Phase 5: Deployment",
+        "tasks": [
+          "Deploy backend services using FastAPI",
+          "Deploy frontend using React",
+          "Configure domain and hosting services"
+        ]
+      }
+    ],
+    "structure": [
+      "src/",
+      "src/components/",
+      "src/pages/",
+      "src/services/",
+      "src/utils/",
+      "backend/",
+      "backend/api/",
+      "backend/database/",
+      "backend/auth/",
+      "public/",
+      "package.json",
+      "README.md",
+      "server.py",
+      ".env"
+    ],
+    "flow_map": [
+      "Set up project structure",
+      "Develop core game loop functionalities",
+      "Design and implement UI elements",
+      "Test individual components",
+      "Integrate and test frontend and backend",
+      "Deploy services to production"
+    ],
+    "dependency_map": [
+      "AuthService -> Database -> API -> Frontend",
+      "ScavengingSystem -> Resources -> PlayerInventory -> UI",
+      "ZombieShootingMechanic -> PlayerCharacter -> CombatUI -> Backend"
+    ],
+    "tasks": {
+      "critical_tasks": [
+        "Set up project structure using React for frontend and FastAPI for backend",
+        "Develop scavenging resource system",
+        "Implement zombie shooting mechanics",
+        "Conduct unit tests for core functionalities",
+        "Deploy backend services using FastAPI",
+        "Deploy frontend using React"
+      ],
+      "optional_tasks": [
+        "Add detailed character customization options",
+        "Include additional zombie types with unique behaviors",
+        "Implement a tutorial level for new players"
+      ],
+      "future_expansion": [
+        "Expand the game world with more locations and quests",
+        "Add multiplayer functionality for cooperative play",
+        "Develop mobile versions for iOS and Android"
+      ]
+    },
+    "generated_files": {
+      "README.md": "# Mock Adventure Project \u2014 Production Plan\n\nGenerated by DreamXV Atlas AI Planner.\n\nThis archive contains the complete production layout, development roadmap, workflow maps, and source directories.\n",
+      "Roadmap.md": "# Development Roadmap\n\n## Phase 1: Project Setup\n- [ ] Set up project structure using React for frontend and FastAPI for backend\n- [ ] Initialize Supabase for database and authentication services\n- [ ] Create basic project files and directories\n\n## Phase 2: Core Game Loop Development\n- [ ] Develop scavenging resource system\n- [ ] Implement zombie shooting mechanics\n- [ ] Integrate user authentication and authorization\n\n## Phase 3: User Interface Design\n- [ ] Design UI elements for scavenging and combat\n- [ ] Create player character and zombie sprites\n- [ ] Implement responsive design for different screen sizes\n\n## Phase 4: Testing and Debugging\n- [ ] Conduct unit tests for core functionalities\n- [ ] Perform integration testing between frontend and backend\n- [ ] Debug identified issues\n\n## Phase 5: Deployment\n- [ ] Deploy backend services using FastAPI\n- [ ] Deploy frontend using React\n- [ ] Configure domain and hosting services\n\n",
+      "FlowMap.md": "# Production Workflow & Dependencies\n\n## Step-by-Step Workflow\n1. Set up project structure\n2. Develop core game loop functionalities\n3. Design and implement UI elements\n4. Test individual components\n5. Integrate and test frontend and backend\n6. Deploy services to production\n\n## Core Dependency Graph\n- AuthService -> Database -> API -> Frontend\n- ScavengingSystem -> Resources -> PlayerInventory -> UI\n- ZombieShootingMechanic -> PlayerCharacter -> CombatUI -> Backend\n",
+      "Tasks.md": "# Project Tasks\n\n## Critical Path Tasks (MVP)\n- [ ] Set up project structure using React for frontend and FastAPI for backend\n- [ ] Develop scavenging resource system\n- [ ] Implement zombie shooting mechanics\n- [ ] Conduct unit tests for core functionalities\n- [ ] Deploy backend services using FastAPI\n- [ ] Deploy frontend using React\n\n## Optional Tasks\n- [ ] Add detailed character customization options\n- [ ] Include additional zombie types with unique behaviors\n- [ ] Implement a tutorial level for new players\n\n## Future Expansion\n- [ ] Expand the game world with more locations and quests\n- [ ] Add multiplayer functionality for cooperative play\n- [ ] Develop mobile versions for iOS and Android\n",
+      "Structure.md": "# Project Directory Structure\n\nBelow is the folder and file layout designed for this project:\n\n```\nsrc/\nsrc/components/\nsrc/pages/\nsrc/services/\nsrc/utils/\nbackend/\nbackend/api/\nbackend/database/\nbackend/auth/\npublic/\npackage.json\nREADME.md\nserver.py\n.env\n```\n"
+    },
+    "zip_path": "public/exports/atlas/14ee39f2-df9a-457a-abce-938b6d903809.zip",
+    "created_at": "2026-06-17T04:49:47.422549+00:00"
   }
 ]

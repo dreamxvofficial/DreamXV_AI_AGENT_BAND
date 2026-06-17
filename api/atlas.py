@@ -207,13 +207,32 @@ def create_atlas_zip_on_disk(atlas_id: str, atlas_data: dict, images: list[dict]
             # 2. /art/ AI images
             for idx, img in enumerate(images):
                 img_url = img.get("image_url", "")
+                if not img_url:
+                    continue
+                img_bytes = None
                 if img_url.startswith("data:image/"):
                     try:
                         header, encoded = img_url.split(",", 1)
                         img_bytes = base64.b64decode(encoded)
-                        zip_file.writestr(f"art/concept_{idx+1}.png", img_bytes)
                     except Exception as e:
-                        print(f"Error packing image {idx}: {e}")
+                        print(f"Error decoding base64 image {idx}: {e}")
+                elif img_url.startswith("http://") or img_url.startswith("https://"):
+                    try:
+                        import urllib.request
+                        with urllib.request.urlopen(img_url, timeout=10) as response:
+                            img_bytes = response.read()
+                    except Exception as e:
+                        print(f"Error downloading image {idx} from URL: {e}")
+                else:
+                    try:
+                        if os.path.exists(img_url):
+                            with open(img_url, "rb") as img_f:
+                                img_bytes = img_f.read()
+                    except Exception as e:
+                        print(f"Error reading image {idx} from path: {e}")
+                
+                if img_bytes:
+                    zip_file.writestr(f"art/concept_{idx+1}.png", img_bytes)
                         
             # 3. /project_structure/ Generated empty folders
             project_structure = atlas_data.get("structure") or []
@@ -325,7 +344,10 @@ async def generate_atlas(req: AtlasRequest):
             "success": True,
             "atlas": {
                 "id": atlas_id,
-                **atlas_data
+                **atlas_data,
+                "project_structure": atlas_data["structure"],
+                "production_flow_map": atlas_data["flow_map"],
+                "task_breakdown": atlas_data["tasks"]
             }
         }
     except Exception as e:
@@ -440,6 +462,10 @@ async def get_atlas(
         atlas = db.get_atlas_project(atlas_id)
         if not atlas:
             return {"success": False, "error": "Atlas project not found"}
+        if isinstance(atlas, dict):
+            atlas["project_structure"] = atlas.get("structure") or []
+            atlas["production_flow_map"] = atlas.get("flow_map") or []
+            atlas["task_breakdown"] = atlas.get("tasks") or {}
         return {
             "success": True,
             "atlas": atlas
@@ -448,6 +474,11 @@ async def get_atlas(
     # If requesting all Atlas plans linked to a source project
     if source_project_id:
         plans = db.get_atlas_projects_by_source(source_project_id)
+        for p in plans:
+            if isinstance(p, dict):
+                p["project_structure"] = p.get("structure") or []
+                p["production_flow_map"] = p.get("flow_map") or []
+                p["task_breakdown"] = p.get("tasks") or {}
         return {
             "success": True,
             "plans": plans
@@ -456,6 +487,11 @@ async def get_atlas(
     # If requesting all Atlas plans for a user
     if user_id:
         plans = db.list_atlas_projects(user_id=user_id)
+        for p in plans:
+            if isinstance(p, dict):
+                p["project_structure"] = p.get("structure") or []
+                p["production_flow_map"] = p.get("flow_map") or []
+                p["task_breakdown"] = p.get("tasks") or {}
         return {
             "success": True,
             "plans": plans
