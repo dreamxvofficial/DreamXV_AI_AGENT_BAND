@@ -52,10 +52,58 @@ def get_atlas_fallback(project_id: str, duration: str, tools: str) -> AtlasOutpu
         return AtlasOutput(
             project_id=project_id,
             roadmap=[
-                AtlasPhase(name="Phase 1: Project Setup", tasks=["Setup repository", "Initialize frontend & backend folders", "Configure Tailwind/CSS & database client"]),
-                AtlasPhase(name="Phase 2: Database & Auth", tasks=["Define Supabase/PostgreSQL schema", "Implement signup/login routes", "Connect auth sessions on frontend"]),
-                AtlasPhase(name="Phase 3: Core API Features", tasks=["Create endpoints for project storage", "Build user dashboards", "Wire state management"]),
-                AtlasPhase(name="Phase 4: Polish & Deployment", tasks=["Add error boundaries", "Deploy frontend to Vercel/Netlify", "Perform end-to-end user tests"])
+                AtlasPhase(name="Month 1: Initial Architecture & Setup", tasks=[
+                    "Week 1: Project Setup & Init",
+                    "  • Day 1: Code repository initialization & workspace structure config",
+                    "    - 09:00 - 12:00: Setup base folders and config files",
+                    "    - 13:00 - 16:00: Add project boilerplate & readme documentation",
+                    "  • Day 2: Basic database configuration and client initialization",
+                    "    - 09:00 - 12:00: Configure database credentials & security protocols",
+                    "    - 13:00 - 16:00: Test initial read/write database connections",
+                    "  • Day 3: Pipeline verification & basic unit test setups",
+                    "    - 09:00 - 12:00: Setup testing packages & mocks",
+                    "    - 13:00 - 16:00: Run verify commands and check CI integration",
+                    "Week 2: Core State Engine",
+                    "  • Day 1: Design global state schema",
+                    "    - 09:00 - 12:00: Map state transitions and events",
+                    "    - 13:00 - 16:00: Code initial state reducer logic",
+                    "  • Day 2: State synchronization layer",
+                    "    - 09:00 - 12:00: Setup client-server messaging sockets",
+                    "    - 13:00 - 16:00: Verify real-time message payloads"
+                ]),
+                AtlasPhase(name="Month 2: Database & Auth Setup", tasks=[
+                    "Week 3: Database & Auth Integration",
+                    "  • Day 1: Define Supabase/PostgreSQL schema",
+                    "    - 09:00 - 12:00: Create tables for users, projects and tasks",
+                    "    - 13:00 - 16:00: Verify foreign keys & trigger constraints",
+                    "  • Day 2: Implement signup/login routes",
+                    "    - 09:00 - 12:00: Build password hashing & JWT token generators",
+                    "    - 13:00 - 16:00: Setup endpoint tests for authentication flow",
+                    "  • Day 3: Frontend Auth Session Link",
+                    "    - 09:00 - 12:00: Create client auth provider state",
+                    "    - 13:00 - 16:00: Configure redirection guards for private routes"
+                ]),
+                AtlasPhase(name="Month 3: Core API Features", tasks=[
+                    "Week 4: API Handlers & Dashboards",
+                    "  • Day 1: Create endpoints for project storage",
+                    "    - 09:00 - 12:00: Implement project list/GET and insert/POST routes",
+                    "    - 13:00 - 16:00: Verify API validations for project schemas",
+                    "  • Day 2: Build user dashboards",
+                    "    - 09:00 - 12:00: Code frontend workspace navigation & tables",
+                    "    - 13:00 - 16:00: Bind API fetching state hooks",
+                    "  • Day 3: State integration tests",
+                    "    - 09:00 - 12:00: Write integration tests for dashboard components",
+                    "    - 13:00 - 16:00: Resolve any API response mapping issues"
+                ]),
+                AtlasPhase(name="Month 4: Polish & Deployment", tasks=[
+                    "Week 5: QA, Styling & Production Launch",
+                    "  • Day 1: Add error boundaries & responsive styling",
+                    "    - 09:00 - 12:00: Test screen size responsiveness on mobile & desktop",
+                    "    - 13:00 - 16:00: Add global try-catch handlers & toast notifications",
+                    "  • Day 2: Deploy to Vercel/Netlify",
+                    "    - 09:00 - 12:00: Configure build commands & production environment vars",
+                    "    - 13:00 - 16:00: Verify live endpoints & perform final sanity tests"
+                ])
             ],
             project_structure=[
                 "frontend/",
@@ -92,10 +140,49 @@ def get_atlas_fallback(project_id: str, duration: str, tools: str) -> AtlasOutpu
         return AtlasOutput(
             project_id=project_id,
             roadmap=[
-                AtlasPhase(name="Phase 1: Project Setup", tasks=["Setup game repository", "Configure asset folders in engine", "Import style guide colors"]),
-                AtlasPhase(name="Phase 2: Core Mechanics", tasks=["Implement player controller", "Create spawning logic", "Build core gameplay loops"]),
-                AtlasPhase(name="Phase 3: Level Design & Art", tasks=["Build environments & layouts", "Place NPC landmarks", "Configure lighting & sound effects"]),
-                AtlasPhase(name="Phase 4: Game Polish & Export", tasks=["Perform QA playtesting", "Optimize frames/performance", "Generate final package builds"])
+                AtlasPhase(name="Month 1: Initial Setup & Asset Design", tasks=[
+                    "Week 1: Project Setup & Guidelines",
+                    "  • Day 1: Code repository initialization & engine setup",
+                    "    - 09:00 - 12:00: Create new Unity/Unreal project",
+                    "    - 13:00 - 16:00: Configure folder structures & import settings",
+                    "  • Day 2: Style guides & asset folders config",
+                    "    - 09:00 - 12:00: Configure colors, lighting profiles, & render pipeline",
+                    "    - 13:00 - 16:00: Verify asset pipelines for models & textures",
+                    "Week 2: Core Movement Controllers",
+                    "  • Day 1: Input handling setup",
+                    "    - 09:00 - 12:00: Setup Input System bindings",
+                    "    - 13:00 - 16:00: Code player movement & camera control scripts",
+                    "  • Day 2: Physics validation",
+                    "    - 09:00 - 12:00: Adjust collision volumes & character controller gravity",
+                    "    - 13:00 - 16:00: Verify smooth movement over obstacles"
+                ]),
+                AtlasPhase(name="Month 2: Core Gameplay Mechanics", tasks=[
+                    "Week 3: Spawning & Core Loops",
+                    "  • Day 1: Enemy Spawning system",
+                    "    - 09:00 - 12:00: Code enemy spawn points & wave logic",
+                    "    - 13:00 - 16:00: Hook up wave progression settings",
+                    "  • Day 2: Attack & damage systems",
+                    "    - 09:00 - 12:00: Implement weapon firing & hit registration",
+                    "    - 13:00 - 16:00: Code health tracking & damage calculations"
+                ]),
+                AtlasPhase(name="Month 3: Environment Design & Audio", tasks=[
+                    "Week 4: Level Layout & Atmosphere",
+                    "  • Day 1: Construct level segments",
+                    "    - 09:00 - 12:00: Place terrain, walls, & structural elements",
+                    "    - 13:00 - 16:00: Setup lighting maps & ambient environmental effects",
+                    "  • Day 2: Sound layers config",
+                    "    - 09:00 - 12:00: Place spatialized sound sources",
+                    "    - 13:00 - 16:00: Configure ambient background music mixing trigger zones"
+                ]),
+                AtlasPhase(name="Month 4: Game Polish & Builds", tasks=[
+                    "Week 5: Performance & Final Export",
+                    "  • Day 1: Playtesting & debugging",
+                    "    - 09:00 - 12:00: Conduct bug sweep on core spawning & gameplay mechanics",
+                    "    - 13:00 - 16:00: Profile frames per second & memory allocations",
+                    "  • Day 2: Generate release packages",
+                    "    - 09:00 - 12:00: Configure target platform build settings",
+                    "    - 13:00 - 16:00: Generate final executable packages & check logs"
+                ])
             ],
             project_structure=[
                 "Assets/",

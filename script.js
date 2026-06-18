@@ -2861,6 +2861,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (targetContent) {
             targetContent.classList.remove("hidden");
         }
+
+        // Redraw widgets that depend on parent element layout bounding boxes
+        if (targetId === "atlas-risks" && window.activeAtlasResult) {
+            setTimeout(() => {
+                renderVisualDependencyGraph(window.activeAtlasResult);
+            }, 50);
+        }
+        if (targetId === "atlas-simulator" && window.activeAtlasResult) {
+            setTimeout(() => {
+                initRoadmapSimulator(window.activeAtlasResult);
+            }, 50);
+        }
     });
 })();
 
@@ -3752,9 +3764,66 @@ function generateMockAtlas(projectId, projectTitle, duration, tools, teamSize, h
     
     const isWeb = anyTermInTools(tools);
     const roadmap = [
-        { name: "Phase 1: Project Setup", tasks: isWeb ? ["Setup repository", "Initialize frontend & backend folders", "Configure styling & DB client"] : ["Setup game repository", "Configure asset folders in engine", "Import style guide colors"] },
-        { name: "Phase 2: Core Features", tasks: isWeb ? ["Define database schema", "Implement authentication routes", "Connect state management"] : ["Implement player controller", "Create spawning logic", "Build core gameplay loops"] },
-        { name: "Phase 3: Integration & Polish", tasks: isWeb ? ["Connect frontend and APIs", "Add error boundaries", "Deploy to static hosting"] : ["Build environments & layouts", "Configure lighting & sound", "QA playtesting & optimization"] }
+        {
+            name: "Month 1: Initial Architecture & Setup",
+            tasks: isWeb ? [
+                "Week 1: Project Setup & Init",
+                "  • Day 1: Code repository initialization & workspace structure config",
+                "    - 09:00 - 12:00: Setup base folders and config files",
+                "    - 13:00 - 16:00: Add project boilerplate & readme documentation",
+                "  • Day 2: Basic database configuration and client initialization",
+                "    - 09:00 - 12:00: Configure database credentials & security protocols",
+                "    - 13:00 - 16:00: Test initial read/write database connections",
+                "  • Day 3: Pipeline verification & basic unit test setups",
+                "    - 09:00 - 12:00: Setup testing packages & mocks",
+                "    - 13:00 - 16:00: Run verify commands and check CI integration",
+                "Week 2: Core State Engine",
+                "  • Day 1: Design global state schema",
+                "    - 09:00 - 12:00: Map state transitions and events",
+                "    - 13:00 - 16:00: Code initial state reducer logic",
+                "  • Day 2: State synchronization layer",
+                "    - 09:00 - 12:00: Setup client-server messaging sockets",
+                "    - 13:00 - 16:00: Verify real-time message payloads"
+            ] : [
+                "Week 1: Project Setup & Guidelines",
+                "  • Day 1: Code repository initialization & engine setup",
+                "    - 09:00 - 12:00: Create new Unity/Unreal project",
+                "    - 13:00 - 16:00: Configure folder structures & import settings",
+                "  • Day 2: Style guides & asset folders config",
+                "    - 09:00 - 12:00: Configure colors, lighting profiles, & render pipeline",
+                "    - 13:00 - 16:00: Verify asset pipelines for models & textures",
+                "Week 2: Core Movement Controllers",
+                "  • Day 1: Input handling setup",
+                "    - 09:00 - 12:00: Setup Input System bindings",
+                "    - 13:00 - 16:00: Code player movement & camera control scripts",
+                "  • Day 2: Physics validation",
+                "    - 09:00 - 12:00: Adjust collision volumes & character controller gravity",
+                "    - 13:00 - 16:00: Verify smooth movement over obstacles"
+            ]
+        },
+        {
+            name: "Month 2: Core Database & Auth Setup",
+            tasks: isWeb ? [
+                "Week 3: Database & Auth Integration",
+                "  • Day 1: Define Supabase/PostgreSQL schema",
+                "    - 09:00 - 12:00: Create tables for users, projects and tasks",
+                "    - 13:00 - 16:00: Verify foreign keys & trigger constraints",
+                "  • Day 2: Implement signup/login routes",
+                "    - 09:00 - 12:00: Build password hashing & JWT token generators",
+                "    - 13:00 - 16:00: Setup endpoint tests for authentication flow",
+                "  • Day 3: Frontend Auth Session Link",
+                "    - 09:00 - 12:00: Create client auth provider state",
+                "    - 13:00 - 16:00: Configure redirection guards for private routes"
+            ] : [
+                "Week 3: Spawning & Core Loops",
+                "  • Day 1: Enemy Spawning system",
+                "    - 09:00 - 12:00: Code enemy spawn points & wave logic",
+                "    - 13:00 - 16:00: Hook up wave progression settings",
+                "  • Day 2: Attack & damage systems",
+                "    - 09:00 - 12:00: Implement weapon firing & hit registration",
+                "    - 13:00 - 16:00: Code health tracking & damage calculations"
+            ]
+        }
     ];
     
     const structure = isWeb ? [
@@ -3832,9 +3901,18 @@ function generateMockAtlas(projectId, projectTitle, duration, tools, teamSize, h
         source_project_id: projectId,
         roadmap: roadmap,
         structure: structure,
+        project_structure: structure,
         flow_map: flow_map,
+        production_flow_map: flow_map,
         dependency_map: dependency_map,
         tasks: {
+            critical_tasks: critical_tasks,
+            optional_tasks: optional_tasks,
+            future_expansion: future_expansion,
+            team_size: teamSize,
+            hours_per_day: hoursPerDay
+        },
+        task_breakdown: {
             critical_tasks: critical_tasks,
             optional_tasks: optional_tasks,
             future_expansion: future_expansion,
