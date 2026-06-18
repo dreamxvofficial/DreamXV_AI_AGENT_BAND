@@ -2736,6 +2736,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderAtlasStructure(atlas.project_structure || []);
         renderAtlasFlow(atlas.production_flow_map || [], atlas.dependency_map || []);
         renderAtlasTasks(atlas.task_breakdown || {});
+        renderAtlasToolsGuide(atlas.task_breakdown || {});
 
         // Initialize advanced widgets
         initRoadmapSimulator(atlas);
@@ -2811,6 +2812,60 @@ document.addEventListener("DOMContentLoaded", () => {
         if (expEl) {
             expEl.innerHTML = (tasksObj.future_expansion || []).map(t => `<li>${escapeHtml(t)}</li>`).join("") || "<li>None</li>";
         }
+    }
+
+    function renderAtlasToolsGuide(tasksObj) {
+        const renderEl = document.getElementById("atlas-tools-guide-render");
+        if (!renderEl) return;
+        renderEl.innerHTML = "";
+
+        const guide = tasksObj.tools_guide || {};
+        const toolsKeys = Object.keys(guide);
+
+        if (toolsKeys.length === 0) {
+            renderEl.innerHTML = `<div style="grid-column: 1 / -1; color: rgba(240, 232, 208, 0.5); text-align: center; padding: var(--space-8); border: 1px dashed rgba(26, 48, 72, 0.4); border-radius: 8px;">No tools/technologies guide available for this configuration.</div>`;
+            return;
+        }
+
+        toolsKeys.forEach(toolName => {
+            const guideText = guide[toolName] || "";
+            const card = document.createElement("div");
+            card.className = "tool-guide-card";
+            card.style.background = "rgba(17, 34, 64, 0.4)";
+            card.style.border = "1px solid rgba(26, 48, 72, 0.6)";
+            card.style.padding = "var(--space-5)";
+            card.style.borderRadius = "8px";
+            card.style.transition = "transform 0.3s ease, border-color 0.3s ease";
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.gap = "var(--space-3)";
+
+            card.addEventListener("mouseenter", () => {
+                card.style.transform = "translateY(-4px)";
+                card.style.borderColor = "var(--lunar-gold)";
+            });
+            card.addEventListener("mouseleave", () => {
+                card.style.transform = "translateY(0)";
+                card.style.borderColor = "rgba(26, 48, 72, 0.6)";
+            });
+
+            let formattedText = escapeHtml(guideText)
+                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--lunar-gold);">$1</strong>')
+                .replace(/\n/g, "<br>");
+
+            card.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(26, 48, 72, 0.4); padding-bottom: var(--space-2); margin-bottom: var(--space-2);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--earth-teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                    <h4 style="color: var(--starlight); font-family: var(--font-display); font-size: 15px; font-weight: 600; margin: 0;">${escapeHtml(toolName)}</h4>
+                </div>
+                <div style="font-size: 13px; line-height: 1.6; color: rgba(240, 232, 208, 0.85); font-family: var(--font-body);">
+                    ${formattedText}
+                </div>
+            `;
+            renderEl.appendChild(card);
+        });
     }
 
     // Dashboard back navigation
@@ -3745,6 +3800,35 @@ function generateMockProject(prompt, userId) {
     };
 }
 
+function generateMockToolsGuide(toolsStr) {
+    if (!toolsStr) return {};
+    const toolsList = toolsStr.split(/[,;/]/).map(t => t.trim()).filter(t => t.length > 0);
+    const guide = {};
+    toolsList.forEach(tool => {
+        const lowerTool = tool.toLowerCase();
+        if (lowerTool.includes("unity")) {
+            guide[tool] = "**Unity Configuration & Integration:**\n1. **Project Setup:** Initialize the project using the 3D Core or Universal Render Pipeline (URP) template.\n2. **Package Management:** Install Input System and Cinemachine via Package Manager.\n3. **Scene Layout:** Configure the core scene layout with a main character Prefab, virtual camera, and basic level colliders.\n4. **Script Integration:** Bind C# controllers to character physics components and trigger events.";
+        } else if (lowerTool.includes("blender")) {
+            guide[tool] = "**Blender Asset Creation & Export Pipeline:**\n1. **Modeling & Scale:** Design game models and rigs ensuring the unit scale is set to metric (1 unit = 1 meter) for perfect compatibility.\n2. **Export Settings:** Export assets to FBX format with default forward/up axis configurations.\n3. **Texturing:** Generate UV maps and pack textures for material baking before importing files into the engine's assets directory.";
+        } else if (lowerTool.includes("claude code")) {
+            guide[tool] = "**Claude Code AI Agent Assistant Workflows:**\n1. **CLI Integration:** Execute code analysis and refactoring tasks directly from your CLI terminal.\n2. **Prompt Templates:** Leverage structured architectural blueprints to write automated test scripts and components.\n3. **Code Quality:** Use Claude to perform structural review on new changes before staging them to version control.";
+        } else if (lowerTool.includes("antigravity")) {
+            guide[tool] = "**Antigravity IDE Development Suite:**\n1. **Multi-Agent Orchestration:** Use built-in agent orchestrators to parallelize design and code validation workflows.\n2. **Sandbox Execution:** Run local debug commands and verify file generation steps securely.\n3. **Task Tracking:** Utilize task.md checklists and implementation plans to trace architectural milestones.";
+        } else if (lowerTool.includes("chatgpt")) {
+            guide[tool] = "**ChatGPT Pro Design Assistant:**\n1. **Design Documenting:** Draft the Game Design Document (GDD) and expand narrative lore, dialogue logs, and level descriptions.\n2. **API Stubbing:** Generate API routing stubs and mock database seed scripts for rapid backend prototyping.\n3. **Brainstorming:** Iterate on game balance formulas, character attribute tables, and core mechanics progression curves.";
+        } else if (lowerTool.includes("react")) {
+            guide[tool] = "**React Frontend Integration:**\n1. **Boilerplate Setup:** Bootstrapped via Vite with React-Router and global state provider mechanisms.\n2. **Component Architecture:** Build highly responsive dashboard views with clean modular layout containers.\n3. **API Hooks:** Implement Axios or Fetch clients encapsulated inside custom React hooks for real-time dashboard data sync.";
+        } else if (lowerTool.includes("fastapi")) {
+            guide[tool] = "**FastAPI Backend Architecture:**\n1. **App Routing:** Define modular APIRouters for authentication, projects, and plans endpoints.\n2. **Pydantic Validation:** Formulate robust input/output schemas matching SQL models to prevent runtime exceptions.\n3. **CORS & Middleware:** Configure global CORS middleware and logging intercepts to support cross-origin frontend requests.";
+        } else if (lowerTool.includes("supabase")) {
+            guide[tool] = "**Supabase Database & Auth Service:**\n1. **Database Schema:** Create relational tables, foreign key constraints, and dynamic triggers for live status updates.\n2. **Auth Mechanisms:** Implement SignUp/LogIn flows utilizing Supabase's native JWT validation and session persistence.\n3. **RLS Policies:** Apply Row Level Security (RLS) policies to protect user-specific project data from unauthorized reads/writes.";
+        } else {
+            guide[tool] = `**${tool} Utilization Guide:**\n1. **Configuration:** Initialize the tool inside the \`${tool.toLowerCase().replace(/\s+/g, '_')}\` subfolder or dependency manager.\n2. **Workflows:** Map integration pipelines and build targets to match the main project architecture.\n3. **Validation:** Formulate manual and automated validation steps to ensure stable integration during deployment.`;
+        }
+    });
+    return guide;
+}
+
 function generateMockAtlas(projectId, projectTitle, duration, tools, teamSize, hoursPerDay) {
     const atlasId = "atl_" + Math.random().toString(36).substring(2, 11);
     
@@ -3910,14 +3994,16 @@ function generateMockAtlas(projectId, projectTitle, duration, tools, teamSize, h
             optional_tasks: optional_tasks,
             future_expansion: future_expansion,
             team_size: teamSize,
-            hours_per_day: hoursPerDay
+            hours_per_day: hoursPerDay,
+            tools_guide: generateMockToolsGuide(tools)
         },
         task_breakdown: {
             critical_tasks: critical_tasks,
             optional_tasks: optional_tasks,
             future_expansion: future_expansion,
             team_size: teamSize,
-            hours_per_day: hoursPerDay
+            hours_per_day: hoursPerDay,
+            tools_guide: generateMockToolsGuide(tools)
         },
         generated_files: generated_files,
         feasibility: {

@@ -44,6 +44,81 @@ class AtlasRequest(BaseModel):
 class DuplicateRequest(BaseModel):
     atlas_id: str
 
+def generate_tools_guide(tools_str: str) -> dict[str, str]:
+    import re
+    tools_list = [t.strip() for t in re.split(r'[,;/]', tools_str) if t.strip()]
+    if not tools_list:
+        tools_list = [t.strip() for t in tools_str.split() if t.strip()]
+        
+    guide = {}
+    for tool in tools_list:
+        lower_tool = tool.lower()
+        if "unity" in lower_tool:
+            guide[tool] = (
+                "**Unity Configuration & Integration:**\n"
+                "1. **Project Setup:** Initialize the project using the 3D Core or Universal Render Pipeline (URP) template.\n"
+                "2. **Package Management:** Install Input System and Cinemachine via Package Manager.\n"
+                "3. **Scene Layout:** Configure the core scene layout with a main character Prefab, virtual camera, and basic level colliders.\n"
+                "4. **Script Integration:** Bind C# controllers to character physics components and trigger events."
+            )
+        elif "blender" in lower_tool:
+            guide[tool] = (
+                "**Blender Asset Creation & Export Pipeline:**\n"
+                "1. **Modeling & Scale:** Design game models and rigs ensuring the unit scale is set to metric (1 unit = 1 meter) for perfect compatibility.\n"
+                "2. **Export Settings:** Export assets to FBX format with default forward/up axis configurations.\n"
+                "3. **Texturing:** Generate UV maps and pack textures for material baking before importing files into the engine's assets directory."
+            )
+        elif "claude code" in lower_tool:
+            guide[tool] = (
+                "**Claude Code AI Agent Assistant Workflows:**\n"
+                "1. **CLI Integration:** Execute code analysis and refactoring tasks directly from your CLI terminal.\n"
+                "2. **Prompt Templates:** Leverage structured architectural blueprints to write automated test scripts and components.\n"
+                "3. **Code Quality:** Use Claude to perform structural review on new changes before staging them to version control."
+            )
+        elif "antigravity" in lower_tool:
+            guide[tool] = (
+                "**Antigravity IDE Development Suite:**\n"
+                "1. **Multi-Agent Orchestration:** Use built-in agent orchestrators to parallelize design and code validation workflows.\n"
+                "2. **Sandbox Execution:** Run local debug commands and verify file generation steps securely.\n"
+                "3. **Task Tracking:** Utilize task.md checklists and implementation plans to trace architectural milestones."
+            )
+        elif "chatgpt" in lower_tool:
+            guide[tool] = (
+                "**ChatGPT Pro Design Assistant:**\n"
+                "1. **Design Documenting:** Draft the Game Design Document (GDD) and expand narrative lore, dialogue logs, and level descriptions.\n"
+                "2. **API Stubbing:** Generate API routing stubs and mock database seed scripts for rapid backend prototyping.\n"
+                "3. **Brainstorming:** Iterate on game balance formulas, character attribute tables, and core mechanics progression curves."
+            )
+        elif "react" in lower_tool:
+            guide[tool] = (
+                "**React Frontend Integration:**\n"
+                "1. **Boilerplate Setup:** Bootstrapped via Vite with React-Router and global state provider mechanisms.\n"
+                "2. **Component Architecture:** Build highly responsive dashboard views with clean modular layout containers.\n"
+                "3. **API Hooks:** Implement Axios or Fetch clients encapsulated inside custom React hooks for real-time dashboard data sync."
+            )
+        elif "fastapi" in lower_tool:
+            guide[tool] = (
+                "**FastAPI Backend Architecture:**\n"
+                "1. **App Routing:** Define modular APIRouters for authentication, projects, and plans endpoints.\n"
+                "2. **Pydantic Validation:** Formulate robust input/output schemas matching SQL models to prevent runtime exceptions.\n"
+                "3. **CORS & Middleware:** Configure global CORS middleware and logging intercepts to support cross-origin frontend requests."
+            )
+        elif "supabase" in lower_tool:
+            guide[tool] = (
+                "**Supabase Database & Auth Service:**\n"
+                "1. **Database Schema:** Create relational tables, foreign key constraints, and dynamic triggers for live status updates.\n"
+                "2. **Auth Mechanisms:** Implement SignUp/LogIn flows utilizing Supabase's native JWT validation and session persistence.\n"
+                "3. **RLS Policies:** Apply Row Level Security (RLS) policies to protect user-specific project data from unauthorized reads/writes."
+            )
+        else:
+            guide[tool] = (
+                f"**{tool} Utilization Guide:**\n"
+                f"1. **Configuration:** Initialize the tool inside the `{tool.lower().replace(' ', '_')}` subfolder or dependency manager.\n"
+                "2. **Workflows:** Map integration pipelines and build targets to match the main project architecture.\n"
+                "3. **Validation:** Formulate manual and automated validation steps to ensure stable integration during deployment."
+            )
+    return guide
+
 def get_atlas_fallback(project_id: str, duration: str, tools: str) -> AtlasOutput:
     # Handle environment styling check for fallback
     is_web = any(term in tools.lower() for term in ["web", "react", "html", "css", "node", "django", "fastapi", "flask", "js", "ts", "supabase"])
@@ -133,7 +208,8 @@ def get_atlas_fallback(project_id: str, duration: str, tools: str) -> AtlasOutpu
             task_breakdown=AtlasTaskBreakdown(
                 critical_tasks=["Setup Git repository", "Create responsive dashboard", "Write database models"],
                 optional_tasks=["Add light/dark mode theme", "Configure toast notifications"],
-                future_expansion=["Implement automated testing", "Integrate caching layers"]
+                future_expansion=["Implement automated testing", "Integrate caching layers"],
+                tools_guide=generate_tools_guide(tools)
             )
         )
     else:
@@ -211,7 +287,8 @@ def get_atlas_fallback(project_id: str, duration: str, tools: str) -> AtlasOutpu
             task_breakdown=AtlasTaskBreakdown(
                 critical_tasks=["Map camera behaviors", "Code primary action/move behaviors", "Ensure stable launch build"],
                 optional_tasks=["Design simple settings panel", "Add ambient sound layers"],
-                future_expansion=["Create secondary levels", "Deploy multi-platform exports"]
+                future_expansion=["Create secondary levels", "Deploy multi-platform exports"],
+                tools_guide=generate_tools_guide(tools)
             )
         )
 

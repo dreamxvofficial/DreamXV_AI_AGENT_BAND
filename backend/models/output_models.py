@@ -343,6 +343,10 @@ class AtlasTaskBreakdown(BaseModel):
     critical_tasks: list[str] = Field(..., description="High-priority critical path tasks")
     optional_tasks: list[str] = Field(..., description="Optional features or nice-to-haves")
     future_expansion: list[str] = Field(..., description="Long-term expansion or DLC ideas")
+    tools_guide: Optional[dict[str, str]] = Field(
+        default=None,
+        description="A dictionary mapping each tool/technology (from the user's tools list) to a detailed guide on how to integrate and use it in this project."
+    )
 
 
 class AtlasOutput(BaseModel):
