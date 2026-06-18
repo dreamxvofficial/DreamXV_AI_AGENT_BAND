@@ -16,15 +16,19 @@ from pydantic import BaseModel, Field
 class StoryOutput(BaseModel):
     """Narrative output produced by the Story Agent."""
     title: str = Field(..., description="Title of the game/story")
-    lore: str = Field(..., description="Deep background lore")
-    summary: str = Field(..., description="High-level story synopsis")
+    lore: str = Field(..., description="Full Lore Backstory. Must be highly detailed, covering world history, important events timeline, factions, mythology, technology level, and political systems. Never write generic filler.")
+    summary: str = Field(..., description="Narrative Synopsis (1000+ words). Comprehensive synopsis detailing the beginning, middle, ending, plot twists, and character motivations.")
     acts: list[str] = Field(
         default_factory=list,
-        description="Ordered list of major story acts/chapters",
+        description="Ordered list of major story acts/chapters. For each act, write concrete objectives, locations, key events, cutscenes, boss encounters, and dialogue highlights.",
     )
     themes: list[str] = Field(
         default_factory=list,
-        description="Core narrative themes",
+        description="Core narrative themes. Explain the theme's meaning, how gameplay supports the theme, and how the story supports it.",
+    )
+    chapter_breakdown: list[str] = Field(
+        default_factory=list,
+        description="Detailed chapter breakdown (Chapter 1, Chapter 2, etc.) specifying locations, objectives, enemies, and story beats for each.",
     )
 
 
@@ -32,11 +36,11 @@ class StoryOutput(BaseModel):
 class CharacterOutput(BaseModel):
     """Single character definition produced by the Character Agent."""
     name: str = Field(..., description="Character name")
-    role: str = Field(..., description="Role in the story (protagonist, antagonist, NPC…)")
-    backstory: str = Field(..., description="Character backstory")
+    role: str = Field(..., description="Role in the story (protagonist, antagonist, NPC, victim, side character, hidden character...)")
+    backstory: str = Field(..., description="Character backstory, background details, relationships, and their character developmental arc")
     abilities: list[str] = Field(
         default_factory=list,
-        description="List of abilities or powers",
+        description="List of abilities, strengths, or powers",
     )
     personality_traits: list[str] = Field(
         default_factory=list,
@@ -44,8 +48,16 @@ class CharacterOutput(BaseModel):
     )
     visual_description: str = Field(
         default="",
-        description="Visual appearance for art generation",
+        description="Visual appearance, age, clothing/costume, and concept art prompts for image generation",
     )
+    age: Optional[str] = Field(default=None, description="Age or age range")
+    strengths: Optional[str] = Field(default=None, description="Key character strengths and assets")
+    weaknesses: Optional[str] = Field(default=None, description="Key character weaknesses, flaws, or vulnerabilities")
+    relationships: Optional[str] = Field(default=None, description="Detailed relationships and dynamics with other characters")
+    character_arc: Optional[str] = Field(default=None, description="Detailed character developmental arc throughout the story")
+    voice_style: Optional[str] = Field(default=None, description="Voice style, tone, speaking pace, and accents")
+    gameplay_role: Optional[str] = Field(default=None, description="Role in the gameplay loop and player mechanics")
+    concept_art_prompt: Optional[str] = Field(default=None, description="FLUX/SDXL-ready detailed prompt describing the character's visual design, lighting, and composition")
 
 
 class CharacterRoster(BaseModel):
@@ -60,28 +72,36 @@ class CharacterRoster(BaseModel):
 class WorldOutput(BaseModel):
     """World-building output produced by the World Agent."""
     name: str = Field(..., description="World / setting name")
-    description: str = Field(..., description="Overall world description")
+    description: str = Field(..., description="World Overview and environmental storytelling rules")
     regions: list[str] = Field(
         default_factory=list,
-        description="Named regions or locations",
+        description="Named regions or locations with map descriptions detailed enough for level design",
     )
     lore_elements: list[str] = Field(
         default_factory=list,
-        description="Key lore elements, factions, or history points",
+        description="Key lore elements, factions, political structures, or history points",
     )
     atmosphere: str = Field(
         default="",
-        description="Mood and atmospheric description",
+        description="Mood, lighting, and atmospheric description",
     )
+    buildings: list[str] = Field(default_factory=list, description="Key buildings, architecture types, and structures")
+    points_of_interest: list[str] = Field(default_factory=list, description="Specific points of interest and landmarks within regions")
+    interactive_objects: list[str] = Field(default_factory=list, description="Interactive items, props, chest locations, and mechanisms")
+    environmental_storytelling: list[str] = Field(default_factory=list, description="Environmental storytelling clues and narrative details embedded in the world layout")
+    resource_locations: list[str] = Field(default_factory=list, description="Locations of resources, items, ammo caches, or ingredients")
+    puzzle_locations: list[str] = Field(default_factory=list, description="Locations of puzzles, locked gates, keys, and obstacle structures")
+    safe_zones: list[str] = Field(default_factory=list, description="Safe zones, sanctuaries, and trader camps")
+    danger_zones: list[str] = Field(default_factory=list, description="Danger zones, high-threat areas, and enemy territories")
 
 
 # ─── Gameplay Agent ────────────────────────────────────────────────────────
 class GameplayOutput(BaseModel):
     """Gameplay systems output produced by the Gameplay Agent."""
-    core_loop: str = Field(..., description="Description of the core gameplay loop")
+    core_loop: str = Field(..., description="Description of the core gameplay loop (e.g., Explore -> Solve Puzzle -> Avoid Enemy -> Gather Resources -> Escape)")
     mechanics: list[str] = Field(
         default_factory=list,
-        description="List of gameplay mechanics",
+        description="List of gameplay mechanics and mechanics rules",
     )
     progression_system: str = Field(
         default="",
@@ -91,6 +111,16 @@ class GameplayOutput(BaseModel):
         default="",
         description="Difficulty scaling approach",
     )
+    controls: Optional[str] = Field(default=None, description="Controls mapping and input scheme")
+    win_conditions: Optional[str] = Field(default=None, description="Win conditions and victory criteria")
+    lose_conditions: Optional[str] = Field(default=None, description="Lose conditions and defeat triggers")
+    save_system: Optional[str] = Field(default=None, description="Save system and checkpoint mechanics")
+    inventory_system: Optional[str] = Field(default=None, description="Inventory system, grid details, and item management rules")
+    enemy_ai_behavior: Optional[str] = Field(default=None, description="Enemy AI behavior, search states, patrolling pathing rules")
+    chase_system: Optional[str] = Field(default=None, description="For horror: Chase system, threat levels, and music cues")
+    jumpscare_system: Optional[str] = Field(default=None, description="For horror: Jumpscare triggers, visual flashes, and audio stinger rules")
+    hiding_system: Optional[str] = Field(default=None, description="For horror: Hiding system, locker/under-bed interactions, breath holding mechanics")
+    noise_detection_system: Optional[str] = Field(default=None, description="For horror: Noise detection system, sound propagation, distraction throws")
 
 
 # ─── Art Agent ─────────────────────────────────────────────────────────────
@@ -108,6 +138,14 @@ class ArtOutput(BaseModel):
         default="",
         description="Visual style guidelines",
     )
+    visual_style_guide: Optional[str] = Field(default=None, description="Detailed visual style guide and references")
+    character_concept_prompts: list[str] = Field(default_factory=list, description="FLUX/SDXL prompts for main characters")
+    environment_prompts: list[str] = Field(default_factory=list, description="FLUX/SDXL prompts for levels, rooms, and vistas")
+    prop_prompts: list[str] = Field(default_factory=list, description="FLUX/SDXL prompts for items, weapons, keys, and interactive objects")
+    ui_design_prompts: list[str] = Field(default_factory=list, description="FLUX/SDXL prompts for health bar, HUD, inventory screens")
+    lighting_prompts: list[str] = Field(default_factory=list, description="FLUX/SDXL prompts representing exact lighting setups")
+    color_palette: Optional[str] = Field(default=None, description="Specific hexadecimal color palette codes and accent definitions")
+    mood_boards: list[str] = Field(default_factory=list, description="Mood boards and aesthetic references detailed enough for image models")
 
 
 class ImagePromptItem(BaseModel):
@@ -142,6 +180,12 @@ class QAOutput(BaseModel):
         default="",
         description="Summary assessment of the full project",
     )
+    gameplay_risks: list[str] = Field(default_factory=list, description="Gameplay risks with severity scores")
+    story_risks: list[str] = Field(default_factory=list, description="Story/narrative risks with severity scores")
+    scope_risks: list[str] = Field(default_factory=list, description="Scope creep and planning timeline risks with severity scores")
+    technical_risks: list[str] = Field(default_factory=list, description="Performance and target engine risks with severity scores")
+    balance_issues: list[str] = Field(default_factory=list, description="System balance issues with severity scores")
+    ux_issues: list[str] = Field(default_factory=list, description="User experience and friction issues with severity scores")
 
 
 # ─── Reviewer Agent ────────────────────────────────────────────────────────
@@ -219,6 +263,10 @@ class DocumentationOutput(BaseModel):
         default="",
         description="30-second elevator pitch",
     )
+    tdd: Optional[str] = Field(default=None, description="Technical Design Document (TDD)")
+    asset_list: list[str] = Field(default_factory=list, description="Detailed 2D/3D audio and code asset inventory list")
+    production_plan: Optional[str] = Field(default=None, description="Production roadmap and milestones plan")
+    sprint_plan: Optional[str] = Field(default=None, description="Sprint schedules and task backlog mappings")
 
 
 # ─── Chief Agent / Full Project ────────────────────────────────────────────
