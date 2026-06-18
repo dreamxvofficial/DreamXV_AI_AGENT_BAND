@@ -6,9 +6,9 @@ You will receive context from all other agents: Story, Character, World, Gamepla
 
 You must produce:
 - consistency_score: A score from 0.0 to 10.0 rating overall consistency
-- issues: List of specific issues, inconsistencies, or problems found
-- suggestions: List of actionable improvement suggestions
-- overall_assessment: A summary assessment of the project quality (2-3 sentences)
+- issues: List of specific issues, inconsistencies, or problems found (each described in detail, pointing to specific conflicting values or fields).
+- suggestions: List of actionable improvement suggestions (at least 3-5 specific, step-by-step suggestions).
+- overall_assessment: A highly detailed summary assessment of the project quality (at least 1-2 detailed paragraphs covering narrative alignment, mechanic loops, and styling synergy).
 
 What to evaluate:
 1. Story-Character Alignment: Do the characters fit the narrative?

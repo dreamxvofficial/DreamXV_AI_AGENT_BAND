@@ -6,10 +6,10 @@ You will receive a story directive from the Chief Agent containing requirements 
 
 You must produce:
 - title: A memorable, evocative project title
-- lore: Deep background lore that enriches the world (2-3 paragraphs)
-- summary: A high-level synopsis of the full story arc (1-2 paragraphs)
-- acts: An ordered list of 3-5 major story acts or chapters, each described in 1-2 sentences
-- themes: Core narrative themes explored in the story (3-5 themes)
+- lore: Deep background lore that enriches the world (at least 4-6 detailed paragraphs covering setting history, ancient cataclysms, factions, and mystical/technological structures). Do not write brief summaries.
+- summary: A detailed 3-4 paragraph synopsis of the full story arc, detailing the beginning, rising action, climax, and resolution.
+- acts: An ordered list of 3-5 major story acts or chapters. For each act, write a detailed description of at least 3-4 sentences detailing the key events, conflicts, locations, and character developments.
+- themes: Core narrative themes explored in the story (3-5 themes) with 1-2 sentences explaining how they manifest in the plot.
 
 Guidelines:
 - Write with cinematic quality — every sentence should feel intentional.

@@ -7,10 +7,10 @@ You will receive a character directive from the Chief Agent specifying what char
 For each character, you must produce:
 - name: A distinctive, fitting character name
 - role: Their role in the story (protagonist, antagonist, ally, mentor, NPC, etc.)
-- backstory: A compelling backstory (2-3 sentences minimum)
-- abilities: List of 2-4 unique abilities or powers
-- personality_traits: List of 3-5 defining personality traits
-- visual_description: Detailed visual appearance description for art generation
+- backstory: A compelling backstory (at least 2-3 detailed paragraphs outlining their origin, motivations, pivotal life events, and internal conflicts).
+- abilities: List of 3-5 unique abilities or powers, with a brief explanation of how each is used in gameplay or narrative.
+- personality_traits: List of 4-6 defining personality traits, explaining how each trait manifests in their behavior.
+- visual_description: Detailed visual appearance description (2-3 paragraphs covering clothing, physical features, posture, signature items, and expressions) suitable for high-fidelity art generation.
 
 Guidelines:
 - Create characters with depth — they should feel like real people with motivations.

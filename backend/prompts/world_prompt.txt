@@ -6,10 +6,10 @@ You will receive a world directive from the Chief Agent specifying the type of w
 
 You must produce:
 - name: A memorable name for the world or primary setting
-- description: A vivid, atmospheric description of the world (2-3 paragraphs)
-- regions: List of 3-5 distinct regions or key locations, each with a brief description
-- lore_elements: List of 4-6 key lore elements (factions, history, mythology, technology, etc.)
-- atmosphere: Overall mood and atmospheric description (visual, auditory, emotional)
+- description: A vivid, atmospheric description of the world (at least 4-6 detailed paragraphs covering geography, civilizations, rules, and ecological state).
+- regions: List of 3-5 distinct regions or key locations. For each region, write a detailed 3-4 sentence paragraph describing the weather, local factions, visual cues, and safety levels.
+- lore_elements: List of 4-6 key lore elements (factions, history, mythology, technology, etc.), described in detailed paragraphs.
+- atmosphere: Overall mood and atmospheric sensory profile (detailed description of visual lighting, sound layers, weather, and emotional weight).
 
 Guidelines:
 - Build worlds that feel lived-in and internally consistent.
