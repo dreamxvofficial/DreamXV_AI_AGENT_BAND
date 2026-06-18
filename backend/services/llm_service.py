@@ -292,12 +292,30 @@ def generate_mock_data_for_model(model_class: Type[T], user_prompt: str = "") ->
         from backend.models.output_models import TimelineMilestone
         return model_class(
             roadmap_weekly=[
-                TimelineMilestone(week="Week 1", title="Story & Characters", details=["Write narrative outline", "Create core character roster"]),
-                TimelineMilestone(week="Week 2", title="Gameplay Prototype", details=["Block out basic mechanics", "Establish movement controller"]),
-                TimelineMilestone(week="Week 3", title="Art Production", details=["Generate environment tiles", "Render character models"]),
-                TimelineMilestone(week="Week 4", title="QA & Launch", details=["Resolve gameplay bugs", "Deploy initial playable build"])
+                TimelineMilestone(week="Week 1", title="Story & Characters", details=[
+                    "Day 1: Outline core narrative and backstory (09:00-12:00: Setup base lore, 13:00-16:00: Character traits)",
+                    "Day 2: Rigging and character prototyping (09:00-12:00: Setup meshes, 13:00-16:00: Skeleton binds)",
+                    "Day 3: World structure configuration (09:00-12:00: Layout tiles, 13:00-16:00: Lighting nodes)"
+                ]),
+                TimelineMilestone(week="Week 2", title="Gameplay Prototype", details=[
+                    "Day 1: Player controller scripting (09:00-12:00: Setup movement, 13:00-16:00: Input system)",
+                    "Day 2: Physics validation and collisions (09:00-12:00: Gravity adjustments, 13:00-16:00: Boundaries testing)"
+                ]),
+                TimelineMilestone(week="Week 3", title="Art & Audio Production", details=[
+                    "Day 1: Texture mapping and asset import (09:00-12:00: UV mapping, 13:00-16:00: Materials)",
+                    "Day 2: Ambient audio configuration (09:00-12:00: Placing sources, 13:00-16:00: Trigger mixing)"
+                ]),
+                TimelineMilestone(week="Week 4", title="QA Audit & Package", details=[
+                    "Day 1: Playtesting and bug sweep (09:00-12:00: Core spawn verification, 13:00-16:00: FPS profiling)",
+                    "Day 2: Target platform compile (09:00-12:00: Setup flags, 13:00-16:00: Check release packages)"
+                ])
             ],
-            roadmap_monthly=["Month 1: Technical Foundation & Alpha Sandbox", "Month 2: Content Production & Beta Polish"]
+            roadmap_monthly=[
+                "Month 1: Technical Foundation & Alpha Sandbox",
+                "Month 2: Core Gameplay Iteration & Visual Integration",
+                "Month 3: Audio Design & Faction Systems",
+                "Month 4: Final QA Audits & Multi-platform Export Packages"
+            ]
         )
 
     elif model_name == "FeasibilityOutput":
@@ -372,52 +390,194 @@ def generate_mock_data_for_model(model_class: Type[T], user_prompt: str = "") ->
             if "user specified tools & technologies:" in line.lower():
                 tools_line = line.lower()
                 break
-        is_web = any(term in tools_line for term in ["react", "fastapi", "supabase", "django", "flask", "node", "html", "css"])
-        if not is_web:
-            words = tools_line.replace(",", " ").replace(":", " ").split()
-            is_web = any(w in words for w in ["web", "js", "ts", "javascript", "typescript"])
+        is_web = any(term in tools_line for term in ["react", "fastapi", "supabase", "django", "flask", "node", "html", "css", "web", "js", "ts", "javascript", "typescript"])
+        
+        tools_str = "React, FastAPI, Supabase" if is_web else "Unity 6, Blender, C#"
+        
+        import re
+        tools_list = [t.strip() for t in re.split(r'[,;/]', tools_str) if t.strip()]
+        guide = {}
+        for tool in tools_list:
+            lower_tool = tool.lower()
+            if "react" in lower_tool:
+                guide[tool] = "**React Frontend Integration:**\n1. **Boilerplate Setup:** Bootstrapped via Vite with React-Router.\n2. **Component Architecture:** Build responsive dashboard views.\n3. **API Hooks:** Encapsulate fetch requests inside custom state hooks."
+            elif "fastapi" in lower_tool:
+                guide[tool] = "**FastAPI Backend Architecture:**\n1. **App Routing:** Define modular APIRouters.\n2. **Pydantic Validation:** Formulate robust input/output schemas.\n3. **CORS:** Configure global middleware."
+            elif "supabase" in lower_tool:
+                guide[tool] = "**Supabase Database & Auth Service:**\n1. **Database Schema:** Create relational tables.\n2. **Auth Mechanisms:** Implement SignUp/LogIn flows.\n3. **RLS Policies:** Apply Row Level Security."
+            elif "unity" in lower_tool:
+                guide[tool] = "**Unity Configuration & Integration:**\n1. **Project Setup:** Initialize the project using URP.\n2. **Package Management:** Install Input System.\n3. **Scene Layout:** Configure the main camera."
+            elif "blender" in lower_tool:
+                guide[tool] = "**Blender Asset Creation & Export Pipeline:**\n1. **Modeling & Scale:** Design models with metric scale.\n2. **Export Settings:** Export assets to FBX.\n3. **Texturing:** Generate UV maps."
+            else:
+                guide[tool] = f"**{tool} Guide:**\n1. **Setup:** Configure tool environment.\n2. **Workflow:** Integrate with main project compile."
+
         if is_web:
             return model_class(
                 project_id=user_prompt or "mock-project",
                 roadmap=[
-                    AtlasPhase(name="Phase 1: Project Setup", tasks=["Setup repository", "Initialize folders"]),
-                    AtlasPhase(name="Phase 2: Database Setup", tasks=["Setup Supabase database"])
+                    AtlasPhase(name="Month 1: Initial Architecture & Setup", tasks=[
+                        "Week 1: Project Setup & Init",
+                        "  • Day 1: Code repository initialization & workspace structure config",
+                        "    - 09:00 - 12:00: Setup base folders and config files",
+                        "    - 13:00 - 16:00: Add project boilerplate & readme documentation",
+                        "  • Day 2: Basic database configuration and client initialization",
+                        "    - 09:00 - 12:00: Configure database credentials & security protocols",
+                        "    - 13:00 - 16:00: Test initial read/write database connections",
+                        "  • Day 3: Pipeline verification & basic unit test setups",
+                        "    - 09:00 - 12:00: Setup testing packages & mocks",
+                        "    - 13:00 - 16:00: Run verify commands and check CI integration",
+                        "Week 2: Core State Engine",
+                        "  • Day 1: Design global state schema",
+                        "    - 09:00 - 12:00: Map state transitions and events",
+                        "    - 13:00 - 16:00: Code initial state reducer logic",
+                        "  • Day 2: State synchronization layer",
+                        "    - 09:00 - 12:00: Setup client-server messaging sockets",
+                        "    - 13:00 - 16:00: Verify real-time message payloads"
+                    ]),
+                    AtlasPhase(name="Month 2: Database & Auth Setup", tasks=[
+                        "Week 3: Database & Auth Integration",
+                        "  • Day 1: Define Supabase/PostgreSQL schema",
+                        "    - 09:00 - 12:00: Create tables for users, projects and tasks",
+                        "    - 13:00 - 16:00: Verify foreign keys & trigger constraints",
+                        "  • Day 2: Implement signup/login routes",
+                        "    - 09:00 - 12:00: Build password hashing & JWT token generators",
+                        "    - 13:00 - 16:00: Setup endpoint tests for authentication flow",
+                        "  • Day 3: Frontend Auth Session Link",
+                        "    - 09:00 - 12:00: Create client auth provider state",
+                        "    - 13:00 - 16:00: Configure redirection guards for private routes"
+                    ]),
+                    AtlasPhase(name="Month 3: Core API Features", tasks=[
+                        "Week 4: API Handlers & Dashboards",
+                        "  • Day 1: Create endpoints for project storage",
+                        "    - 09:00 - 12:00: Implement project list/GET and insert/POST routes",
+                        "    - 13:00 - 16:00: Verify API validations for project schemas",
+                        "  • Day 2: Build user dashboards",
+                        "    - 09:00 - 12:00: Code frontend workspace navigation & tables",
+                        "    - 13:00 - 16:00: Bind API fetching state hooks",
+                        "  • Day 3: State integration tests",
+                        "    - 09:00 - 12:00: Write integration tests for dashboard components",
+                        "    - 13:00 - 16:00: Resolve any API response mapping issues"
+                    ]),
+                    AtlasPhase(name="Month 4: Polish & Deployment", tasks=[
+                        "Week 5: QA, Styling & Production Launch",
+                        "  • Day 1: Add error boundaries & responsive styling",
+                        "    - 09:00 - 12:00: Test screen size responsiveness on mobile & desktop",
+                        "    - 13:00 - 16:00: Add global try-catch handlers & toast notifications",
+                        "  • Day 2: Deploy to Vercel/Netlify",
+                        "    - 09:00 - 12:00: Configure build commands & production environment vars",
+                        "    - 13:00 - 16:00: Verify live endpoints & perform final sanity tests"
+                    ])
                 ],
                 project_structure=[
                     "frontend/",
                     "frontend/src/",
+                    "frontend/src/components/",
+                    "frontend/src/App.jsx",
                     "backend/",
                     "backend/api/",
+                    "backend/main.py",
+                    "database/",
+                    "database/schema.sql",
+                    "docs/",
+                    "docs/Roadmap.md",
                     "README.md"
                 ],
-                production_flow_map=["Create Database", "Build API"],
-                dependency_map=["Database -> API"],
+                production_flow_map=[
+                    "Design UI Mockups",
+                    "Create Database Schema",
+                    "Build API Server",
+                    "Connect React Frontend",
+                    "Setup Authentication Flow",
+                    "Deploy Application"
+                ],
+                dependency_map=[
+                    "Database -> API Service -> Auth Middleware -> Frontend Component"
+                ],
                 task_breakdown=AtlasTaskBreakdown(
-                    critical_tasks=["Setup Git repository"],
-                    optional_tasks=["Add dark mode"],
-                    future_expansion=["Add caching"]
+                    critical_tasks=["Setup Git repository", "Create responsive dashboard", "Write database models"],
+                    optional_tasks=["Add light/dark mode theme", "Configure toast notifications"],
+                    future_expansion=["Implement automated testing", "Integrate caching layers"],
+                    tools_guide=guide
                 )
             )
         else:
             return model_class(
                 project_id=user_prompt or "mock-project",
                 roadmap=[
-                    AtlasPhase(name="Phase 1: Project Setup", tasks=["Setup game repository", "Configure asset folders"]),
-                    AtlasPhase(name="Phase 2: Core Mechanics", tasks=["Implement player controller"])
+                    AtlasPhase(name="Month 1: Initial Setup & Asset Design", tasks=[
+                        "Week 1: Project Setup & Guidelines",
+                        "  • Day 1: Code repository initialization & engine setup",
+                        "    - 09:00 - 12:00: Create new Unity/Unreal project",
+                        "    - 13:00 - 16:00: Configure folder structures & import settings",
+                        "  • Day 2: Style guides & asset folders config",
+                        "    - 09:00 - 12:00: Configure colors, lighting profiles, & render pipeline",
+                        "    - 13:00 - 16:00: Verify asset pipelines for models & textures",
+                        "Week 2: Core Movement Controllers",
+                        "  • Day 1: Input handling setup",
+                        "    - 09:00 - 12:00: Setup Input System bindings",
+                        "    - 13:00 - 16:00: Code player movement & camera control scripts",
+                        "  • Day 2: Physics validation",
+                        "    - 09:00 - 12:00: Adjust collision volumes & character controller gravity",
+                        "    - 13:00 - 16:00: Verify smooth movement over obstacles"
+                    ]),
+                    AtlasPhase(name="Month 2: Core Gameplay Mechanics", tasks=[
+                        "Week 3: Spawning & Core Loops",
+                        "  • Day 1: Enemy Spawning system",
+                        "    - 09:00 - 12:00: Code enemy spawn points & wave logic",
+                        "    - 13:00 - 16:00: Hook up wave progression settings",
+                        "  • Day 2: Attack & damage systems",
+                        "    - 09:00 - 12:00: Implement weapon firing & hit registration",
+                        "    - 13:00 - 16:00: Code health tracking & damage calculations"
+                    ]),
+                    AtlasPhase(name="Month 3: Environment Design & Audio", tasks=[
+                        "Week 4: Level Layout & Atmosphere",
+                        "  • Day 1: Construct level segments",
+                        "    - 09:00 - 12:00: Place terrain, walls, & structural elements",
+                        "    - 13:00 - 16:00: Setup lighting maps & ambient environmental effects",
+                        "  • Day 2: Sound layers config",
+                        "    - 09:00 - 12:00: Place spatialized sound sources",
+                        "    - 13:00 - 16:00: Configure ambient background music mixing trigger zones"
+                    ]),
+                    AtlasPhase(name="Month 4: Game Polish & Builds", tasks=[
+                        "Week 5: Performance & Final Export",
+                        "  • Day 1: Playtesting & debugging",
+                        "    - 09:00 - 12:00: Conduct bug sweep on core spawning & gameplay mechanics",
+                        "    - 13:00 - 16:00: Profile frames per second & memory allocations",
+                        "  • Day 2: Generate release packages",
+                        "    - 09:00 - 12:00: Configure target platform build settings",
+                        "    - 13:00 - 16:00: Generate final executable packages & check logs"
+                    ])
                 ],
                 project_structure=[
                     "Assets/",
                     "Assets/Scripts/",
+                    "Assets/Prefabs/",
+                    "Assets/Materials/",
+                    "Assets/Animations/",
+                    "Assets/Scenes/",
                     "Docs/",
                     "Docs/GDD.md",
+                    "Docs/Roadmap.md",
+                    "Docs/Tasks.md",
                     "README.md"
                 ],
-                production_flow_map=["Create Asset Designs", "Import to Engine"],
-                dependency_map=["InputManager -> PlayerController"],
+                production_flow_map=[
+                    "Create Asset Designs",
+                    "Rig & Animate Assets",
+                    "Import to Engine",
+                    "Attach Scripts & Physics",
+                    "Configure Gameplay HUD",
+                    "Export Distribution Package"
+                ],
+                dependency_map=[
+                    "InputManager -> PlayerController -> CombatSystem -> GameHUD"
+                ],
                 task_breakdown=AtlasTaskBreakdown(
-                    critical_tasks=["Map camera behaviors", "Code move behaviors"],
-                    optional_tasks=["Design settings panel"],
-                    future_expansion=["Create secondary levels"]
+                    critical_tasks=["Map camera behaviors", "Code primary action/move behaviors", "Ensure stable launch build"],
+                    optional_tasks=["Design simple settings panel", "Add ambient sound layers"],
+                    future_expansion=["Create secondary levels", "Deploy multi-platform exports"],
+                    tools_guide=guide
                 )
             )
 
