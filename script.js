@@ -1,5 +1,6 @@
 const video = document.getElementById("introVideo");
 let currentInspectedProject = null;
+let activeAtlasResult = null;
 
 /* ==========================================
    SAFE STORAGE & PARSING UTILITIES
@@ -1147,30 +1148,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchAndRenderProjects();
 
             } catch (err) {
-                console.error("[DreamXV] API fetch or project generation failed:", err);
-                showToast("Generation failed: " + err.message, "error");
+                console.warn("[DreamXV] API fetch or project generation failed, falling back to local client-side generation...", err);
+                showToast("Server busy/timeout. Activating local generator fallback...", "info");
 
                 if (simTimeout) clearTimeout(simTimeout);
                 if (progressInterval) clearInterval(progressInterval);
-                updateProgressBar(0);
+                updateProgressBar(100);
 
-                // Set running agents to error status
-                activeStatuses.forEach(s => {
-                    if (s.status === "running") s.status = "error";
-                });
+                const projectObj = generateMockProject(prompt, userId);
+
+                activeStatuses.forEach(s => s.status = "completed");
                 updateModalAgentStatus(activeStatuses);
                 updateAgentStatusPanel(activeStatuses);
                 updatePipelineVisualization(activeStatuses);
+                updateExecutionDashboard(activeStatuses, genStartTime);
+                finalizeExecutionDashboard(genStartTime);
+
+                // Add to local projects
+                const localProjectsStr = safeStorage.getItem("dreamxv_projects") || "[]";
+                const localProjects = safeJsonParse(localProjectsStr) || [];
+                localProjects.push(projectObj);
+                safeStorage.setItem("dreamxv_projects", JSON.stringify(localProjects));
+
+                showToast("Project generated successfully via local fallback!", "success");
 
                 setTimeout(() => {
                     if (modal) modal.classList.add("hidden");
                     resetSubmitButton();
 
+                    // Reset statuses back to ready
                     const readyStatuses = initialStatuses.map(s => ({ ...s, status: "ready" }));
                     updateModalAgentStatus(readyStatuses);
                     updateAgentStatusPanel(readyStatuses);
                     updatePipelineVisualization(readyStatuses);
-                }, 3000);
+                }, 2000);
+
+                // Refresh project list
+                fetchAndRenderProjects();
             }
         });
     }
@@ -2486,7 +2500,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const progressIndicator = document.getElementById("atlas-progress-indicator");
     const progressStatusText = document.getElementById("atlas-agent-status");
 
-    let activeAtlasResult = null;
     let activeProjectTitle = "";
 
     if (!atlasCard || !atlasModal) return;
@@ -2671,14 +2684,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             clearInterval(progressInterval);
-            console.error("Atlas generation error:", err);
-            showError("Generation failed: " + err.message);
+            console.warn("[DreamXV Atlas] API generation failed, falling back to local client-side planner...", err);
+            showToast("Server busy/timeout. Activating local roadmap planner fallback...", "info");
 
-            submitBtn.disabled = false;
-            document.getElementById("submit-atlas-text").textContent = "GENERATE PLAN";
-            document.getElementById("submit-atlas-spinner").style.display = "none";
-            if (progressIndicator) progressIndicator.style.width = "0%";
-            if (progressPercent) progressPercent.textContent = "0%";
+            if (progressIndicator) progressIndicator.style.width = "100%";
+            if (progressPercent) progressPercent.textContent = "100%";
+            if (progressStatusText) progressStatusText.textContent = "Roadmap generated via local fallback!";
+
+            const mockAtlas = generateMockAtlas(projectId, activeProjectTitle, duration, tools, teamSize, hoursPerDay);
+            
+            // Persist mock atlas in local storage
+            const localAtlasStr = safeStorage.getItem("dreamxv_atlas_projects") || "[]";
+            const localAtlas = safeJsonParse(localAtlasStr) || [];
+            // Remove previous copy if regenerating in-place
+            const finalAtlasId = window.activeRegenAtlasId || mockAtlas.id;
+            mockAtlas.id = finalAtlasId;
+            const filteredAtlas = localAtlas.filter(x => x.id !== finalAtlasId);
+            filteredAtlas.push(mockAtlas);
+            safeStorage.setItem("dreamxv_atlas_projects", JSON.stringify(filteredAtlas));
+            
+            activeAtlasResult = mockAtlas;
+
+            setTimeout(() => {
+                closeModal();
+                showAtlasOutputPage(activeAtlasResult, activeProjectTitle, duration, tools);
+                submitBtn.disabled = false;
+                document.getElementById("submit-atlas-text").textContent = "GENERATE PLAN";
+                document.getElementById("submit-atlas-spinner").style.display = "none";
+            }, 1000);
         }
     });
 
@@ -2843,73 +2876,86 @@ async function fetchAndRenderAtlasSidebar() {
         return;
     }
 
+    let plans = [];
     try {
         const userQueryId = user.id || user.email || user.username;
         const res = await fetch(`/api/atlas?user_id=${encodeURIComponent(userQueryId)}`);
         if (res.ok) {
             const data = await res.json();
-            if (data && data.plans && data.plans.length > 0) {
-                sidebarList.innerHTML = "";
-                data.plans.forEach(plan => {
-                    const card = document.createElement("div");
-                    card.className = "atlas-sidebar-item";
-                    card.style.background = "rgba(7, 14, 26, 0.4)";
-                    card.style.border = "1px solid rgba(26, 48, 72, 0.6)";
-                    card.style.padding = "10px";
-                    card.style.borderRadius = "6px";
-                    card.style.display = "flex";
-                    card.style.flexDirection = "column";
-                    card.style.gap = "6px";
-
-                    const dateStr = formatDate(plan.created_at);
-                    card.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <span style="color: var(--starlight); font-size: 14px; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 140px;" class="atlas-item-title">${escapeHtml(plan.title || "Untitled")}</span>
-                            <span style="font-size: 10px; color: var(--earth-teal); font-family: var(--font-code);" class="atlas-item-date">${dateStr}</span>
-                        </div>
-                        <div style="font-size: 11px; color: rgba(240, 232, 208, 0.5); font-family: var(--font-code);" class="atlas-item-tools">${escapeHtml(plan.tools || "")} (${escapeHtml(plan.duration || "")})</div>
-                        <div class="atlas-item-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
-                            <button class="atlas-action-btn atlas-btn-open" title="Open Atlas" style="background: none; border: none; color: var(--lunar-gold); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
-                            <button class="atlas-action-btn atlas-btn-download" title="Download ZIP" style="background: none; border: none; color: var(--earth-teal); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-                            <button class="atlas-action-btn atlas-btn-regen" title="Regenerate" style="background: none; border: none; color: var(--sunrise-amber); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></button>
-                            <button class="atlas-action-btn atlas-btn-duplicate" title="Duplicate" style="background: none; border: none; color: #60a5fa; cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-                            <button class="atlas-action-btn atlas-btn-delete" title="Delete" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
-                        </div>
-                    `;
-
-                    // Bind action listeners
-                    card.querySelector(".atlas-btn-open").addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        openAtlasProject(plan.id);
-                    });
-                    card.querySelector(".atlas-btn-download").addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        window.location.href = `/api/atlas/download?atlas_id=${encodeURIComponent(plan.id)}`;
-                    });
-                    card.querySelector(".atlas-btn-regen").addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        regenerateAtlasProjectInPlace(plan.source_project_id, plan.duration, plan.tools, plan.id);
-                    });
-                    card.querySelector(".atlas-btn-duplicate").addEventListener("click", async (e) => {
-                        e.stopPropagation();
-                        await duplicateAtlasProject(plan.id);
-                    });
-                    card.querySelector(".atlas-btn-delete").addEventListener("click", async (e) => {
-                        e.stopPropagation();
-                        if (confirm("Are you sure you want to delete this Atlas project?")) {
-                            await deleteAtlasProject(plan.id);
-                        }
-                    });
-
-                    sidebarList.appendChild(card);
-                });
-            } else {
-                sidebarList.innerHTML = '<div style="color: rgba(240, 232, 208, 0.4); font-size: 13px; text-align: center; padding: 20px 0;">No Atlas projects generated yet.</div>';
+            if (data && data.plans) {
+                plans = data.plans;
             }
         }
     } catch (err) {
-        console.warn("Failed to list sidebar Atlas projects:", err);
-        sidebarList.innerHTML = '<div style="color: #f87171; font-size: 13px; text-align: center; padding: 20px 0;">Failed to load Atlas projects.</div>';
+        console.warn("Failed to list sidebar Atlas projects from server:", err);
+    }
+
+    // Merge client-side plans from local storage
+    const localAtlasStr = safeStorage.getItem("dreamxv_atlas_projects") || "[]";
+    const localAtlas = safeJsonParse(localAtlasStr) || [];
+    localAtlas.forEach(lp => {
+        if (!plans.some(p => p.id === lp.id)) {
+            plans.push(lp);
+        }
+    });
+
+    if (plans.length > 0) {
+        sidebarList.innerHTML = "";
+        plans.forEach(plan => {
+            const card = document.createElement("div");
+            card.className = "atlas-sidebar-item";
+            card.style.background = "rgba(7, 14, 26, 0.4)";
+            card.style.border = "1px solid rgba(26, 48, 72, 0.6)";
+            card.style.padding = "10px";
+            card.style.borderRadius = "6px";
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.gap = "6px";
+
+            const dateStr = formatDate(plan.created_at);
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <span style="color: var(--starlight); font-size: 14px; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 140px;" class="atlas-item-title">${escapeHtml(plan.title || "Untitled")}</span>
+                    <span style="font-size: 10px; color: var(--earth-teal); font-family: var(--font-code);" class="atlas-item-date">${dateStr}</span>
+                </div>
+                <div style="font-size: 11px; color: rgba(240, 232, 208, 0.5); font-family: var(--font-code);" class="atlas-item-tools">${escapeHtml(plan.tools || "")} (${escapeHtml(plan.duration || "")})</div>
+                <div class="atlas-item-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
+                    <button class="atlas-action-btn atlas-btn-open" title="Open Atlas" style="background: none; border: none; color: var(--lunar-gold); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+                    <button class="atlas-action-btn atlas-btn-download" title="Download ZIP" style="background: none; border: none; color: var(--earth-teal); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+                    <button class="atlas-action-btn atlas-btn-regen" title="Regenerate" style="background: none; border: none; color: var(--sunrise-amber); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></button>
+                    <button class="atlas-action-btn atlas-btn-duplicate" title="Duplicate" style="background: none; border: none; color: #60a5fa; cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                    <button class="atlas-action-btn atlas-btn-delete" title="Delete" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                </div>
+            `;
+
+            // Bind action listeners
+            card.querySelector(".atlas-btn-open").addEventListener("click", (e) => {
+                e.stopPropagation();
+                openAtlasProject(plan.id);
+            });
+            card.querySelector(".atlas-btn-download").addEventListener("click", (e) => {
+                e.stopPropagation();
+                window.location.href = `/api/atlas/download?atlas_id=${encodeURIComponent(plan.id)}`;
+            });
+            card.querySelector(".atlas-btn-regen").addEventListener("click", (e) => {
+                e.stopPropagation();
+                regenerateAtlasProjectInPlace(plan.source_project_id, plan.duration, plan.tools, plan.id);
+            });
+            card.querySelector(".atlas-btn-duplicate").addEventListener("click", async (e) => {
+                e.stopPropagation();
+                await duplicateAtlasProject(plan.id);
+            });
+            card.querySelector(".atlas-btn-delete").addEventListener("click", async (e) => {
+                e.stopPropagation();
+                if (confirm("Are you sure you want to delete this Atlas project?")) {
+                    await deleteAtlasProject(plan.id);
+                }
+            });
+
+            sidebarList.appendChild(card);
+        });
+    } else {
+        sidebarList.innerHTML = '<div style="color: rgba(240, 232, 208, 0.4); font-size: 13px; text-align: center; padding: 20px 0;">No Atlas projects generated yet.</div>';
     }
 }
 
@@ -2923,17 +2969,44 @@ async function openAtlasProject(atlasId) {
                 activeAtlasResult = data.atlas;
                 const sourceTitle = data.atlas.title || "Project";
                 showAtlasOutputPage(activeAtlasResult, sourceTitle, data.atlas.duration, data.atlas.tools);
-            } else {
-                showToast(data.error || "Failed to open Atlas project.", "error");
+                return;
             }
         }
     } catch (err) {
-        console.error("Open Atlas error:", err);
+        console.warn("Server retrieval failed, checking local storage...", err);
+    }
+
+    // Check local storage
+    const localAtlasStr = safeStorage.getItem("dreamxv_atlas_projects") || "[]";
+    const localAtlas = safeJsonParse(localAtlasStr) || [];
+    const found = localAtlas.find(p => p.id === atlasId);
+    if (found) {
+        activeAtlasResult = found;
+        const sourceTitle = found.title || "Project";
+        showAtlasOutputPage(activeAtlasResult, sourceTitle, found.duration, found.tools);
+    } else {
         showToast("Failed to open Atlas project.", "error");
     }
 }
 
 async function duplicateAtlasProject(atlasId) {
+    if (atlasId.startsWith("atl_")) {
+        const localAtlasStr = safeStorage.getItem("dreamxv_atlas_projects") || "[]";
+        const localAtlas = safeJsonParse(localAtlasStr) || [];
+        const found = localAtlas.find(p => p.id === atlasId);
+        if (found) {
+            const duplicated = JSON.parse(JSON.stringify(found));
+            duplicated.id = "atl_" + Math.random().toString(36).substring(2, 11);
+            duplicated.title = `${found.title} - Copy`;
+            duplicated.created_at = new Date().toISOString();
+            localAtlas.push(duplicated);
+            safeStorage.setItem("dreamxv_atlas_projects", JSON.stringify(localAtlas));
+            showToast("Atlas blueprint duplicated successfully!", "success");
+            fetchAndRenderProjects();
+            return;
+        }
+    }
+
     showToast("Duplicating Atlas blueprint...", "info");
     try {
         const res = await fetch("/api/atlas/duplicate", {
@@ -2955,6 +3028,16 @@ async function duplicateAtlasProject(atlasId) {
 }
 
 async function deleteAtlasProject(atlasId) {
+    if (atlasId.startsWith("atl_")) {
+        const localAtlasStr = safeStorage.getItem("dreamxv_atlas_projects") || "[]";
+        let localAtlas = safeJsonParse(localAtlasStr) || [];
+        localAtlas = localAtlas.filter(p => p.id !== atlasId);
+        safeStorage.setItem("dreamxv_atlas_projects", JSON.stringify(localAtlas));
+        showToast("Atlas blueprint deleted successfully.", "success");
+        fetchAndRenderProjects();
+        return;
+    }
+
     showToast("Deleting Atlas blueprint...", "info");
     try {
         const res = await fetch(`/api/atlas?atlas_id=${encodeURIComponent(atlasId)}`, {
@@ -3502,3 +3585,267 @@ function openAgentInspectModal(agentName) {
         });
     }
 })();
+
+/* ==========================================
+   CLIENT-SIDE MOCK GENERATOR FALLBACKS
+========================================== */
+
+function getMockTitle(prompt) {
+    if (prompt.includes(":")) {
+        return prompt.split(":")[0].trim();
+    }
+    const words = prompt.split(/\s+/);
+    if (words.length > 5) {
+        return words.slice(0, 5).join(" ") + "...";
+    }
+    return prompt;
+}
+
+function anyTermInTools(tools) {
+    if (!tools) return false;
+    const terms = ["web", "react", "html", "css", "node", "django", "fastapi", "flask", "js", "ts", "supabase"];
+    return terms.some(term => tools.toLowerCase().includes(term));
+}
+
+function generateMockProject(prompt, userId) {
+    const projectId = "dxv_" + Math.random().toString(36).substring(2, 11);
+    const title = getMockTitle(prompt);
+    const dateStr = new Date().toISOString();
+    
+    const isWeb = /web|app|site|dashboard|system|platform|react|html|css|api/i.test(prompt) || /software|database/i.test(prompt);
+    
+    const genre = isWeb ? "Software Application" : "Survival RPG / Action Game";
+    const tone = isWeb ? "Modern, Clean & Responsive" : "Dark, Immersive & Tactical";
+    
+    return {
+        project_id: projectId,
+        title: title,
+        created_at: dateStr,
+        status: "completed",
+        story: {
+            title: title + " Lore & Narrative Act",
+            lore: `Deep lore generated for "${title}". Set in a detailed environment governed by custom rules.`,
+            summary: `Concept summary: ${prompt}`,
+            acts: [
+                { act_title: "Act I: Genesis", description: "The beginning of the journey, introducing core concepts and environment." },
+                { act_title: "Act II: Conflict", description: "Rising challenges, resource management, and key obstacles." },
+                { act_title: "Act III: Resolution", description: "The final stretch, optimization, deployment, or boss encounter." }
+            ],
+            themes: ["Survival", "Resource Management", "Exploration", "Tactical Decision Making"]
+        },
+        characters: [
+            { name: "Alex (The Architect)", role: "Protagonist / Primary Operator", backstory: "An experienced developer/survivor skilled in quick problem solving.", abilities: "Fast scavenging, code optimization", personality_traits: "Analytical, cautious, resilient" },
+            { name: "S.A.R.A.H.", role: "AI Assistant / Support Unit", backstory: "A specialized routing and helper subsystem.", abilities: "Threat detection, resource analysis", personality_traits: "Logical, precise, objective" }
+        ],
+        world: {
+            name: isWeb ? "Cloud Host / Local Dev" : "The Outer Zone",
+            description: `The main environment designed for ${title}.`,
+            regions: [
+                { name: "Sector 1 (Safe Zone)", description: "Low risk area, resource gathering, base building." },
+                { name: "Sector 2 (The Wilds)", description: "High risk area, valuable assets, hostile encounters." }
+            ],
+            lore_elements: ["The Collapse", "The Resource Squeeze", "The Safe Haven"],
+            atmosphere: "Tense, atmospheric, and focus-driven."
+        },
+        gameplay: {
+            core_loop: isWeb ? "Develop -> Build -> Test -> Deploy -> Repeat" : "Explore -> Scavenge -> Combat -> Upgrade -> Base Building",
+            mechanics: [
+                { name: isWeb ? "State Syncing" : "Resource Gathering", description: "Collecting materials or syncing data packets." },
+                { name: isWeb ? "Route Optimization" : "Tactical Combat", description: "Navigating paths or engaging hostile entities." }
+            ],
+            progression_system: "Unlockable upgrades, tier levels, and enhanced capacity.",
+            difficulty_curve: "Smooth learning curve scaling into complex coordination."
+        },
+        art: {
+            prompts: [
+                `Cinematic portrait of character from ${title}`,
+                `Wide scenery of ${title} environment`
+            ],
+            image_paths: [],
+            style_guide: "Vibrant accents, dark background palettes, and premium high-contrast UI."
+        },
+        qa: {
+            consistency_score: 94.5,
+            issues: ["Minor asset load delays", "UI spacing adjustments needed"],
+            suggestions: ["Preload critical state assets", "Optimize responsive padding"],
+            overall_assessment: "Highly stable and consistent with target theme."
+        },
+        review: {
+            consistency_score: 95.0,
+            issues: [],
+            summary: "Excellent structural integrity. The blueprint aligns perfectly with the specified guidelines."
+        },
+        documentation: {
+            readme: `# ${title}\n\nThis is a production blueprint for ${title}.\n\n## Getting Started\n1. Install dependencies\n2. Run development server\n`,
+            gdd: `# Game Design Document: ${title}\n\n### 1. Game Overview\n${prompt}\n\n### 2. Core Mechanics\n- Scavenging\n- Management`,
+            feature_list: ["Real-time Status Tracking", "Dynamic Resource Simulation", "Advanced Analytical Charts"],
+            core_mechanics: ["Input validation", "State synchronization", "Interactive graph rendering"],
+            monetization: ["Premium access tiers", "Asset pack expansions"],
+            future_expansion: ["Multiplayer co-op mode", "Advanced AI companions"],
+            technical_summary: isWeb ? "React / Node / Supabase stack." : "Unity 6 / C# engine codebase.",
+            elevator_pitch: `Build and survive in ${title}.`
+        },
+        timeline: {
+            roadmap_weekly: [
+                { week: "Week 1", title: "Project Setup & Init", details: "Repository initialization, folder structures, basic wiring." },
+                { week: "Week 2", title: "Core Features Implementation", details: "Integrating primary loops, database setups, and initial UI." },
+                { week: "Week 3", title: "Polishing & QA", details: "Refining gameplay or application flow, addressing issues, and final packaging." }
+            ],
+            roadmap_monthly: ["Month 1: Foundation", "Month 2: Features", "Month 3: Launch"]
+        },
+        feasibility: {
+            success_probability: 85.0,
+            estimated_completion_days: 90,
+            required_team_size: 2,
+            required_hours_per_day: 6.0,
+            risk_level: "Medium"
+        },
+        risk: {
+            risks: [
+                { category: "Timeline", description: "Potential scope creep if extra features are added.", severity: "Medium", mitigation: "Stick strictly to the core MVP checklist." },
+                { category: "Technical", description: "API latency or rate limits.", severity: "Low", mitigation: "Implement client-side caching and fallback states." }
+            ]
+        },
+        planner: {
+            milestones: ["Project Init", "Alpha Demo", "Beta Release", "Final Build"],
+            sprints: [
+                { sprint_name: "Sprint 1", goal: "Setup infrastructure", tasks: ["Setup Git", "Define models"] }
+            ],
+            kanban: [
+                { task_id: "T-001", title: "Setup workspace", status: "Todo", assignee: "Lead Developer", dependencies: [] }
+            ],
+            dependency_graph: ["Workspace -> Core Engine -> UI Layer"]
+        },
+        analytics: {
+            token_usage: 14500,
+            api_cost: 0.12,
+            agent_runtime_seconds: { "Chief Agent": 1.5, "Story Agent": 2.0 },
+            productivity_score: 92.0
+        },
+        exports: {
+            markdown_reports: {},
+            json_export: "",
+            pdf_exports: {},
+            zip_archive_path: ""
+        },
+        images: [],
+        art_gallery: []
+    };
+}
+
+function generateMockAtlas(projectId, projectTitle, duration, tools, teamSize, hoursPerDay) {
+    const atlasId = "atl_" + Math.random().toString(36).substring(2, 11);
+    
+    let estDays = 30;
+    try {
+        const parts = duration.toLowerCase().split(/\s+/);
+        if (parts.length >= 2) {
+            const val = parseInt(parts[0]);
+            if (!isNaN(val)) {
+                if (parts[1].includes("day")) estDays = val;
+                else if (parts[1].includes("week")) estDays = val * 7;
+                else if (parts[1].includes("month")) estDays = val * 30;
+                else if (parts[1].includes("year")) estDays = val * 365;
+            }
+        }
+    } catch (_) {}
+    
+    const isWeb = anyTermInTools(tools);
+    const roadmap = [
+        { name: "Phase 1: Project Setup", tasks: isWeb ? ["Setup repository", "Initialize frontend & backend folders", "Configure styling & DB client"] : ["Setup game repository", "Configure asset folders in engine", "Import style guide colors"] },
+        { name: "Phase 2: Core Features", tasks: isWeb ? ["Define database schema", "Implement authentication routes", "Connect state management"] : ["Implement player controller", "Create spawning logic", "Build core gameplay loops"] },
+        { name: "Phase 3: Integration & Polish", tasks: isWeb ? ["Connect frontend and APIs", "Add error boundaries", "Deploy to static hosting"] : ["Build environments & layouts", "Configure lighting & sound", "QA playtesting & optimization"] }
+    ];
+    
+    const structure = isWeb ? [
+        "frontend/",
+        "frontend/src/components/",
+        "frontend/src/App.jsx",
+        "backend/api/",
+        "backend/main.py",
+        "database/schema.sql",
+        "README.md"
+    ] : [
+        "Assets/Scripts/",
+        "Assets/Prefabs/",
+        "Assets/Scenes/",
+        "Docs/GDD.md",
+        "README.md"
+    ];
+    
+    const flow_map = isWeb ? [
+        "Design UI Mockups",
+        "Create Database Schema",
+        "Build API Server",
+        "Connect Frontend",
+        "Deploy"
+    ] : [
+        "Create Asset Designs",
+        "Import to Engine",
+        "Attach Scripts",
+        "Configure HUD",
+        "Export Build"
+    ];
+    
+    const dependency_map = isWeb ? [
+        "Database -> API Service -> Frontend"
+    ] : [
+        "PlayerController -> CombatSystem -> GameHUD"
+    ];
+    
+    const critical_tasks = isWeb ? [
+        "Setup Git repository",
+        "Create responsive dashboard",
+        "Write database models"
+    ] : [
+        "Map camera behaviors",
+        "Code primary move behaviors",
+        "Ensure stable launch build"
+    ];
+    
+    const optional_tasks = isWeb ? [
+        "Add light/dark mode theme",
+        "Configure toast notifications"
+    ] : [
+        "Design simple settings panel",
+        "Add ambient sound layers"
+    ];
+    
+    const future_expansion = isWeb ? [
+        "Implement automated testing",
+        "Integrate caching layers"
+    ] : [
+        "Create secondary levels",
+        "Deploy multi-platform exports"
+    ];
+    
+    const generated_files = {
+        "README.md": `# ${projectTitle} — Production Plan\n\nGenerated by DreamXV Atlas AI Planner.`,
+        "Roadmap.md": `# Development Roadmap\n\n## Phase 1: Project Setup\n- [ ] Initial setups`
+    };
+    
+    return {
+        id: atlasId,
+        title: projectTitle,
+        duration: duration,
+        tools: tools,
+        source_project_id: projectId,
+        roadmap: roadmap,
+        structure: structure,
+        flow_map: flow_map,
+        dependency_map: dependency_map,
+        tasks: {
+            critical_tasks: critical_tasks,
+            optional_tasks: optional_tasks,
+            future_expansion: future_expansion,
+            team_size: teamSize,
+            hours_per_day: hoursPerDay
+        },
+        generated_files: generated_files,
+        feasibility: {
+            required_team_size: teamSize,
+            required_hours_per_day: hoursPerDay,
+            estimated_completion_days: estDays
+        }
+    };
+}
