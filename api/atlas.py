@@ -351,6 +351,12 @@ async def generate_atlas(req: AtlasRequest):
         estimated_completion_days = parse_duration_to_days(req.duration)
         required_hours_per_day = float(req.hours_per_day or 8.0)
         
+        atlas_data["feasibility"] = {
+            "required_team_size": req.team_size,
+            "required_hours_per_day": req.hours_per_day,
+            "estimated_completion_days": estimated_completion_days
+        }
+        
         if "feasibility" in project_data and project_data["feasibility"]:
             feas = project_data["feasibility"]
             success_probability = feas.get("success_probability", 0.0)
