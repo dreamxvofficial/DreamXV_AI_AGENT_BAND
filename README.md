@@ -18,6 +18,8 @@ Instead of generating a single response, DreamXV coordinates specialized AI agen
 
 ---
 
+<img src="assets/Home.png" width="900">
+
 # 🌟 Vision
 
 Most AI tools generate content.
@@ -342,6 +344,8 @@ Building the future of AI-powered creation tools through collaborative multi-age
 * Cross-platform exports
 
 ---
+
+<img src="assets/In Collab.png" width="900">
 
 ## DreamXV AI Studio
 

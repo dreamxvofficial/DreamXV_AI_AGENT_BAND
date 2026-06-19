@@ -97,6 +97,14 @@ class AtlasAgent:
             temperature=0.5,
         )
 
+        if (
+            len(atlas_output.task_breakdown.detailed_tasks) != 35
+            or len(atlas_output.risks) != 10
+            or len(atlas_output.art_gallery) != 12
+            or atlas_output.roadmap_simulator is None
+        ):
+            raise ValueError("Atlas response failed required task/risk/art completeness checks")
+
         # Ensure project_id is set
         atlas_output.project_id = project_data.get("project_id", "")
         self._validate_plan(atlas_output, available_hours)
@@ -131,7 +139,7 @@ class AtlasAgent:
         if planned > available_hours and planned:
             scale = available_hours / planned
             for task in tasks:
-                task.hours = max(0.1, round(task.hours * scale, 2))
+                task.hours = max(0.01, round(task.hours * scale, 2))
             # Rounding can drift above capacity; take it from the largest task.
             planned = round(sum(task.hours for task in tasks), 2)
             if planned > available_hours:

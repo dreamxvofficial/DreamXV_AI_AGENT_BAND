@@ -18,7 +18,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.services.supabase_service import SupabaseService
 from backend.services.llm_service import LLMService
 from backend.agents.atlas_agent import AtlasAgent
-from backend.models.output_models import AtlasOutput, AtlasPhase, AtlasTaskBreakdown
+from backend.models.output_models import (
+    AtlasArtConcept, AtlasDetailedTask, AtlasOutput, AtlasPhase, AtlasRisk,
+    AtlasSimulation, AtlasTaskBreakdown,
+)
 
 app = FastAPI()
 
@@ -72,22 +75,22 @@ def generate_tools_guide(tools_str: str) -> dict[str, str]:
             guide[tool] = (
                 "**Claude Code AI Agent Assistant Workflows:**\n"
                 "1. **CLI Integration:** Execute code analysis and refactoring tasks directly from your CLI terminal.\n"
-                "2. **Prompt Templates:** Leverage structured architectural blueprints to write automated test scripts and components.\n"
-                "3. **Code Quality:** Use Claude to perform structural review on new changes before staging them to version control."
+                "2. **Gameplay Scripts:** Generate narrowly scoped C# controllers and ScriptableObject definitions from approved mechanic specifications.\n"
+                "3. **Engine Validation:** Review generated code in Unity, attach it to test prefabs, and verify behavior in Play Mode before integration."
             )
         elif "antigravity" in lower_tool:
             guide[tool] = (
                 "**Antigravity IDE Development Suite:**\n"
                 "1. **Multi-Agent Orchestration:** Use built-in agent orchestrators to parallelize design and code validation workflows.\n"
                 "2. **Sandbox Execution:** Run local debug commands and verify file generation steps securely.\n"
-                "3. **Task Tracking:** Utilize task.md checklists and implementation plans to trace architectural milestones."
+                "3. **Production Tracking:** Keep task IDs, Unity asset paths, scene ownership, and milestone checklists aligned with the Atlas plan."
             )
         elif "chatgpt" in lower_tool:
             guide[tool] = (
                 "**ChatGPT Pro Design Assistant:**\n"
                 "1. **Design Documenting:** Draft the Game Design Document (GDD) and expand narrative lore, dialogue logs, and level descriptions.\n"
-                "2. **API Stubbing:** Generate API routing stubs and mock database seed scripts for rapid backend prototyping.\n"
-                "3. **Brainstorming:** Iterate on game balance formulas, character attribute tables, and core mechanics progression curves."
+                "2. **Content Design:** Draft compact quests, encounters, item descriptions, and tutorial text that fit the MVP scope.\n"
+                "3. **Review:** Critique balance tables, playtest notes, store copy, and trailer/marketing concepts without expanding committed scope."
             )
         elif "react" in lower_tool:
             guide[tool] = (
@@ -113,9 +116,9 @@ def generate_tools_guide(tools_str: str) -> dict[str, str]:
         else:
             guide[tool] = (
                 f"**{tool} Utilization Guide:**\n"
-                f"1. **Configuration:** Initialize the tool inside the `{tool.lower().replace(' ', '_')}` subfolder or dependency manager.\n"
-                "2. **Workflows:** Map integration pipelines and build targets to match the main project architecture.\n"
-                "3. **Validation:** Formulate manual and automated validation steps to ensure stable integration during deployment."
+                "1. **Configuration:** Configure project units, naming, export paths, and target-platform settings to match the selected game engine.\n"
+                "2. **Production Use:** Assign it only the game assets or gameplay work it directly supports in the roadmap.\n"
+                "3. **Handoff & Validation:** Document import/export settings and verify every output inside the playable engine scene before acceptance."
             )
     return guide
 
@@ -322,6 +325,14 @@ def compile_markdown_files(title: str, atlas_out: AtlasOutput) -> dict:
     tasks_md += "\n## Future Expansion\n"
     for t in exp:
         tasks_md += f"- [ ] {t}\n"
+    if tb.detailed_tasks:
+        tasks_md += "\n## Estimated Task Register\n"
+        for task in tb.detailed_tasks:
+            deps = ", ".join(task.dependencies) or "None"
+            tasks_md += (
+                f"- [ ] {task.id} — {task.name} | {task.hours}h | {task.priority} | "
+                f"Owner: {task.owner} | Dependencies: {deps} | Critical: {task.critical_path}\n"
+            )
         
     # 4. FlowMap.md
     flow_md = "# Production Workflow & Dependencies\n\n"
@@ -406,8 +417,7 @@ def create_atlas_zip_on_disk(atlas_id: str, atlas_data: dict, images: list[dict]
                 cleaned_path = path.strip()
                 if cleaned_path.endswith("/"):
                     zip_file.writestr(f"project_structure/{cleaned_path}", "")
-                else:
-                    zip_file.writestr(f"project_structure/{cleaned_path}", f"# Placeholder for {cleaned_path.split('/')[-1]}\n")
+                # Planned files are documented in Structure.md; do not create fake source/assets.
                     
             # 4. metadata.json
             metadata = {
@@ -440,6 +450,153 @@ def parse_duration_to_days(duration: str) -> int:
     except Exception:
         pass
     return 0
+
+
+def build_dynamic_game_fallback(
+    project_data: dict, duration: str, tools: str, team_size: int, hours_per_day: float
+) -> AtlasOutput:
+    """Capacity-safe game-production plan used when structured generation is unavailable."""
+    title = project_data.get("title") or "Untitled Game"
+    gameplay = project_data.get("gameplay") or {}
+    mechanics = gameplay.get("mechanics") or []
+    if isinstance(mechanics, str):
+        mechanics = [m.strip() for m in mechanics.split(",") if m.strip()]
+    mechanic = mechanics[0] if mechanics else (gameplay.get("core_loop") or "core gameplay loop")
+    days = max(1, parse_duration_to_days(duration))
+    capacity = round(max(0.1, team_size * hours_per_day * days), 2)
+
+    task_names = [
+        "Lock MVP player fantasy and success condition", "Define playable loop and scope cuts",
+        "Create engine project and render settings", "Establish input actions and test scene",
+        "Implement player locomotion", "Implement gameplay camera", f"Prototype {mechanic}",
+        "Implement health, damage, and fail state", "Create primary equipment interaction",
+        "Add feedback for hits and interactions", "Block out the playable level",
+        "Set navigation and collision boundaries", "Create enemy or challenge behavior",
+        "Implement detection and engagement states", "Create encounter spawn and reset flow",
+        "Implement pickups and rewards", "Implement lightweight inventory or loadout",
+        "Add MVP progression reward", "Model primary character silhouette", "Create gameplay equipment assets",
+        "Create modular environment props", "UV and texture MVP assets", "Import and configure game assets",
+        "Assemble environment composition", "Configure lighting and atmosphere", "Create HUD information hierarchy",
+        "Implement HUD and interaction prompts", "Create pause, restart, and completion screens",
+        "Add movement, action, and impact audio", "Add ambient audio and mix", "Integrate complete start-to-finish session",
+        "Conduct focused gameplay playtest", "Fix blockers and tune difficulty", "Profile and optimize MVP scene",
+        "Configure target build and export playable MVP",
+    ]
+    weights = [1,1,1,1,3,2,4,2,2,2,3,1,3,2,1,1,2,1,2,2,2,2,2,3,2,2,2,1,2,1,3,2,3,2,1]
+    planned_target = round(capacity * 0.9, 2)
+    unit = planned_target / sum(weights)
+    task_hours = [max(0.01, round(w * unit, 2)) for w in weights]
+    drift = round(sum(task_hours) - planned_target, 2)
+    if drift:
+        task_hours[6] = round(max(0.01, task_hours[6] - drift), 2)
+
+    owner = "Solo Developer" if team_size == 1 else "Game Development Team"
+    detailed = []
+    for i, (name, hours) in enumerate(zip(task_names, task_hours), 1):
+        deps = [] if i <= 2 else [f"TSK-{max(1, i - 1):03d}"]
+        detailed.append(AtlasDetailedTask(
+            id=f"TSK-{i:03d}", name=name, hours=hours,
+            priority="Critical" if i <= 18 or i >= 31 else "High",
+            dependencies=deps, status="Not Started", owner=owner,
+            critical_path=i <= 18 or i >= 31,
+        ))
+
+    import re
+    match = re.search(r"(\d+)\s*(day|week|month|year)s?", duration.lower())
+    count, unit_name = (int(match.group(1)), match.group(2)) if match else (1, "week")
+    phase_count = count if unit_name in ("week", "month", "year") else max(1, (count + 6) // 7)
+    label = {"week": "Week", "month": "Month", "year": "Year"}.get(unit_name, "Week")
+    buckets = [[] for _ in range(phase_count)]
+    for i, task in enumerate(detailed):
+        buckets[min(phase_count - 1, i * phase_count // len(detailed))].append(task)
+    roadmap = []
+    for i, bucket in enumerate(buckets, 1):
+        roadmap.append(AtlasPhase(
+            name=f"{label} {i}",
+            objectives=[bucket[0].name, bucket[-1].name] if bucket else [],
+            tasks=[f"{t.id} — {t.name} ({t.hours}h)" for t in bucket],
+            hours=round(sum(t.hours for t in bucket), 2),
+            deliverables=[f"Integrated {label.lower()} {i} gameplay increment"],
+            milestones=[f"{title}: {label} {i} build verified in engine"],
+        ))
+
+    risks = []
+    risk_specs = [
+        ("Core loop integration", 7, [5, 6]), ("Level blocked by controller", 11, [5, 6]),
+        ("Challenge behavior instability", 13, [8, 12]), ("Encounter reset failure", 15, [13, 14]),
+        ("Reward loop disconnect", 18, [16, 17]), ("Asset import mismatch", 23, [19, 20, 21, 22]),
+        ("Environment readability", 24, [11, 23]), ("HUD lacks gameplay state", 27, [8, 16, 26]),
+        ("Audio feedback arrives late", 30, [29]), ("Playable build regression", 35, [31, 32, 33, 34]),
+    ]
+    for i, (risk_title, blocked, blockers) in enumerate(risk_specs, 1):
+        risks.append(AtlasRisk(
+            id=f"RSK-{i:03d}", title=risk_title, blocked_task=f"TSK-{blocked:03d}",
+            blocked_by=[f"TSK-{x:03d}" for x in blockers],
+            risk=f"{task_names[blocked-1]} cannot be validated until its gameplay prerequisites are stable.",
+            impact="High" if blocked in (7, 15, 35) else "Medium",
+            probability="Medium", mitigation=f"Time-box and verify {task_names[blockers[0]-1].lower()} before starting the blocked work.",
+        ))
+
+    gallery = []
+    category_subjects = {
+        "Character": ["playable hero", "primary adversary", "supporting encounter character"],
+        "Weapon/Equipment": ["primary gameplay equipment", "secondary equipment", "reward pickup equipment"],
+        "Environment": ["main playable arena", "high-risk encounter zone", "safe start and extraction zone"],
+        "UI": ["gameplay HUD", "inventory or loadout panel", "pause and completion screen"],
+    }
+    for category, subjects in category_subjects.items():
+        for subject in subjects:
+            gallery.append(AtlasArtConcept(
+                title=f"{title} — {subject.title()}", category=category,
+                prompt=f"Production concept art for {title}, {subject}, readable game silhouette, cohesive project art direction, practical MVP detail, no text watermark",
+                purpose=f"Guide production decisions for the {subject}."))
+
+    planned = round(sum(t.hours for t in detailed), 2)
+    tools_guide = generate_tools_guide(tools)
+    tools_lower = tools.lower()
+    if "unreal" in tools_lower:
+        project_structure = [
+            f"{title}/", "Config/", "Content/Maps/Bootstrap.umap", "Content/Maps/Gameplay.umap",
+            "Content/Blueprints/Player/", "Content/Blueprints/Gameplay/", "Content/Blueprints/AI/",
+            "Content/Characters/", "Content/Equipment/", "Content/Environment/", "Content/UI/",
+            "Content/Audio/", "Content/Materials/", "Source/", "Builds/", "Docs/MVP-Scope.md",
+        ]
+    elif "godot" in tools_lower:
+        project_structure = [
+            f"{title}/", "project.godot", "scenes/bootstrap.tscn", "scenes/gameplay.tscn",
+            "scripts/player/", "scripts/gameplay/", "scripts/ai/", "scripts/ui/", "assets/characters/",
+            "assets/equipment/", "assets/environment/", "assets/materials/", "assets/audio/", "ui/",
+            "builds/", "docs/MVP-Scope.md",
+        ]
+    else:
+        project_structure = [
+            f"{title}/", "Assets/Scenes/", "Assets/Scenes/Bootstrap.unity", "Assets/Scenes/Gameplay.unity",
+            "Assets/Scripts/Player/", "Assets/Scripts/Gameplay/", "Assets/Scripts/AI/", "Assets/Scripts/UI/",
+            "Assets/Prefabs/Characters/", "Assets/Prefabs/Equipment/", "Assets/Prefabs/Environment/",
+            "Assets/Art/Models/", "Assets/Art/Materials/", "Assets/Art/Textures/", "Assets/Audio/",
+            "Assets/UI/", "Assets/Settings/", "Builds/", "Docs/MVP-Scope.md",
+        ]
+    return AtlasOutput(
+        project_id=project_data.get("project_id", ""), roadmap=roadmap,
+        project_structure=project_structure,
+        production_flow_map=[
+            "Game concept and MVP constraint lock", "Core gameplay design", "Input, player controller, and camera",
+            f"{mechanic} prototype", "Damage, challenge, and fail-state integration", "Enemy/challenge behavior",
+            "Level blockout and encounter flow", "Rewards and lightweight progression", "Character and equipment asset pass",
+            "Environment art, lighting, and readability", "UI and HUD integration", "Audio feedback and mix",
+            "End-to-end playtest", "Blocker fixes and performance pass", "Build export", "Playable MVP",
+        ],
+        dependency_map=[f"{t.dependencies[0]} -> {t.id}" for t in detailed if t.dependencies],
+        task_breakdown=AtlasTaskBreakdown(
+            critical_tasks=[f"{t.id} — {t.name}" for t in detailed if t.critical_path],
+            optional_tasks=[], future_expansion=["Additional level", "Expanded progression", "More playable content"],
+            detailed_tasks=detailed, tools_guide=tools_guide,
+        ), risks=risks, art_gallery=gallery,
+        roadmap_simulator=AtlasSimulation(
+            available_hours=capacity, planned_hours=planned, status="ON TRACK" if planned <= capacity else "AT RISK",
+            explanation=f"Plan uses {planned} of {capacity} available hours, leaving {round(capacity-planned, 2)} hours of buffer.",
+        ),
+    )
 
 
 @app.post("/api/atlas/generate")
@@ -479,11 +636,22 @@ async def generate_atlas(req: AtlasRequest):
             )
         except Exception as agent_exc:
             print(f"Atlas agent generation failed: {agent_exc}. Triggering fallback.")
-            atlas_out = get_atlas_fallback(req.project_id, req.duration, req.tools)
+            atlas_out = build_dynamic_game_fallback(
+                project_data, req.duration, req.tools, req.team_size, req.hours_per_day
+            )
 
-        # 1. Compile 5 markdown files
+        # 1. Compile production-plan markdown files
         title = project_data.get("title") or "Untitled Project"
         generated_files = compile_markdown_files(title, atlas_out)
+        generated_files["Risks.md"] = "# Production Risks\n\n" + "\n\n".join(
+            f"## {r.id} — {r.title}\nBlocked task: {r.blocked_task}\n\nRisk: {r.risk}\n\n"
+            f"Impact: {r.impact} | Probability: {r.probability}\n\nMitigation: {r.mitigation}"
+            for r in atlas_out.risks
+        )
+        generated_files["ArtConcepts.md"] = "# Art Concepts\n\n" + "\n\n".join(
+            f"## {a.title}\nCategory: {a.category}\n\nPrompt: {a.prompt}\n\nPurpose: {a.purpose}"
+            for a in atlas_out.art_gallery
+        )
 
         # 2. Determine Atlas ID
         atlas_id = req.atlas_id if req.atlas_id else str(uuid.uuid4())
@@ -506,6 +674,9 @@ async def generate_atlas(req: AtlasRequest):
             "flow_map": atlas_out.production_flow_map,
             "dependency_map": atlas_out.dependency_map,
             "tasks": tasks_dict,
+            "risks": [r.model_dump() for r in atlas_out.risks],
+            "art_gallery": [a.model_dump() for a in atlas_out.art_gallery],
+            "roadmap_simulator": atlas_out.roadmap_simulator.model_dump() if atlas_out.roadmap_simulator else None,
             "generated_files": generated_files
         }
 
@@ -518,7 +689,10 @@ async def generate_atlas(req: AtlasRequest):
         atlas_data["feasibility"] = {
             "required_team_size": req.team_size,
             "required_hours_per_day": req.hours_per_day,
-            "estimated_completion_days": estimated_completion_days
+            "estimated_completion_days": estimated_completion_days,
+            "available_hours": round(req.team_size * req.hours_per_day * estimated_completion_days, 2),
+            "planned_hours": atlas_data.get("roadmap_simulator", {}).get("planned_hours", 0) if atlas_data.get("roadmap_simulator") else 0,
+            "risk_level": "Low" if atlas_data.get("roadmap_simulator", {}).get("status") == "ON TRACK" else "High",
         }
         
         if "feasibility" in project_data and project_data["feasibility"]:
@@ -604,7 +778,9 @@ async def generate_atlas(req: AtlasRequest):
 
         # Risks
         risks_list = []
-        if "risk" in project_data and project_data["risk"] and "risks" in project_data["risk"]:
+        if atlas_out.risks:
+            risks_list = [r.model_dump() for r in atlas_out.risks]
+        elif "risk" in project_data and project_data["risk"] and "risks" in project_data["risk"]:
             risks_list = project_data["risk"]["risks"]
         db.save_atlas_risks(atlas_id, risks_list)
 
