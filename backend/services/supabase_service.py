@@ -339,7 +339,10 @@ class SupabaseService:
     ) -> Optional[dict[str, Any]]:
         """Save/upsert an Atlas Project record in Supabase."""
         atlas_uuid = self._get_project_uuid(atlas_id)
-        db_user_id = self._resolve_user_uuid(user_id) if user_id and self.client else (user_id or "spotifysahir007@gmail.com")
+        # Atlas plans are optional to a user (the schema permits NULL). Do not
+        # substitute a legacy email, which can fail UUID/foreign-key validation
+        # and make a queued Atlas job appear to save when its upsert failed.
+        db_user_id = self._resolve_user_uuid(user_id) if user_id and self.client else user_id
         db_source_project_id = self._get_project_uuid(source_project_id)
 
         import datetime

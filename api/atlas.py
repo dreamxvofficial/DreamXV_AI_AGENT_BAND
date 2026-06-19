@@ -611,8 +611,8 @@ def _job_state(atlas: dict) -> dict:
     return tasks.get("atlas_job") or {}
 
 
-def _persist_atlas(atlas: dict) -> None:
-    db.save_atlas_project(
+def _persist_atlas(atlas: dict) -> dict:
+    saved = db.save_atlas_project(
         atlas_id=atlas["id"], user_id=atlas.get("user_id"),
         source_project_id=atlas.get("source_project_id") or "", title=atlas.get("title") or "Untitled Project",
         duration=atlas.get("duration") or "", tools=atlas.get("tools") or "",
@@ -624,6 +624,9 @@ def _persist_atlas(atlas: dict) -> None:
         estimated_completion_days=atlas.get("estimated_completion_days") or 0,
         required_hours_per_day=atlas.get("required_hours_per_day") or 0,
     )
+    if not saved:
+        raise RuntimeError("Atlas could not be persisted. Check the Supabase atlas_projects table and server logs.")
+    return saved
 
 
 def _run_atlas_stage(atlas: dict) -> dict:
@@ -730,8 +733,10 @@ async def generate_atlas(req: AtlasRequest):
             "hours_per_day": req.hours_per_day, "tools": req.tools,
             "project_type": req.project_type or "", "user_prompt": req.user_prompt or "",
         }
+        source_project = db.get_project(req.project_id)
+        source_user_id = (source_project or {}).get("user_id")
         atlas_data = {
-            "id": atlas_id, "user_id": "spotifysahir007@gmail.com", "source_project_id": req.project_id,
+            "id": atlas_id, "user_id": source_user_id, "source_project_id": req.project_id,
             "title": title, "duration": req.duration, "tools": req.tools,
             "roadmap": [], "structure": [], "flow_map": [], "dependency_map": [],
             "tasks": {"atlas_job": state}, "generated_files": {}, "zip_path": None,
