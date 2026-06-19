@@ -1,4 +1,14 @@
-# 🚀 DreamXV AI Studio
+<p align="center">
+  <img src="assets/logo/logo.jpg" width="250">
+</p>
+
+<h1 align="center">DreamXV AI Studio</h1>
+
+<p align="center">
+  Universal Multi-Agent AI Creation Platform
+</p>
+
+ 🚀 DreamXV AI Studio
 
 ### Universal Multi-Agent AI Creation Platform
 

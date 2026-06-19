@@ -6,6 +6,8 @@ Generates AI-powered development roadmaps, project structures, and production wo
 
 from __future__ import annotations
 
+import re
+
 from backend.models.output_models import AtlasOutput
 from backend.services.llm_service import LLMService
 from backend.utils.helpers import load_prompt, build_chat_messages
@@ -46,6 +48,9 @@ class AtlasAgent:
         """
         logger.info("Atlas Agent starting production plan generation...")
 
+        duration_days = self._duration_days(duration)
+        available_hours = round(team_size * hours_per_day * duration_days, 2)
+
         # Build context from project data
         story = project_data.get("story") or {}
         world = project_data.get("world") or {}
@@ -75,6 +80,9 @@ class AtlasAgent:
             f"USER SPECIFIED TOOLS & TECHNOLOGIES: {tools}\n"
             f"TEAM SIZE: {team_size} person(s)\n"
             f"HOURS PER DAY PER PERSON: {hours_per_day} hours\n\n"
+            f"CALENDAR DAYS: {duration_days}\n"
+            f"AVAILABLE PRODUCTION HOURS: {team_size} * {hours_per_day} * {duration_days} = {available_hours}\n"
+            f"TARGET: Playable MVP Prototype\n\n"
             f"PROJECT SOURCE DETAILS:\n{context}\n"
         )
 
@@ -91,6 +99,7 @@ class AtlasAgent:
 
         # Ensure project_id is set
         atlas_output.project_id = project_data.get("project_id", "")
+        self._validate_plan(atlas_output, available_hours)
 
         logger.info(
             f"Atlas Agent completed roadmap generation with "
@@ -99,3 +108,43 @@ class AtlasAgent:
         )
 
         return atlas_output
+
+    @staticmethod
+    def _duration_days(duration: str) -> int:
+        match = re.search(r"(\d+)\s*(day|week|month|year)s?", duration.lower())
+        if not match:
+            return 1
+        value, unit = int(match.group(1)), match.group(2)
+        return value * {"day": 1, "week": 7, "month": 30, "year": 365}[unit]
+
+    @staticmethod
+    def _validate_plan(output: AtlasOutput, available_hours: float) -> None:
+        """Normalize model arithmetic and reject dangling/forward dependencies."""
+        tasks = output.task_breakdown.detailed_tasks
+        seen: set[str] = set()
+        for index, task in enumerate(tasks, 1):
+            task.id = f"TSK-{index:03d}"
+            task.dependencies = [dep for dep in task.dependencies if dep in seen]
+            seen.add(task.id)
+
+        planned = round(sum(task.hours for task in tasks), 2)
+        if planned > available_hours and planned:
+            scale = available_hours / planned
+            for task in tasks:
+                task.hours = max(0.1, round(task.hours * scale, 2))
+            # Rounding can drift above capacity; take it from the largest task.
+            planned = round(sum(task.hours for task in tasks), 2)
+            if planned > available_hours:
+                largest = max(tasks, key=lambda item: item.hours)
+                largest.hours = round(largest.hours - (planned - available_hours), 2)
+        planned = round(sum(task.hours for task in tasks), 2)
+
+        if output.roadmap_simulator is not None:
+            output.roadmap_simulator.available_hours = available_hours
+            output.roadmap_simulator.planned_hours = planned
+            output.roadmap_simulator.status = "ON TRACK" if planned <= available_hours else "AT RISK"
+            buffer = round(available_hours - planned, 2)
+            output.roadmap_simulator.explanation = (
+                f"Plan uses {planned} of {available_hours} available hours; "
+                f"{abs(buffer)} hours {'remain as buffer' if buffer >= 0 else 'exceed capacity'}."
+            )

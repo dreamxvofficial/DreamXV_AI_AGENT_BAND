@@ -384,6 +384,46 @@ class AtlasPhase(BaseModel):
     """A single roadmap phase containing a name and a list of tasks."""
     name: str = Field(..., description="Phase name (e.g., Phase 1: Project Setup)")
     tasks: list[str] = Field(..., description="Tasks associated with this phase")
+    objectives: list[str] = Field(default_factory=list)
+    hours: float = Field(default=0, ge=0)
+    deliverables: list[str] = Field(default_factory=list)
+    milestones: list[str] = Field(default_factory=list)
+
+
+class AtlasDetailedTask(BaseModel):
+    id: str
+    name: str
+    hours: float = Field(..., gt=0)
+    priority: str
+    dependencies: list[str] = Field(default_factory=list)
+    status: str = "Not Started"
+    owner: str
+    critical_path: bool = False
+
+
+class AtlasRisk(BaseModel):
+    id: str
+    title: str
+    blocked_task: str
+    blocked_by: list[str] = Field(default_factory=list)
+    risk: str
+    impact: str
+    probability: str
+    mitigation: str
+
+
+class AtlasArtConcept(BaseModel):
+    title: str
+    prompt: str
+    category: str
+    purpose: str
+
+
+class AtlasSimulation(BaseModel):
+    available_hours: float = Field(..., ge=0)
+    planned_hours: float = Field(..., ge=0)
+    status: str
+    explanation: str
 
 
 class AtlasTaskBreakdown(BaseModel):
@@ -391,6 +431,7 @@ class AtlasTaskBreakdown(BaseModel):
     critical_tasks: list[str] = Field(..., description="High-priority critical path tasks")
     optional_tasks: list[str] = Field(..., description="Optional features or nice-to-haves")
     future_expansion: list[str] = Field(..., description="Long-term expansion or DLC ideas")
+    detailed_tasks: list[AtlasDetailedTask] = Field(default_factory=list)
     tools_guide: Optional[dict[str, str]] = Field(
         default=None,
         description="A dictionary mapping each tool/technology (from the user's tools list) to a detailed guide on how to integrate and use it in this project."
@@ -405,4 +446,7 @@ class AtlasOutput(BaseModel):
     production_flow_map: list[str] = Field(..., description="Ordered steps of production flow workflow")
     dependency_map: list[str] = Field(..., description="Code/asset dependency mapping")
     task_breakdown: AtlasTaskBreakdown = Field(..., description="Categorized tasks breakdown")
+    risks: list[AtlasRisk] = Field(default_factory=list)
+    art_gallery: list[AtlasArtConcept] = Field(default_factory=list)
+    roadmap_simulator: Optional[AtlasSimulation] = None
 
