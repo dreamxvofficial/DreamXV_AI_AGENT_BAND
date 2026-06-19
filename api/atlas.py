@@ -1124,77 +1124,160 @@ async def get_atlas(
     source_project_id: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None)
 ):
-    if job_id:
-        atlas = db.get_atlas_project(job_id)
-        if not atlas:
-            return {"success": False, "error": "Atlas job not found"}
-        atlas = _run_atlas_stage(atlas)
-        state = _job_state(atlas)
-        return {
-            "success": state.get("status") != "failed",
-            "job": {
-                "id": job_id,
-                "status": state.get("status", "queued"),
-                "completed_sections": state.get("completed_sections", []),
-                "total_sections": len(ATLAS_STAGES),
-                "error": state.get("error"),
-            },
-            "atlas": _atlas_view(atlas),
-        }
+    try:
 
-    # If requesting details of specific Atlas
-    if atlas_id:
-      job = (
-          atlas.get("task_breakdown", {})
-              .get("atlas_job", {})
+        # =====================================
+        # JOB STATUS
+        # =====================================
+        if job_id:
+            atlas = db.get_atlas_project(job_id)
+
+            if not atlas:
+                return {
+                    "success": False,
+                    "error": "Atlas job not found"
+                }
+
+            atlas = _run_atlas_stage(atlas)
+            state = _job_state(atlas)
+
+            return {
+                "success": state.get("status") != "failed",
+                "job": {
+                    "id": job_id,
+                    "status": state.get("status", "queued"),
+                    "completed_sections": state.get(
+                        "completed_sections",
+                        []
+                    ),
+                    "total_sections": len(ATLAS_STAGES),
+                    "error": state.get("error")
+                },
+                "atlas": _atlas_view(atlas)
+            }
+
+        # =====================================
+        # SINGLE ATLAS PLAN
+        # =====================================
+        if atlas_id:
+
+            atlas = db.get_atlas_project(atlas_id)
+
+            if not atlas:
+                return {
+                    "success": False,
+                    "error": "Atlas plan not found"
+                }
+
+            job = (
+                atlas.get("task_breakdown", {})
+                     .get("atlas_job", {})
             )
 
-    return {
-        "success": True,
-        "atlas": atlas,
-        "job": {
-            "status": job.get(
-                 "status",
-                 "completed"
-        ),
-         "completed_sections": job.get(
-            "completed_sections",
-            []
-        )
-    }
-}
-    return {
-            "success": True,
-            "plans": plans
-        }
-        
-    # If requesting all Atlas plans for a user
-    if user_id:
-        plans = db.list_atlas_projects(user_id=user_id)
-        for p in plans:
-            if isinstance(p, dict):
-                p["project_structure"] = p.get("structure") or []
-                p["production_flow_map"] = p.get("flow_map") or []
-                p["task_breakdown"] = p.get("tasks") or {}
-                
-                # Inject feasibility object
-                tasks_data = p.get("tasks") or {}
-                team_size = tasks_data.get("team_size") or 1
-                hours_per_day = tasks_data.get("hours_per_day") or 8.0
-                completion_days = p.get("estimated_completion_days") or parse_duration_to_days(p.get("duration") or "")
-                p["feasibility"] = {
-                    "required_team_size": team_size,
-                    "required_hours_per_day": hours_per_day,
-                    "estimated_completion_days": completion_days
+            return {
+                "success": True,
+                "atlas": atlas,
+                "job": {
+                    "status": job.get(
+                        "status",
+                        "completed"
+                    ),
+                    "completed_sections": job.get(
+                        "completed_sections",
+                        []
+                    )
                 }
+            }
+
+        # =====================================
+        # PROJECT -> ATLAS
+        # =====================================
+        if source_project_id:
+
+            plans = db.list_atlas_projects()
+
+            matched = [
+                p for p in plans
+                if p.get("source_project_id") == source_project_id
+            ]
+
+            return {
+                "success": True,
+                "plans": matched
+            }
+
+        # =====================================
+        # USER ATLAS LIST
+        # =====================================
+        if user_id:
+
+            plans = db.list_atlas_projects(
+                user_id=user_id
+            )
+
+            for p in plans:
+
+                if isinstance(p, dict):
+
+                    p["project_structure"] = (
+                        p.get("structure") or []
+                    )
+
+                    p["production_flow_map"] = (
+                        p.get("flow_map") or []
+                    )
+
+                    p["task_breakdown"] = (
+                        p.get("tasks") or {}
+                    )
+
+                    tasks_data = (
+                        p.get("tasks") or {}
+                    )
+
+                    team_size = (
+                        tasks_data.get("team_size") or 1
+                    )
+
+                    hours_per_day = (
+                        tasks_data.get("hours_per_day") or 8
+                    )
+
+                    completion_days = (
+                        p.get("estimated_completion_days")
+                        or parse_duration_to_days(
+                            p.get("duration") or ""
+                        )
+                    )
+
+                    p["feasibility"] = {
+                        "required_team_size": team_size,
+                        "required_hours_per_day": hours_per_day,
+                        "estimated_completion_days": completion_days
+                    }
+
+            return {
+                "success": True,
+                "plans": plans
+            }
+
+        # =====================================
+        # DEFAULT
+        # =====================================
         return {
-            "success": True,
-            "plans": plans
+            "status": "ready",
+            "platform": "DreamXV AI Studio",
+            "feature": "DreamXV Atlas",
+            "description": "Generate AI-powered development roadmaps, project structures, and production workflows."
         }
 
-    return {
-        "status": "ready",
-        "platform": "DreamXV AI Studio",
-        "feature": "DreamXV Atlas",
-        "description": "Generate AI-powered development roadmaps, project structures, and production workflows for your projects."
-    }
+    except Exception as e:
+        import traceback
+
+        print("ATLAS ERROR:")
+        print(traceback.format_exc())
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
