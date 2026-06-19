@@ -778,6 +778,8 @@ def _run_atlas_stage(atlas: dict) -> dict:
         _persist_atlas(atlas)
 
         return atlas
+
+@app.post("/api/atlas")
 async def generate_atlas(req: AtlasRequest):
     try:
         # Queue only. Every section is generated and persisted by a later poll,
