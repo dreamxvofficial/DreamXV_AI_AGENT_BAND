@@ -732,9 +732,11 @@ class BandManager:
             
         generated_count = 0
         image_urls = []
+        image_errors = []
         
         for idx, item in enumerate(prompts):
             image_url = ""
+            image_error = ""
             logger.info(f"Generating image {idx+1}/6")
             
             # Retry loop: 3 attempts
@@ -768,6 +770,7 @@ class BandManager:
                         logger.info(f"[{project_id}] Image {idx+1}/6 generated successfully on attempt {attempt}.")
                         break
                 except Exception as img_exc:
+                    image_error = str(img_exc)
                     logger.warning(f"[{project_id}] Image {idx+1}/6 attempt {attempt} failed: {img_exc}")
                     if "ALL_TIME_LIMIT_EXCEEDED" in str(img_exc) or "API key quota exceeded" in str(img_exc):
                         logger.error(f"[{project_id}] Image provider quota exhausted; skipping further retries.")
@@ -787,6 +790,7 @@ class BandManager:
             if image_url:
                 generated_count += 1
             image_urls.append(image_url)
+            image_errors.append(image_error)
             logger.info(f"Image URL: {image_url}")
             logger.info(f"Saved {len(image_urls)} images")
             db.update_project_art_status(project_id, "generating", generated_count, 6)
@@ -808,6 +812,8 @@ class BandManager:
                     project_json["art"]["image_paths"] = image_urls
                     project_json["images"] = image_urls
                     project_json["art"]["prompts"] = [item.prompt for item in prompts]
+                    project_json["art"]["image_errors"] = image_errors
+                    project_json["image_errors"] = image_errors
                     project_json["art_gallery"] = image_urls
                     
                     db.save_project(

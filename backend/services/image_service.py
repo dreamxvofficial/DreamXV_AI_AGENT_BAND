@@ -9,6 +9,7 @@ Images are saved to outputs/images/ (or returned inline on Vercel).
 from __future__ import annotations
 
 import base64
+import json
 import os
 import struct
 from pathlib import Path
@@ -17,6 +18,7 @@ from typing import Optional
 import httpx
 
 from backend.config import get_settings
+from backend.services.provider_capabilities import validate_provider_capability
 from backend.utils.helpers import sanitize_filename
 from backend.utils.logger import get_logger
 
@@ -24,6 +26,15 @@ logger = get_logger("image_service")
 
 # Maximum images per project (enforced)
 MAX_IMAGES_PER_PROJECT = 10
+
+
+def mask_api_key(value: str) -> str:
+    """Return a deployment-safe key fingerprint for log comparison."""
+    if not value:
+        return "<missing>"
+    if len(value) <= 12:
+        return f"<set:length={len(value)}>"
+    return f"{value[:6]}...{value[-6:]} (length={len(value)})"
 
 
 class ImageService:
@@ -34,9 +45,17 @@ class ImageService:
         self._api_key = settings.aiml_api_key
         self._base_url = settings.aiml_base_url
         self._model = settings.aiml_image_model
-        self._featherless_api_key = settings.featherless_api_key
-        self._featherless_base_url = settings.featherless_base_url
         self._images_dir = settings.images_dir
+        self._endpoint = f"{self._base_url.rstrip('/')}/images/generations/"
+        self._api_key_source = os.getenv("AIML_API_KEY_SOURCE", "<missing>")
+
+        logger.info(
+            "IMAGE_RUNTIME_CONFIG: "
+            f"provider=AIMLAPI endpoint={self._endpoint} model={self._model} "
+            f"api_key={mask_api_key(self._api_key)} key_source={self._api_key_source} "
+            f"vercel_env={os.getenv('VERCEL_ENV', '<local>')} "
+            f"deployment_sha={os.getenv('VERCEL_GIT_COMMIT_SHA', '<unknown>')}"
+        )
 
         # Ensure output directory exists (skip on Vercel)
         if not os.getenv("VERCEL"):
@@ -52,6 +71,7 @@ class ImageService:
         project_id: str,
         image_type: str = "concept",
         filename: Optional[str] = None,
+        provider_type: str = "aimlapi",
     ) -> str:
         """
         Generate an image from a text prompt and save it to disk (or return base64 on Vercel).
@@ -65,6 +85,15 @@ class ImageService:
         Returns:
             Absolute file path of the saved image, or base64 data URL.
         """
+        provider = validate_provider_capability(provider_type, "image")
+        if provider != "aimlapi":
+            # Defensive guard: currently AIMLAPI is the sole image-capable provider.
+            raise ValueError(f"Image provider '{provider}' is not routed by ImageService.")
+        if not self._api_key or self._api_key == "your_key_here" or self._api_key.startswith("your_"):
+            raise RuntimeError("AIMLAPI image generation is not configured: missing API key.")
+        if not self._base_url or not self._model:
+            raise RuntimeError("AIMLAPI image generation is not configured: missing base URL or image model.")
+
         existing = []
         output_path = None
         
@@ -97,80 +126,49 @@ class ImageService:
         logger.info(f"Generating image: type={image_type}, model={self._model}")
         logger.debug(f"Image prompt: {prompt[:100]}...")
 
-        # Call image generation endpoint (Featherless AI first, then fallback to AIMLAPI)
+        # AIMLAPI is the only image provider. Featherless is text-only.
         image_generated = False
         img_bytes = None
         provider_errors: list[str] = []
-        
-        # 1. Try Featherless AI if supported/available
-        if self._featherless_api_key and self._featherless_api_key != "your_key_here" and not self._featherless_api_key.startswith("your_"):
-            try:
-                logger.info("IMAGE_PROVIDER: Featherless AI")
-                logger.info("MODEL_NAME: flux/schnell")
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(
-                        f"{self._featherless_base_url}/images/generations",
-                        headers={
-                            "Authorization": f"Bearer {self._featherless_api_key}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "model": "flux/schnell",
-                            "prompt": prompt,
-                            "n": 1,
-                            "response_format": "b64_json",
-                        },
-                    )
-                    logger.info(f"HTTP_STATUS: {response.status_code}")
-                    if response.status_code == 200:
-                        data = response.json()
-                        if "data" in data and len(data["data"]) > 0:
-                            image_data = data["data"][0]
-                            if "b64_json" in image_data:
-                                img_bytes = base64.b64decode(image_data["b64_json"])
-                                logger.info(f"Image generated via Featherless AI")
-                                image_generated = True
-                            elif "url" in image_data:
-                                async with httpx.AsyncClient(timeout=30.0) as dl_client:
-                                    img_response = await dl_client.get(image_data["url"])
-                                    img_response.raise_for_status()
-                                    img_bytes = img_response.content
-                                    logger.info(f"Image generated via Featherless AI (URL)")
-                                    image_generated = True
-                    else:
-                        message = f"Featherless returned HTTP {response.status_code}: {response.text[:300]}"
-                        provider_errors.append(message)
-                        logger.warning(f"ERROR_MESSAGE: {message}")
-            except Exception as f_exc:
-                provider_errors.append(f"Featherless: {f_exc}")
-                logger.info(f"ERROR_MESSAGE: Featherless image generation failed: {f_exc}")
 
-        # 2. Fallback to AIMLAPI
         if not image_generated:
             try:
+                request_body = {
+                    "model": self._model,
+                    "prompt": prompt,
+                    "n": 1,
+                    "response_format": "b64_json",
+                }
                 logger.info("IMAGE_PROVIDER: AIMLAPI")
+                logger.info(f"IMAGE_ENDPOINT: {self._endpoint}")
                 logger.info(f"MODEL_NAME: {self._model}")
+                logger.info(f"API_KEY_FINGERPRINT: {mask_api_key(self._api_key)}")
+                logger.info(f"IMAGE_REQUEST_BODY: {json.dumps(request_body, ensure_ascii=False)}")
                 async with httpx.AsyncClient(timeout=120.0) as client:
                     response = await client.post(
-                        f"{self._base_url}/images/generations",
+                        self._endpoint,
                         headers={
                             "Authorization": f"Bearer {self._api_key}",
                             "Content-Type": "application/json",
                         },
-                        json={
-                            "model": self._model,
-                            "prompt": prompt,
-                            "n": 1,
-                            "response_format": "b64_json",
-                        },
+                        json=request_body,
                     )
                     logger.info(f"HTTP_STATUS: {response.status_code}")
                     if response.status_code != 200:
-                        message = f"AIMLAPI returned HTTP {response.status_code}: {response.text[:500]}"
+                        logger.warning(f"IMAGE_RESPONSE_BODY: {response.text}")
+                        message = f"AIMLAPI returned HTTP {response.status_code}: {response.text}"
                         logger.warning(f"ERROR_MESSAGE: {message}")
                         raise RuntimeError(message)
 
                 data = response.json()
+                response_fields = [
+                    sorted(item.keys()) for item in data.get("data", [])
+                    if isinstance(item, dict)
+                ]
+                logger.info(
+                    "IMAGE_RESPONSE_BODY: "
+                    f"<success payload omitted; data_fields={response_fields}>"
+                )
 
                 # Extract and save image
                 if "data" in data and len(data["data"]) > 0:

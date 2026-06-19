@@ -14,6 +14,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from backend.config import get_settings
+from backend.services.provider_capabilities import validate_provider_capability
 from backend.utils.logger import get_logger
 
 logger = get_logger("featherless")
@@ -55,6 +56,7 @@ class FeatherlessService:
             The assistant's response text.
         """
         logger.info(f"Featherless generate -> model={model or self._default_model}")
+        validate_provider_capability("featherless", "text")
 
         response = await self._client.chat.completions.create(
             model=model or self._default_model,

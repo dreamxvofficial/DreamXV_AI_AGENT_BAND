@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.config import get_settings
+from backend.services.image_service import mask_api_key
 
 app = FastAPI()
 
@@ -61,7 +62,7 @@ async def get_config_status():
             "supabase_anon_key": settings.supabase_anon_key if settings.supabase_anon_key != "your_supabase_anon_key_here" else "",
             "supabase_service_role_key": settings.supabase_service_role_key if settings.supabase_service_role_key != "your_supabase_service_role_key_here" else "",
             "featherless_api_key": settings.featherless_api_key if settings.featherless_api_key != "your_key_here" else "",
-            "aiml_api_key": settings.aiml_api_key if settings.aiml_api_key != "your_key_here" else "",
+            "aiml_api_key": mask_api_key(settings.aiml_api_key) if settings.aiml_api_key != "your_key_here" else "",
             "band_api_key": settings.band_api_key if settings.band_api_key != "your_key_here" else ""
         }
     }
@@ -70,6 +71,15 @@ async def get_config_status():
 @app.post("/setup")
 async def save_config_setup(req: SetupRequest):
     try:
+        if os.getenv("VERCEL"):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Vercel environment variables cannot be persisted by this endpoint. "
+                    "Set AIML_API_KEY in Vercel Project Settings for the correct environment, "
+                    "then redeploy."
+                ),
+            )
         project_root = Path(__file__).resolve().parent.parent
         env_path = project_root / ".env"
         
@@ -91,7 +101,10 @@ async def save_config_setup(req: SetupRequest):
         env_dict["SUPABASE_ANON_KEY"] = req.supabase_anon_key
         env_dict["SUPABASE_SERVICE_ROLE_KEY"] = req.supabase_service_role_key
         env_dict["FEATHERLESS_API_KEY"] = req.featherless_api_key
-        env_dict["AIMLAPI_API_KEY"] = req.aiml_api_key
+        # Settings.aiml_api_key maps to AIML_API_KEY. The legacy spelling can
+        # otherwise leave an older deployment key active.
+        env_dict["AIML_API_KEY"] = req.aiml_api_key
+        env_dict.pop("AIMLAPI_API_KEY", None)
         env_dict["BAND_API_KEY"] = req.band_api_key
         
         # Write back to .env
@@ -111,6 +124,8 @@ async def save_config_setup(req: SetupRequest):
             "success": True,
             "message": "Configuration updated successfully and .env written."
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,

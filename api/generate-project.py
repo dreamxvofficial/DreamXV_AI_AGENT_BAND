@@ -38,17 +38,26 @@ REQUIRED_ENV_VARS = [
     "FEATHERLESS_MODEL",
     "AIML_API_KEY",
     "AIML_BASE_URL",
-    "AIML_MODEL"
+    "AIML_MODEL",
+    "AIML_IMAGE_MODEL"
 ]
 
 
 def run_startup_diagnostics():
+    from backend.services.image_service import mask_api_key
+
     print("--- STARTUP DIAGNOSTICS ---")
     for var in REQUIRED_ENV_VARS:
-        if os.getenv(var):
-            print(f"  ✓ {var} exists")
+        value = os.getenv(var)
+        if value:
+            if var.endswith("_API_KEY"):
+                print(f"  {var}={mask_api_key(value)}")
+            else:
+                print(f"  {var}={value}")
         else:
-            print(f"  ✗ {var} is MISSING!")
+            print(f"  {var}=<missing>")
+    print(f"  VERCEL_ENV={os.getenv('VERCEL_ENV', '<local>')}")
+    print(f"  VERCEL_GIT_COMMIT_SHA={os.getenv('VERCEL_GIT_COMMIT_SHA', '<unknown>')}")
     print("---------------------------")
 
 

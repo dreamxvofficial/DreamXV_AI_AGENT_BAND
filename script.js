@@ -1882,6 +1882,7 @@ function renderGallery(project) {
     galleryEl.innerHTML = "";
 
     const imagesList = project.images_list || [];
+    const imageErrors = project.image_errors || (project.art && project.art.image_errors) || [];
     const totalSlots = 6;
     const status = project.art_generation_status || "pending";
 
@@ -1895,6 +1896,7 @@ function renderGallery(project) {
         card.style.border = "1px solid rgba(26, 48, 72, 0.5)";
         card.style.background = "var(--cosmos)";
         card.style.transition = "transform 0.2s, box-shadow 0.2s";
+        const providerError = imageErrors[i] || "Image generation failed without a provider error.";
 
         if (imgObj) {
             const path = imgObj.image_url;
@@ -1913,7 +1915,7 @@ function renderGallery(project) {
                     <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(26, 48, 72, 0.2);">
                         <div style="text-align: center; padding: 12px; color: rgba(240, 232, 208, 0.5);">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 8px auto; opacity: 0.5;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <div style="font-size: 11px; font-family: var(--font-code);">Image Failed</div>
+                            <div style="font-size: 11px; font-family: var(--font-code); color: #fca5a5; overflow-wrap: anywhere;">${escapeHtml(providerError)}</div>
                         </div>
                         <div class="category-badge" style="position: absolute; top: 8px; left: 8px; background: rgba(239, 68, 68, 0.85); color: #fff; border: 1px solid #ef4444; font-family: var(--font-code); font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${category}</div>
                     </div>
@@ -2001,7 +2003,7 @@ function renderGallery(project) {
                     <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(26, 48, 72, 0.2);">
                         <div style="text-align: center; padding: 12px; color: rgba(240, 232, 208, 0.5);">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 8px auto; opacity: 0.5;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <div style="font-size: 11px; font-family: var(--font-code);">Image Failed</div>
+                            <div style="font-size: 11px; font-family: var(--font-code); color: #fca5a5; overflow-wrap: anywhere;">${escapeHtml(providerError)}</div>
                         </div>
                     </div>
                     <div class="card-footer" style="padding: 8px; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4); text-align: center; font-size: 11px; color: rgba(240, 232, 208, 0.3); font-family: var(--font-code);">

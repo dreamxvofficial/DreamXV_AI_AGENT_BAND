@@ -25,6 +25,14 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _ENV_PATH = _PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=_ENV_PATH)
 
+# Backward compatibility for the old setup-screen spelling. The canonical
+# deployment variable is AIML_API_KEY and always wins when both are present.
+if os.getenv("AIML_API_KEY"):
+    os.environ.setdefault("AIML_API_KEY_SOURCE", "AIML_API_KEY")
+elif os.getenv("AIMLAPI_API_KEY"):
+    os.environ["AIML_API_KEY"] = os.environ["AIMLAPI_API_KEY"]
+    os.environ["AIML_API_KEY_SOURCE"] = "AIMLAPI_API_KEY (legacy)"
+
 
 class Settings(BaseSettings):
     """
