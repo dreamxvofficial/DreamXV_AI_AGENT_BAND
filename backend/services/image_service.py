@@ -230,73 +230,92 @@ class ImageService:
         return False
 
     async def generate_project_images(
-    self,
-    prompts: list[str],
-    *,
-    project_id: str,
-    image_types: Optional[list[str]] = None,
-) -> list[str]:
-    """
-    Generate multiple images for a project and update
-    project art generation status correctly.
-    """
+        self,
+        prompts: list[str],
+        *,
+        project_id: str,
+        image_types: Optional[list[str]] = None,
+    ) -> list[str]:
 
-    import asyncio
+        import asyncio
 
-    from backend.services.supabase_service import SupabaseService
+        from backend.services.supabase_service import SupabaseService
 
-    db = SupabaseService()
+        db = SupabaseService()
 
-    if image_types is None:
-        image_types = ["concept"] * len(prompts)
+        if image_types is None:
+            image_types = ["concept"] * len(prompts)
 
-    prompts = prompts[:MAX_IMAGES_PER_PROJECT]
-    image_types = image_types[:MAX_IMAGES_PER_PROJECT]
+        prompts = prompts[:MAX_IMAGES_PER_PROJECT]
+        image_types = image_types[:MAX_IMAGES_PER_PROJECT]
 
-    total = len(prompts)
+        total = len(prompts)
 
-    try:
-
-        db.update_project_art_status(
-            project_id,
-            "generating",
-            0,
-            total,
-        )
-
-        tasks = []
-
-        for prompt, img_type in zip(prompts, image_types):
-            tasks.append(
-                self.generate_image(
-                    prompt,
-                    project_id=project_id,
-                    image_type=img_type,
-                )
+        try:
+            db.update_project_art_status(
+                project_id,
+                "generating",
+                0,
+                total,
             )
 
-        results = await asyncio.gather(
-            *tasks,
-            return_exceptions=True,
-        )
+            tasks = []
 
-        generated = 0
-        paths: list[str] = []
-
-        for res, img_type in zip(results, image_types):
-
-            if isinstance(res, Exception):
-                logger.error(
-                    f"Image generation failed for "
-                    f"type={img_type}: {res}"
+            for prompt, img_type in zip(prompts, image_types):
+                tasks.append(
+                    self.generate_image(
+                        prompt,
+                        project_id=project_id,
+                        image_type=img_type,
+                    )
                 )
-                continue
 
-            if res:
-                paths.append(res)
-                generated += 1
+            results = await asyncio.gather(
+                *tasks,
+                return_exceptions=True,
+            )
 
-        if generated == 0:
+            generated = 0
+            paths: list[str] = []
+
+            for res, img_type in zip(results, image_types):
+
+                if isinstance(res, Exception):
+                    logger.error(
+                        f"Image generation failed for type={img_type}: {res}"
+                    )
+                    continue
+
+                if res:
+                    paths.append(res)
+                    generated += 1
+
+            if generated == 0:
+                db.update_project_art_status(
+                    project_id,
+                    "failed",
+                    0,
+                    total,
+                )
+
+                raise RuntimeError(
+                    "All image generations failed."
+                )
+
+            db.update_project_art_status(
+                project_id,
+                "completed",
+                generated,
+                total,
+            )
+
+            return paths
+
+        except Exception as exc:
+
+            logger.exception(
+                f"Project image generation failed: {exc}"
+            )
 
             db.update_project_art_status(
                 project_id,
@@ -305,30 +324,4 @@ class ImageService:
                 total,
             )
 
-            raise RuntimeError(
-                "All image generations failed."
-            )
-
-        db.update_project_art_status(
-            project_id,
-            "completed",
-            generated,
-            total,
-        )
-
-        return paths
-
-    except Exception as exc:
-
-        logger.exception(
-            f"Project image generation failed: {exc}"
-        )
-
-        db.update_project_art_status(
-            project_id,
-            "failed",
-            0,
-            total,
-        )
-
-        raise
+            raise
