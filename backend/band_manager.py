@@ -576,10 +576,14 @@ class BandManager:
                 project_json=project_json
             )
             
-            # Start background async image generation (await on Vercel to prevent process freeze)
+            # Do not await image generation in a Vercel request. A project has six
+            # images and each provider call can take up to 120 seconds; waiting for
+            # them turns an otherwise short text-generation request into a 504.
+            # Persist the project as pending so images can be generated/retried by
+            # their dedicated endpoint without blocking project creation.
             if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-                logger.info(f"[{project.project_id}] Running art generation synchronously on Vercel...")
-                await self.generate_project_images_async(project.project_id, project)
+                logger.info(f"[{project.project_id}] Deferring art generation on serverless runtime.")
+                db.update_project_art_status(project.project_id, "pending", 0, 6)
             else:
                 logger.info(f"[{project.project_id}] Launching background art generation task...")
                 asyncio.create_task(self.generate_project_images_async(project.project_id, project))

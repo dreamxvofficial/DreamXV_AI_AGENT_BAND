@@ -295,14 +295,16 @@ async def generate_project(request: GenerateProjectRequest):
 
         manager = get_manager()
 
-        # Run project generation with overall timeout safety net
+        # Keep the request below Vercel's 120-second invocation ceiling. Image
+        # generation is explicitly deferred by BandManager on serverless.
+        request_timeout = 90.0 if (os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME")) else 600.0
         try:
             project = await asyncio.wait_for(
                 manager.generate_project(request.prompt, request.user_id),
-                timeout=600.0  # 10 min outer safety net — inner agents have their own timeouts
+                timeout=request_timeout,
             )
         except asyncio.TimeoutError:
-            err_msg = "Project generation timed out after 600 seconds."
+            err_msg = f"Project generation timed out after {int(request_timeout)} seconds."
             logger.error(err_msg)
             return JSONResponse(
                 status_code=504,
