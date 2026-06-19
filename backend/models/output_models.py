@@ -388,14 +388,19 @@ class AtlasPhase(BaseModel):
     hours: float = Field(default=0, ge=0)
     deliverables: list[str] = Field(default_factory=list)
     milestones: list[str] = Field(default_factory=list)
+    period: int = 0
+    period_unit: str = ""
+    phase: str = ""
 
 
 class AtlasDetailedTask(BaseModel):
     id: str
+    title: str = ""
     name: str
     hours: float = Field(..., gt=0)
     priority: str
     dependencies: list[str] = Field(default_factory=list)
+    dependency: str = ""
     status: str = "Not Started"
     owner: str
     critical_path: bool = False
@@ -410,6 +415,9 @@ class AtlasRisk(BaseModel):
     impact: str
     probability: str
     mitigation: str
+    category: str = ""
+    description: str = ""
+    severity: str = ""
 
 
 class AtlasArtConcept(BaseModel):
@@ -424,6 +432,7 @@ class AtlasSimulation(BaseModel):
     planned_hours: float = Field(..., ge=0)
     status: str
     explanation: str
+    completion_probability: float = Field(default=0, ge=0, le=100)
 
 
 class AtlasTaskBreakdown(BaseModel):

@@ -944,6 +944,29 @@
                     </select>
                 </div>
 
+                <div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-4); text-align: left;">
+                    <div style="flex: 2;">
+                        <label for="atlas-project-title-input" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">PROJECT TITLE</label>
+                        <input type="text" id="atlas-project-title-input" required style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="atlas-project-type-input" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">PROJECT TYPE</label>
+                        <select id="atlas-project-type-input" style="width: 100%; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;">
+                            <option value="">Auto Detect</option>
+                            <option value="game">Game</option>
+                            <option value="saas">SaaS</option>
+                            <option value="mobile">Mobile App</option>
+                            <option value="web">Web App</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: var(--space-4); text-align: left;">
+                    <label for="atlas-user-prompt-input" style="font-family: var(--font-code); font-size: 11px; color: var(--earth-teal); display: block; margin-bottom: 6px; letter-spacing: 0.1em;">PROJECT PROMPT</label>
+                    <textarea id="atlas-user-prompt-input" rows="3" placeholder="Describe the intended product, users, core experience, and release target." style="width: 100%; resize: vertical; background: var(--void-navy); border: 1px solid rgba(26, 48, 72, 0.8); border-radius: 6px; padding: 10px 14px; color: var(--starlight); font-size: 14px; outline: none; box-sizing: border-box;"></textarea>
+                </div>
+
                 <!-- Hidden old duration input to prevent query selector failures -->
                 <input type="hidden" id="atlas-duration-input">
 

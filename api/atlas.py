@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -16,12 +16,11 @@ import base64
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.services.supabase_service import SupabaseService
-from backend.services.llm_service import LLMService
-from backend.agents.atlas_agent import AtlasAgent
 from backend.models.output_models import (
     AtlasArtConcept, AtlasDetailedTask, AtlasOutput, AtlasPhase, AtlasRisk,
     AtlasSimulation, AtlasTaskBreakdown,
 )
+from backend.services.atlas_planning_service import build_atlas_plan, parse_duration
 
 app = FastAPI()
 
@@ -34,14 +33,21 @@ app.add_middleware(
 )
 
 db = SupabaseService()
-llm = LLMService()
+
+ATLAS_STAGES = [
+    "roadmap", "tasks", "structure", "flow_map", "risk_dashboard",
+    "simulation", "tools_integration", "export",
+]
 
 class AtlasRequest(BaseModel):
     project_id: str
+    project_title: Optional[str] = None
     duration: str
     tools: str
     team_size: Optional[int] = 1
     hours_per_day: Optional[float] = 8.0
+    project_type: Optional[str] = None
+    user_prompt: Optional[str] = None
     atlas_id: Optional[str] = None  # Optional parameter to allow regeneration in-place
 
 class DuplicateRequest(BaseModel):
@@ -433,23 +439,11 @@ def create_atlas_zip_on_disk(atlas_id: str, atlas_data: dict, images: list[dict]
     return zip_path
 
 def parse_duration_to_days(duration: str) -> int:
-    """Parse a duration string like '50 days', '3 weeks', '1 years' to approximate number of days."""
+    """Parse a supported duration into approximate calendar days."""
     try:
-        parts = duration.lower().strip().split()
-        if len(parts) >= 2:
-            val = int(parts[0])
-            unit = parts[1]
-            if "day" in unit:
-                return val
-            elif "week" in unit:
-                return val * 7
-            elif "month" in unit:
-                return val * 30
-            elif "year" in unit:
-                return val * 365
+        return parse_duration(duration).total_days
     except Exception:
-        pass
-    return 0
+        return 0
 
 
 def build_dynamic_game_fallback(
@@ -599,49 +593,194 @@ def build_dynamic_game_fallback(
     )
 
 
+def _atlas_view(atlas: dict) -> dict:
+    """Expose persisted Atlas fields in the shape consumed by the UI."""
+    result = dict(atlas)
+    result["project_structure"] = result.get("structure") or []
+    result["production_flow_map"] = result.get("flow_map") or []
+    result["task_breakdown"] = result.get("tasks") or {}
+    sections = result["task_breakdown"].get("atlas_sections") or {}
+    result["risks"] = sections.get("risk_dashboard", result.get("risks") or [])
+    result["roadmap_simulator"] = sections.get("simulation", result.get("roadmap_simulator"))
+    result["feasibility"] = sections.get("feasibility", result.get("feasibility"))
+    return result
+
+
+def _job_state(atlas: dict) -> dict:
+    tasks = atlas.get("tasks") or {}
+    return tasks.get("atlas_job") or {}
+
+
+def _persist_atlas(atlas: dict) -> None:
+    db.save_atlas_project(
+        atlas_id=atlas["id"], user_id=atlas.get("user_id"),
+        source_project_id=atlas.get("source_project_id") or "", title=atlas.get("title") or "Untitled Project",
+        duration=atlas.get("duration") or "", tools=atlas.get("tools") or "",
+        roadmap=atlas.get("roadmap") or [], structure=atlas.get("structure") or [],
+        flow_map=atlas.get("flow_map") or [], dependency_map=atlas.get("dependency_map") or [],
+        tasks=atlas.get("tasks") or {}, generated_files=atlas.get("generated_files") or {},
+        zip_path=atlas.get("zip_path"), feasibility_score=atlas.get("feasibility_score") or 0,
+        success_probability=atlas.get("success_probability") or 0,
+        estimated_completion_days=atlas.get("estimated_completion_days") or 0,
+        required_hours_per_day=atlas.get("required_hours_per_day") or 0,
+    )
+
+
+def _run_atlas_stage(atlas: dict) -> dict:
+    """Run exactly one durable Atlas stage. Polling invokes this short operation."""
+    state = _job_state(atlas)
+    if not state:
+        raise ValueError("Atlas job state is missing.")
+    if state.get("status") in {"completed", "failed"}:
+        return atlas
+
+    stage_index = state.get("stage_index", 0)
+    if stage_index >= len(ATLAS_STAGES):
+        state["status"] = "completed"
+        atlas["tasks"]["atlas_job"] = state
+        _persist_atlas(atlas)
+        return atlas
+
+    try:
+        source = db.get_project(state["project_id"])
+        project_data = (source or {}).get("project_json") or {}
+        if not isinstance(project_data, dict):
+            project_data = {}
+        project_data["project_id"] = state["project_id"]
+        project_data["title"] = state["project_title"]
+        plan, metadata = build_atlas_plan(
+            project_id=state["project_id"], project_title=state["project_title"],
+            duration=state["duration"], team_size=state["team_size"],
+            hours_per_day=state["hours_per_day"], tools=state["tools"],
+            project_type=state.get("project_type", ""), user_prompt=state.get("user_prompt", ""),
+            project_data=project_data,
+        )
+        stage = ATLAS_STAGES[stage_index]
+        if stage == "roadmap":
+            atlas["roadmap"] = [item.model_dump() for item in plan.roadmap]
+        elif stage == "tasks":
+            task_data = plan.task_breakdown.model_dump()
+            task_data["team_size"] = state["team_size"]
+            task_data["hours_per_day"] = state["hours_per_day"]
+            task_data["atlas_job"] = state
+            atlas["tasks"] = task_data
+            db.save_atlas_tasks(atlas["id"], [{
+                "task_id": task.id, "title": task.title, "hours": task.hours,
+                "priority": task.priority, "status": task.status, "assignee": task.owner,
+                "dependencies": task.dependencies, "critical_path": task.critical_path,
+            } for task in plan.task_breakdown.detailed_tasks])
+        elif stage == "structure":
+            atlas["structure"] = plan.project_structure
+        elif stage == "flow_map":
+            atlas["flow_map"] = plan.production_flow_map
+            atlas["dependency_map"] = plan.dependency_map
+            db.save_atlas_flow(atlas["id"], plan.production_flow_map)
+        elif stage == "risk_dashboard":
+            risks = [item.model_dump() for item in plan.risks]
+            atlas.setdefault("tasks", {}).setdefault("atlas_sections", {})["risk_dashboard"] = risks
+            db.save_atlas_risks(atlas["id"], risks)
+        elif stage == "simulation":
+            simulation = plan.roadmap_simulator.model_dump()
+            atlas.setdefault("tasks", {}).setdefault("atlas_sections", {})["simulation"] = simulation
+            atlas["feasibility_score"] = metadata["completion_probability"]
+            atlas["success_probability"] = metadata["completion_probability"]
+            atlas["estimated_completion_days"] = metadata["total_days"]
+            atlas["required_hours_per_day"] = state["hours_per_day"]
+            atlas.setdefault("tasks", {}).setdefault("atlas_sections", {})["feasibility"] = {
+                "required_team_size": state["team_size"], "required_hours_per_day": state["hours_per_day"],
+                "estimated_completion_days": metadata["total_days"],
+                "available_capacity_hours": metadata["available_capacity_hours"],
+                "planned_hours": metadata["planned_hours"],
+                "success_probability": metadata["completion_probability"],
+                "risk_level": "Low" if metadata["status"] == "ON TRACK" else "Medium" if metadata["status"] == "AT RISK" else "High",
+            }
+        elif stage == "tools_integration":
+            atlas.setdefault("tasks", {}).setdefault("tools_guide", plan.task_breakdown.tools_guide)
+        elif stage == "export":
+            atlas["generated_files"] = compile_markdown_files(atlas["title"], plan)
+            atlas["zip_path"] = create_atlas_zip_on_disk(atlas["id"], atlas, [])
+
+        state["stage_index"] = stage_index + 1
+        state["completed_sections"] = ATLAS_STAGES[: stage_index + 1]
+        state["status"] = "completed" if stage_index + 1 == len(ATLAS_STAGES) else "processing"
+        atlas.setdefault("tasks", {})["atlas_job"] = state
+        _persist_atlas(atlas)
+    except Exception as exc:
+        state["status"] = "failed"
+        state["error"] = str(exc)
+        atlas.setdefault("tasks", {})["atlas_job"] = state
+        _persist_atlas(atlas)
+    return atlas
+
+
 @app.post("/api/atlas/generate")
 @app.post("/api/atlas")
 @app.post("/")
 async def generate_atlas(req: AtlasRequest):
     try:
+        # Queue only. Every section is generated and persisted by a later poll,
+        # keeping this request safely below Vercel's function runtime limit.
+        duration_spec = parse_duration(req.duration)
+        atlas_id = req.atlas_id or str(uuid.uuid4())
+        title = req.project_title or "Untitled Project"
+        state = {
+            "status": "queued", "stage_index": 0, "completed_sections": [],
+            "project_id": req.project_id, "project_title": title,
+            "duration": req.duration, "team_size": req.team_size,
+            "hours_per_day": req.hours_per_day, "tools": req.tools,
+            "project_type": req.project_type or "", "user_prompt": req.user_prompt or "",
+        }
+        atlas_data = {
+            "id": atlas_id, "user_id": "spotifysahir007@gmail.com", "source_project_id": req.project_id,
+            "title": title, "duration": req.duration, "tools": req.tools,
+            "roadmap": [], "structure": [], "flow_map": [], "dependency_map": [],
+            "tasks": {"atlas_job": state}, "generated_files": {}, "zip_path": None,
+            "estimated_completion_days": duration_spec.total_days,
+            "required_hours_per_day": req.hours_per_day,
+        }
+        _persist_atlas(atlas_data)
+        return JSONResponse(status_code=202, content={
+            "success": True,
+            "job": {"id": atlas_id, **state, "total_sections": len(ATLAS_STAGES)},
+        })
+
+        # Legacy synchronous implementation retained temporarily below for
+        # reference while existing persisted Atlas records are migrated.
         # Fetch project details from database
         project_record = db.get_project(req.project_id)
         if not project_record:
-            # Fallback mock data structure for testing or local mode
             project_data = {
                 "project_id": req.project_id,
-                "title": "Mock Adventure Project",
-                "story": {"summary": "A sample post-apocalyptic tactical zombie game"},
-                "world": {"description": "A dark ruined city environment"},
-                "characters": [{"name": "Hero", "role": "Protagonist", "backstory": "A survivor"}],
-                "gameplay": {"core_loop": "Scavenge resources and shoot zombies"},
-                "qa": {"overall_assessment": "High consistency"},
-                "documentation": {"elevator_pitch": "Survival RPG", "technical_summary": "Built with core engine"}
+                "title": req.project_title or "Untitled Project",
+                "prompt": req.user_prompt or "",
             }
         else:
             project_data = project_record.get("project_json", {})
             if not isinstance(project_data, dict):
                 project_data = {}
             project_data["project_id"] = req.project_id
-            project_data["title"] = project_record.get("title") or "Untitled Project"
+            project_data["title"] = req.project_title or project_record.get("title") or "Untitled Project"
 
-        agent = AtlasAgent(llm)
-        try:
-            atlas_out = await agent.run(
-                project_data=project_data,
-                duration=req.duration,
-                tools=req.tools,
-                team_size=req.team_size,
-                hours_per_day=req.hours_per_day
-            )
-        except Exception as agent_exc:
-            print(f"Atlas agent generation failed: {agent_exc}. Triggering fallback.")
-            atlas_out = build_dynamic_game_fallback(
-                project_data, req.duration, req.tools, req.team_size, req.hours_per_day
-            )
+        title = req.project_title or project_data.get("title") or "Untitled Project"
+        user_prompt = (
+            req.user_prompt
+            or project_data.get("prompt")
+            or (project_record.get("prompt") if project_record else "")
+            or ""
+        )
+        atlas_out, planning = build_atlas_plan(
+            project_id=req.project_id,
+            project_title=title,
+            duration=req.duration,
+            team_size=req.team_size,
+            hours_per_day=req.hours_per_day,
+            tools=req.tools,
+            project_type=req.project_type or "",
+            user_prompt=user_prompt,
+            project_data=project_data,
+        )
 
         # 1. Compile production-plan markdown files
-        title = project_data.get("title") or "Untitled Project"
         generated_files = compile_markdown_files(title, atlas_out)
         generated_files["Risks.md"] = "# Production Risks\n\n" + "\n\n".join(
             f"## {r.id} — {r.title}\nBlocked task: {r.blocked_task}\n\nRisk: {r.risk}\n\n"
@@ -663,11 +802,14 @@ async def generate_atlas(req: AtlasRequest):
         tasks_dict = atlas_out.task_breakdown.model_dump() if hasattr(atlas_out.task_breakdown, "model_dump") else atlas_out.task_breakdown
         tasks_dict["team_size"] = req.team_size
         tasks_dict["hours_per_day"] = req.hours_per_day
+        tasks_dict["project_type"] = planning["project_type"]
 
         atlas_data = {
             "title": title,
             "duration": req.duration,
             "tools": req.tools,
+            "project_type": planning["project_type"],
+            "user_prompt": user_prompt,
             "source_project_id": req.project_id,
             "roadmap": [phase.model_dump() if hasattr(phase, "model_dump") else phase for phase in atlas_out.roadmap],
             "structure": atlas_out.project_structure,
@@ -677,30 +819,37 @@ async def generate_atlas(req: AtlasRequest):
             "risks": [r.model_dump() for r in atlas_out.risks],
             "art_gallery": [a.model_dump() for a in atlas_out.art_gallery],
             "roadmap_simulator": atlas_out.roadmap_simulator.model_dump() if atlas_out.roadmap_simulator else None,
+            "total_days": planning["total_days"],
+            "working_hours": planning["working_hours"],
+            "available_capacity_hours": planning["available_capacity_hours"],
+            "planned_hours": planning["planned_hours"],
+            "completion_probability": planning["completion_probability"],
+            "plan_status": planning["status"],
+            "roadmap_period_unit": planning["roadmap_period_unit"],
+            "roadmap_period_count": planning["roadmap_period_count"],
             "generated_files": generated_files
         }
 
         # Extract feasibility metrics
-        feasibility_score = 0.0
-        success_probability = 0.0
-        estimated_completion_days = parse_duration_to_days(req.duration)
+        feasibility_score = planning["completion_probability"]
+        success_probability = planning["completion_probability"]
+        estimated_completion_days = planning["total_days"]
         required_hours_per_day = float(req.hours_per_day or 8.0)
         
         atlas_data["feasibility"] = {
             "required_team_size": req.team_size,
             "required_hours_per_day": req.hours_per_day,
             "estimated_completion_days": estimated_completion_days,
-            "available_hours": round(req.team_size * req.hours_per_day * estimated_completion_days, 2),
-            "planned_hours": atlas_data.get("roadmap_simulator", {}).get("planned_hours", 0) if atlas_data.get("roadmap_simulator") else 0,
-            "risk_level": "Low" if atlas_data.get("roadmap_simulator", {}).get("status") == "ON TRACK" else "High",
+            "available_hours": planning["available_capacity_hours"],
+            "available_capacity_hours": planning["available_capacity_hours"],
+            "planned_hours": planning["planned_hours"],
+            "success_probability": planning["completion_probability"],
+            "risk_level": (
+                "Low" if planning["status"] == "ON TRACK"
+                else "Medium" if planning["status"] == "AT RISK"
+                else "High"
+            ),
         }
-        
-        if "feasibility" in project_data and project_data["feasibility"]:
-            feas = project_data["feasibility"]
-            success_probability = feas.get("success_probability", 0.0)
-            feasibility_score = success_probability
-            if estimated_completion_days == 0:
-                estimated_completion_days = feas.get("estimated_completion_days", 0)
 
         # 4. Fetch source project images (if available)
         images = []
@@ -733,29 +882,19 @@ async def generate_atlas(req: AtlasRequest):
 
         # Save to granular atlas tables
         # Tasks
-        tasks_list = []
-        if "planner" in project_data and project_data["planner"] and "kanban" in project_data["planner"]:
-            tasks_list = project_data["planner"]["kanban"]
-        else:
-            tb = atlas_out.task_breakdown
-            crit = tb.critical_tasks if hasattr(tb, "critical_tasks") else tb.get("critical_tasks", [])
-            opt = tb.optional_tasks if hasattr(tb, "optional_tasks") else tb.get("optional_tasks", [])
-            for idx, t in enumerate(crit):
-                tasks_list.append({
-                    "task_id": f"CRIT-{idx+1:03d}",
-                    "title": t,
-                    "status": "Todo",
-                    "assignee": "Lead Developer",
-                    "dependencies": []
-                })
-            for idx, t in enumerate(opt):
-                tasks_list.append({
-                    "task_id": f"OPT-{idx+1:03d}",
-                    "title": t,
-                    "status": "Todo",
-                    "assignee": "Developer",
-                    "dependencies": []
-                })
+        tasks_list = [
+            {
+                "task_id": task.id,
+                "title": task.title,
+                "hours": task.hours,
+                "priority": task.priority,
+                "status": task.status,
+                "assignee": task.owner,
+                "dependencies": task.dependencies,
+                "critical_path": task.critical_path,
+            }
+            for task in atlas_out.task_breakdown.detailed_tasks
+        ]
         db.save_atlas_tasks(atlas_id, tasks_list)
 
         # Milestones
@@ -917,9 +1056,28 @@ async def delete_atlas(atlas_id: str = Query(...)):
 @app.get("/")
 async def get_atlas(
     atlas_id: Optional[str] = Query(None),
+    job_id: Optional[str] = Query(None),
     source_project_id: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None)
 ):
+    if job_id:
+        atlas = db.get_atlas_project(job_id)
+        if not atlas:
+            return {"success": False, "error": "Atlas job not found"}
+        atlas = _run_atlas_stage(atlas)
+        state = _job_state(atlas)
+        return {
+            "success": state.get("status") != "failed",
+            "job": {
+                "id": job_id,
+                "status": state.get("status", "queued"),
+                "completed_sections": state.get("completed_sections", []),
+                "total_sections": len(ATLAS_STAGES),
+                "error": state.get("error"),
+            },
+            "atlas": _atlas_view(atlas),
+        }
+
     # If requesting details of specific Atlas
     if atlas_id:
         atlas = db.get_atlas_project(atlas_id)
@@ -940,6 +1098,7 @@ async def get_atlas(
                 "required_hours_per_day": hours_per_day,
                 "estimated_completion_days": completion_days
             }
+        atlas = _atlas_view(atlas)
         return {
             "success": True,
             "atlas": atlas

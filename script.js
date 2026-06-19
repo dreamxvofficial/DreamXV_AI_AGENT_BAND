@@ -2505,6 +2505,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelBtn = document.getElementById("cancel-atlas-modal-btn");
     const submitBtn = document.getElementById("submit-atlas-modal-btn");
     const selectEl = document.getElementById("atlas-project-select");
+    const projectTitleInput = document.getElementById("atlas-project-title-input");
+    const projectTypeInput = document.getElementById("atlas-project-type-input");
+    const userPromptInput = document.getElementById("atlas-user-prompt-input");
     const durationValueInput = document.getElementById("atlas-duration-value");
     const durationUnitSelect = document.getElementById("atlas-duration-unit");
     const teamSizeInput = document.getElementById("atlas-team-size-input");
@@ -2518,6 +2521,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const progressStatusText = document.getElementById("atlas-agent-status");
 
     let activeProjectTitle = "";
+    let atlasProjectsById = {};
 
     if (!atlasCard || !atlasModal) return;
 
@@ -2533,6 +2537,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (teamSizeInput) teamSizeInput.value = "1";
         if (hoursInput) hoursInput.value = "8";
         if (toolsInput) toolsInput.value = "";
+        if (projectTitleInput) projectTitleInput.value = "";
+        if (projectTypeInput) projectTypeInput.value = "";
+        if (userPromptInput) userPromptInput.value = "";
 
         // Reset submit button state
         submitBtn.disabled = false;
@@ -2580,6 +2587,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const completedProjects = projects.filter(p => !p.status || p.status === "completed");
+        atlasProjectsById = Object.fromEntries(completedProjects.map(project => [project.project_id, project]));
 
         if (completedProjects.length === 0) {
             const opt = document.createElement("option");
@@ -2597,12 +2605,28 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    if (selectEl) {
+        selectEl.addEventListener("change", () => {
+            const project = atlasProjectsById[selectEl.value] || {};
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            if (projectTitleInput) {
+                projectTitleInput.value = project.title || selectedOption?.textContent || "";
+            }
+            if (userPromptInput) {
+                userPromptInput.value = project.prompt || "";
+            }
+        });
+    }
+
     // Submit and Generate Plan
     submitBtn.addEventListener("click", async () => {
         const projectId = selectEl.value;
         const durVal = durationValueInput ? durationValueInput.value.trim() : "";
         const durUnit = durationUnitSelect ? durationUnitSelect.value : "";
         const tools = toolsInput ? toolsInput.value.trim() : "";
+        const projectTitle = projectTitleInput ? projectTitleInput.value.trim() : "";
+        const projectType = projectTypeInput ? projectTypeInput.value : "";
+        const userPrompt = userPromptInput ? userPromptInput.value.trim() : "";
         const teamSize = teamSizeInput ? parseInt(teamSizeInput.value) || 1 : 1;
         const hoursPerDay = hoursInput ? parseFloat(hoursInput.value) || 8.0 : 8.0;
 
@@ -2610,6 +2634,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!projectId) {
             showError("Please select a project to proceed.");
+            return;
+        }
+        if (!projectTitle) {
+            showError("Please enter the project title.");
             return;
         }
         if (!durVal || parseInt(durVal) <= 0) {
@@ -2633,7 +2661,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Selected title
         const selectedOption = selectEl.options[selectEl.selectedIndex];
-        activeProjectTitle = selectedOption ? selectedOption.textContent : "Project";
+        activeProjectTitle = projectTitle || (selectedOption ? selectedOption.textContent : "Project");
 
         // Enable progress UI
         submitBtn.disabled = true;
@@ -2665,10 +2693,13 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const bodyPayload = {
                 project_id: projectId,
+                project_title: projectTitle,
                 duration: duration,
                 tools: tools,
                 team_size: teamSize,
-                hours_per_day: hoursPerDay
+                hours_per_day: hoursPerDay,
+                project_type: projectType,
+                user_prompt: userPrompt
             };
             if (window.activeRegenAtlasId) {
                 bodyPayload.atlas_id = window.activeRegenAtlasId;
@@ -2692,7 +2723,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(data.error || "Failed to generate Atlas production blueprint.");
             }
 
-            activeAtlasResult = data.atlas;
+            if (!data.job?.id) {
+                throw new Error("Atlas did not return a job ID.");
+            }
+            activeAtlasResult = await pollAtlasJob(data.job.id, progressIndicator, progressPercent, progressStatusText);
 
             setTimeout(() => {
                 closeModal();
@@ -2701,34 +2735,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             clearInterval(progressInterval);
-            console.warn("[DreamXV Atlas] API generation failed, falling back to local client-side planner...", err);
-            showToast("Server busy/timeout. Activating local roadmap planner fallback...", "info");
-
-            if (progressIndicator) progressIndicator.style.width = "100%";
-            if (progressPercent) progressPercent.textContent = "100%";
-            if (progressStatusText) progressStatusText.textContent = "Roadmap generated via local fallback!";
-
-            const mockAtlas = generateMockAtlas(projectId, activeProjectTitle, duration, tools, teamSize, hoursPerDay);
-            
-            // Persist mock atlas in local storage
-            const localAtlasStr = safeStorage.getItem("dreamxv_atlas_projects") || "[]";
-            const localAtlas = safeJsonParse(localAtlasStr) || [];
-            // Remove previous copy if regenerating in-place
-            const finalAtlasId = window.activeRegenAtlasId || mockAtlas.id;
-            mockAtlas.id = finalAtlasId;
-            const filteredAtlas = localAtlas.filter(x => x.id !== finalAtlasId);
-            filteredAtlas.push(mockAtlas);
-            safeStorage.setItem("dreamxv_atlas_projects", JSON.stringify(filteredAtlas));
-            
-            activeAtlasResult = mockAtlas;
-
-            setTimeout(() => {
-                closeModal();
-                showAtlasOutputPage(activeAtlasResult, activeProjectTitle, duration, tools);
-                submitBtn.disabled = false;
-                document.getElementById("submit-atlas-text").textContent = "GENERATE PLAN";
-                document.getElementById("submit-atlas-spinner").style.display = "none";
-            }, 1000);
+            console.error("[DreamXV Atlas] Validated planning request failed:", err);
+            showError(err.message || "Atlas could not produce a plan matching the supplied constraints.");
+            showToast("Atlas rejected an invalid or incomplete plan.", "error");
+            if (progressStatusText) progressStatusText.textContent = "Plan validation failed.";
+            submitBtn.disabled = false;
+            document.getElementById("submit-atlas-text").textContent = "GENERATE PLAN";
+            document.getElementById("submit-atlas-spinner").style.display = "none";
         }
     });
 
@@ -2737,6 +2750,29 @@ document.addEventListener("DOMContentLoaded", () => {
             errorBox.textContent = msg;
             errorBox.style.display = "block";
         }
+    }
+
+    async function pollAtlasJob(jobId, progressIndicator, progressPercent, progressStatusText) {
+        const maxPolls = 30;
+        for (let attempt = 0; attempt < maxPolls; attempt++) {
+            const response = await fetch(`/api/atlas?job_id=${encodeURIComponent(jobId)}`);
+            const data = await response.json();
+            if (!data.success || data.job?.status === "failed") {
+                throw new Error(data.job?.error || data.error || "Atlas stage failed.");
+            }
+            const completed = data.job?.completed_sections?.length || 0;
+            const total = data.job?.total_sections || 8;
+            const percent = Math.round((completed / total) * 100);
+            if (progressIndicator) progressIndicator.style.width = `${percent}%`;
+            if (progressPercent) progressPercent.textContent = `${percent}%`;
+            if (progressStatusText) {
+                const stage = data.job?.completed_sections?.[completed - 1] || "queued";
+                progressStatusText.textContent = `Atlas ${stage.replace(/_/g, " ")} (${completed}/${total})`;
+            }
+            if (data.job?.status === "completed") return data.atlas;
+            await new Promise(resolve => setTimeout(resolve, 350));
+        }
+        throw new Error("Atlas job did not complete within the polling window.");
     }
 
     // Render Output Page
@@ -2823,7 +2859,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (critEl) {
             const detailed = tasksObj.detailed_tasks || [];
             critEl.innerHTML = detailed.length
-                ? detailed.map(t => `<li><strong>${escapeHtml(t.id)}</strong> — ${escapeHtml(t.name)} (${Number(t.hours || 0).toFixed(1)}h, ${escapeHtml(t.priority)})</li>`).join("")
+                ? detailed.map(t => `<li><strong>${escapeHtml(t.id)}</strong> — ${escapeHtml(t.title || t.name)} (${Number(t.hours || 0).toFixed(1)}h, ${escapeHtml(t.priority)}, ${escapeHtml(t.owner || "")})</li>`).join("")
                 : (tasksObj.critical_tasks || []).map(t => `<li>${escapeHtml(t)}</li>`).join("") || "<li>None</li>";
         }
         if (optEl) {

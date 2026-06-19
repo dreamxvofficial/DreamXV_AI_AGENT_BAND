@@ -97,13 +97,8 @@ class AtlasAgent:
             temperature=0.5,
         )
 
-        if (
-            len(atlas_output.task_breakdown.detailed_tasks) != 35
-            or len(atlas_output.risks) != 10
-            or len(atlas_output.art_gallery) != 12
-            or atlas_output.roadmap_simulator is None
-        ):
-            raise ValueError("Atlas response failed required task/risk/art completeness checks")
+        if not atlas_output.task_breakdown.detailed_tasks or atlas_output.roadmap_simulator is None:
+            raise ValueError("Atlas response failed required planning completeness checks")
 
         # Ensure project_id is set
         atlas_output.project_id = project_data.get("project_id", "")
