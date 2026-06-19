@@ -733,13 +733,6 @@ class BandManager:
         generated_count = 0
         image_urls = []
         
-        tiny_png = (
-            "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"
-            "H0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSu"
-            "QmCC"
-        )
-        placeholder_url = f"data:image/png;base64,{tiny_png}"
-        
         for idx, item in enumerate(prompts):
             image_url = ""
             logger.info(f"Generating image {idx+1}/6")
@@ -776,27 +769,29 @@ class BandManager:
                         break
                 except Exception as img_exc:
                     logger.warning(f"[{project_id}] Image {idx+1}/6 attempt {attempt} failed: {img_exc}")
+                    if "ALL_TIME_LIMIT_EXCEEDED" in str(img_exc) or "API key quota exceeded" in str(img_exc):
+                        logger.error(f"[{project_id}] Image provider quota exhausted; skipping further retries.")
+                        break
                     if attempt < 3:
                         await asyncio.sleep(1.0 * attempt)
                     else:
                         logger.error(f"[{project_id}] Image {idx+1}/6 failed completely after 3 attempts.")
             
-            if not image_url:
-                image_url = placeholder_url
-            
+            # Keep a database record for retry, but never disguise failure as an image.
             db.save_project_image(
                 project_id=project_id,
                 image_url=image_url,
                 prompt=item.prompt,
                 category=item.category
             )
-            generated_count += 1
+            if image_url:
+                generated_count += 1
             image_urls.append(image_url)
             logger.info(f"Image URL: {image_url}")
             logger.info(f"Saved {len(image_urls)} images")
             db.update_project_art_status(project_id, "generating", generated_count, 6)
                 
-        status = "completed"
+        status = "completed" if generated_count == 6 else ("partial" if generated_count else "failed")
         db.update_project_art_status(project_id, status, generated_count, 6)
         logger.info(f"[{project_id}] Async art generation complete. Status: {status} ({generated_count}/6).")
         

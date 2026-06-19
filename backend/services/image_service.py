@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import os
+import struct
 from pathlib import Path
 from typing import Optional
 
@@ -99,6 +100,7 @@ class ImageService:
         # Call image generation endpoint (Featherless AI first, then fallback to AIMLAPI)
         image_generated = False
         img_bytes = None
+        provider_errors: list[str] = []
         
         # 1. Try Featherless AI if supported/available
         if self._featherless_api_key and self._featherless_api_key != "your_key_here" and not self._featherless_api_key.startswith("your_"):
@@ -136,8 +138,11 @@ class ImageService:
                                     logger.info(f"Image generated via Featherless AI (URL)")
                                     image_generated = True
                     else:
-                        logger.warning(f"ERROR_MESSAGE: Featherless image generation returned status code: {response.status_code} - {response.text}")
+                        message = f"Featherless returned HTTP {response.status_code}: {response.text[:300]}"
+                        provider_errors.append(message)
+                        logger.warning(f"ERROR_MESSAGE: {message}")
             except Exception as f_exc:
+                provider_errors.append(f"Featherless: {f_exc}")
                 logger.info(f"ERROR_MESSAGE: Featherless image generation failed: {f_exc}")
 
         # 2. Fallback to AIMLAPI
@@ -161,8 +166,9 @@ class ImageService:
                     )
                     logger.info(f"HTTP_STATUS: {response.status_code}")
                     if response.status_code != 200:
-                        logger.warning(f"ERROR_MESSAGE: AIMLAPI image generation returned status code: {response.status_code} - {response.text}")
-                    response.raise_for_status()
+                        message = f"AIMLAPI returned HTTP {response.status_code}: {response.text[:500]}"
+                        logger.warning(f"ERROR_MESSAGE: {message}")
+                        raise RuntimeError(message)
 
                 data = response.json()
 
@@ -188,14 +194,12 @@ class ImageService:
                 else:
                     raise ValueError("No image data returned from AIMLAPI")
             except Exception as exc:
+                provider_errors.append(f"AIMLAPI: {exc}")
                 logger.warning(f"ERROR_MESSAGE: AIMLAPI image generation failed: {exc}")
-                # Solid dark green/gold themed placeholder PNG (base64)
-                tiny_png = (
-                    "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAAB5o5OKAAAAA1BMVEUKGjoGf18hAAAA"
-                    "H0lEQVRo3u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAIB3A1wAAQEp59ADAAAAAElFTkSu"
-                    "QmCC"
-                )
-                img_bytes = base64.b64decode(tiny_png)
+
+        if not image_generated or not self._is_valid_image(img_bytes):
+            detail = "; ".join(provider_errors) or "provider returned no valid image data"
+            raise RuntimeError(f"Image generation failed: {detail}")
 
         if img_bytes:
             if os.getenv("VERCEL"):
@@ -212,6 +216,20 @@ class ImageService:
                     return f"data:image/png;base64,{img_b64}"
         
         return ""
+
+    @staticmethod
+    def _is_valid_image(data: Optional[bytes]) -> bool:
+        """Reject empty/tiny fallback payloads before they can be saved as successful art."""
+        if not data or len(data) < 1024:
+            return False
+        if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24:
+            width, height = struct.unpack(">II", data[16:24])
+            return width >= 128 and height >= 128
+        if data.startswith(b"\xff\xd8\xff"):
+            return True
+        if data.startswith((b"RIFF", b"GIF8")):
+            return True
+        return False
 
     async def generate_project_images(
         self,

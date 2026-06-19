@@ -47,6 +47,7 @@ DreamXV automatically:
 * Runs QA validation
 * Generates export packages
 
+<img src="assets/Screenshot 2026-06-19 185718.png" width="900">
 ---
 
 # 🧠 Powered By Multi-Agent Collaboration
@@ -151,6 +152,8 @@ QA Validation
 ↓
 
 Export System
+
+<img src="assets/Screenshot 2026-06-19 190001.png" width="900">
 
 ---
 

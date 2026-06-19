@@ -1590,7 +1590,7 @@ async function showProjectDetails(projectId) {
                         renderGallery(updatedProject);
                         updateArtProgressUI(updatedProject.art_generation_status, updatedProject.generated_images || 0, updatedProject.total_images || 6);
 
-                        if (updatedProject.art_generation_status === "completed" || updatedProject.art_generation_status === "error") {
+                        if (["completed", "partial", "failed", "error"].includes(updatedProject.art_generation_status)) {
                             clearInterval(_artPollInterval);
                             _artPollInterval = null;
                             showToast("Concept art generation completed!", "success");
@@ -1918,9 +1918,17 @@ function renderGallery(project) {
                         <div class="category-badge" style="position: absolute; top: 8px; left: 8px; background: rgba(239, 68, 68, 0.85); color: #fff; border: 1px solid #ef4444; font-family: var(--font-code); font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${category}</div>
                     </div>
                     <div class="card-footer" style="padding: 8px; background: rgba(12, 26, 46, 0.8); border-top: 1px solid rgba(26, 48, 72, 0.4); text-align: center; font-size: 11px; color: rgba(240, 232, 208, 0.3); font-family: var(--font-code);">
-                        Generation Failed
+                        <button class="gallery-regen-btn" style="width: 100%; padding: 6px; font-size: 11px; background: transparent; border: 1px solid var(--earth-teal); color: var(--earth-teal); border-radius: 4px; cursor: pointer; font-family: var(--font-code);">Retry generation</button>
                     </div>
                 `;
+                const retryBtn = card.querySelector(".gallery-regen-btn");
+                if (retryBtn && imageId && !imageId.startsWith("local_")) {
+                    retryBtn.addEventListener("click", async () => {
+                        await triggerRegenerateImage(project.project_id, imageId, card);
+                    });
+                } else if (retryBtn) {
+                    retryBtn.style.display = "none";
+                }
             } else {
                 card.innerHTML = `
                     <div class="image-wrapper" style="position: relative; height: 160px; overflow: hidden; cursor: pointer;">
@@ -2052,7 +2060,7 @@ async function triggerRegenerateImage(projectId, imageId, cardElement) {
     const regenBtn = cardElement.querySelector(".gallery-regen-btn");
     const imgElement = cardElement.querySelector(".gallery-img");
 
-    if (regenBtn.disabled) return;
+    if (!regenBtn || regenBtn.disabled) return;
 
     regenBtn.disabled = true;
     regenBtn.innerHTML = `
@@ -2068,9 +2076,16 @@ async function triggerRegenerateImage(projectId, imageId, cardElement) {
         });
         const data = await res.json();
         if (data.success && data.image_url) {
-            imgElement.src = data.image_url;
+            if (imgElement) imgElement.src = data.image_url;
             showToast("Concept art regenerated successfully!", "success");
-            fetchAndRenderProjects();
+            const refreshed = await fetch(`/api/projects?project_id=${encodeURIComponent(projectId)}`);
+            const refreshedData = await refreshed.json();
+            if (refreshedData.success && refreshedData.project) {
+                currentInspectedProject = normalizeProject(refreshedData.project);
+                renderGallery(currentInspectedProject);
+            } else {
+                fetchAndRenderProjects();
+            }
         } else {
             showToast(data.error || "Regeneration failed.", "error");
         }
