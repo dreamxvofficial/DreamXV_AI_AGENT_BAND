@@ -700,25 +700,84 @@ def _run_atlas_stage(atlas: dict) -> dict:
         elif stage == "tools_integration":
             atlas.setdefault("tasks", {}).setdefault("tools_guide", plan.task_breakdown.tools_guide)
         elif stage == "export":
-            atlas["generated_files"] = compile_markdown_files(atlas["title"], plan)
-            atlas["zip_path"] = create_atlas_zip_on_disk(atlas["id"], atlas, [])
+
+            atlas["generated_files"] = compile_markdown_files(
+                atlas["title"],
+                plan
+            )
+
+            images = []
+
+            source_project_id = atlas.get(
+                "source_project_id"
+            )
+
+            if source_project_id:
+
+                project_images = db.get_project_images(
+                    source_project_id
+                )
+
+                images = [
+                    {
+                        "image_url": img.get(
+                            "image_url",
+                            ""
+                        ),
+                        "category": img.get(
+                            "category",
+                            "concept"
+                        )
+                    }
+                    for img in project_images
+                ]
+
+                if images:
+                    db.save_atlas_images(
+                        atlas["id"],
+                        images
+                    )
+
+            atlas["zip_path"] = create_atlas_zip_on_disk(
+                atlas["id"],
+                atlas,
+                images
+            )
 
         state["stage_index"] = stage_index + 1
-        state["completed_sections"] = ATLAS_STAGES[: stage_index + 1]
-        state["status"] = "completed" if stage_index + 1 == len(ATLAS_STAGES) else "processing"
-        atlas.setdefault("tasks", {})["atlas_job"] = state
+
+        state["completed_sections"] = (
+            ATLAS_STAGES[: stage_index + 1]
+        )
+
+        state["status"] = (
+            "completed"
+            if stage_index + 1 == len(ATLAS_STAGES)
+            else "processing"
+        )
+
+        atlas.setdefault(
+            "tasks",
+            {}
+        )["atlas_job"] = state
+
         _persist_atlas(atlas)
-    except Exception as exc:
+
+        return atlas
+
+    except Exception as e:
+
         state["status"] = "failed"
-        state["error"] = str(exc)
-        atlas.setdefault("tasks", {})["atlas_job"] = state
+        state["error"] = str(e)
+
+        atlas.setdefault(
+            "tasks",
+            {}
+        )["atlas_job"] = state
+
         _persist_atlas(atlas)
-    return atlas
 
-
-@app.post("/api/atlas/generate")
-@app.post("/api/atlas")
-@app.post("/")
+        return atlas
 async def generate_atlas(req: AtlasRequest):
     try:
         # Queue only. Every section is generated and persisted by a later poll,
@@ -1085,50 +1144,26 @@ async def get_atlas(
 
     # If requesting details of specific Atlas
     if atlas_id:
-        atlas = db.get_atlas_project(atlas_id)
-        if not atlas:
-            return {"success": False, "error": "Atlas project not found"}
-        if isinstance(atlas, dict):
-            atlas["project_structure"] = atlas.get("structure") or []
-            atlas["production_flow_map"] = atlas.get("flow_map") or []
-            atlas["task_breakdown"] = atlas.get("tasks") or {}
-            
-            # Inject feasibility object for simulator auto-population
-            tasks_data = atlas.get("tasks") or {}
-            team_size = tasks_data.get("team_size") or 1
-            hours_per_day = tasks_data.get("hours_per_day") or 8.0
-            completion_days = atlas.get("estimated_completion_days") or parse_duration_to_days(atlas.get("duration") or "")
-            atlas["feasibility"] = {
-                "required_team_size": team_size,
-                "required_hours_per_day": hours_per_day,
-                "estimated_completion_days": completion_days
-            }
-        atlas = _atlas_view(atlas)
-        return {
-            "success": True,
-            "atlas": atlas
-        }
-        
-    # If requesting all Atlas plans linked to a source project
-    if source_project_id:
-        plans = db.get_atlas_projects_by_source(source_project_id)
-        for p in plans:
-            if isinstance(p, dict):
-                p["project_structure"] = p.get("structure") or []
-                p["production_flow_map"] = p.get("flow_map") or []
-                p["task_breakdown"] = p.get("tasks") or {}
-                
-                # Inject feasibility object
-                tasks_data = p.get("tasks") or {}
-                team_size = tasks_data.get("team_size") or 1
-                hours_per_day = tasks_data.get("hours_per_day") or 8.0
-                completion_days = p.get("estimated_completion_days") or parse_duration_to_days(p.get("duration") or "")
-                p["feasibility"] = {
-                    "required_team_size": team_size,
-                    "required_hours_per_day": hours_per_day,
-                    "estimated_completion_days": completion_days
-                }
-        return {
+      job = (
+          atlas.get("task_breakdown", {})
+              .get("atlas_job", {})
+            )
+
+    return {
+        "success": True,
+        "atlas": atlas,
+        "job": {
+            "status": job.get(
+                 "status",
+                 "completed"
+        ),
+         "completed_sections": job.get(
+            "completed_sections",
+            []
+        )
+    }
+}
+    return {
             "success": True,
             "plans": plans
         }
