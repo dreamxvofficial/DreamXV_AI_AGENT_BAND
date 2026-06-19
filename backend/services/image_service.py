@@ -230,46 +230,105 @@ class ImageService:
         return False
 
     async def generate_project_images(
-        self,
-        prompts: list[str],
-        *,
-        project_id: str,
-        image_types: Optional[list[str]] = None,
-    ) -> list[str]:
-        """
-        Generate multiple images for a project (up to MAX_IMAGES_PER_PROJECT) in parallel.
+    self,
+    prompts: list[str],
+    *,
+    project_id: str,
+    image_types: Optional[list[str]] = None,
+) -> list[str]:
+    """
+    Generate multiple images for a project and update
+    project art generation status correctly.
+    """
 
-        Args:
-            prompts: List of image generation prompts.
-            project_id: Associated project ID.
-            image_types: Optional list of types matching prompts.
+    import asyncio
 
-        Returns:
-            List of saved file paths (or base64 strings).
-        """
-        import asyncio
-        if image_types is None:
-            image_types = ["concept"] * len(prompts)
+    from backend.services.supabase_service import SupabaseService
 
-        # Enforce limit
-        prompts = prompts[:MAX_IMAGES_PER_PROJECT]
-        image_types = image_types[:MAX_IMAGES_PER_PROJECT]
+    db = SupabaseService()
+
+    if image_types is None:
+        image_types = ["concept"] * len(prompts)
+
+    prompts = prompts[:MAX_IMAGES_PER_PROJECT]
+    image_types = image_types[:MAX_IMAGES_PER_PROJECT]
+
+    total = len(prompts)
+
+    try:
+
+        db.update_project_art_status(
+            project_id,
+            "generating",
+            0,
+            total,
+        )
 
         tasks = []
+
         for prompt, img_type in zip(prompts, image_types):
-            tasks.append(self.generate_image(
-                prompt,
-                project_id=project_id,
-                image_type=img_type,
-            ))
+            tasks.append(
+                self.generate_image(
+                    prompt,
+                    project_id=project_id,
+                    image_type=img_type,
+                )
+            )
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(
+            *tasks,
+            return_exceptions=True,
+        )
 
+        generated = 0
         paths: list[str] = []
+
         for res, img_type in zip(results, image_types):
+
             if isinstance(res, Exception):
-                logger.error(f"Image generation failed for type={img_type}: {res}")
-            elif res:
+                logger.error(
+                    f"Image generation failed for "
+                    f"type={img_type}: {res}"
+                )
+                continue
+
+            if res:
                 paths.append(res)
+                generated += 1
+
+        if generated == 0:
+
+            db.update_project_art_status(
+                project_id,
+                "failed",
+                0,
+                total,
+            )
+
+            raise RuntimeError(
+                "All image generations failed."
+            )
+
+        db.update_project_art_status(
+            project_id,
+            "completed",
+            generated,
+            total,
+        )
 
         return paths
+
+    except Exception as exc:
+
+        logger.exception(
+            f"Project image generation failed: {exc}"
+        )
+
+        db.update_project_art_status(
+            project_id,
+            "failed",
+            0,
+            total,
+        )
+
+        raise
