@@ -8,6 +8,23 @@
   Universal Multi-Agent AI Creation Platform
 </p>
 
+## 🌐 Live Demo
+
+Try DreamXV AI Studio:
+
+**Website:** http://dreamxv.duckdns.org
+
+Features available:
+
+* Multi-Agent Project Generation
+* Atlas Production Planner
+* Risk Analysis Dashboard
+* Roadmap Generator
+* Task Planning
+* Art Concept Gallery
+* Export System
+
+
  🚀 DreamXV AI Studio
 
 ### Universal Multi-Agent AI Creation Platform
