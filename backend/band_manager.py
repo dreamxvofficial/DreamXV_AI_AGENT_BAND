@@ -576,10 +576,9 @@ class BandManager:
                 project_json=project_json
             )
             
-            # Launch background art generation task asynchronously so as not to block
-            # project creation or cause serverless timeouts.
-            logger.info(f"[{project.project_id}] Launching background art generation task...")
-            asyncio.create_task(self.generate_project_images_async(project.project_id, project))
+            # Launch art generation task synchronously to ensure completion under serverless/vercel envs.
+            logger.info(f"[{project.project_id}] Running art generation task synchronously...")
+            await self.generate_project_images_async(project.project_id, project)
             
         except Exception as e:
             logger.warning(f"Failed to save project to Supabase: {e}")
@@ -728,13 +727,13 @@ class BandManager:
             prompts.append(prompts[0])
             
         generated_count = 0
-        image_urls = []
-        image_errors = []
+        image_urls = [""] * 6
+        image_errors = [""] * 6
         
-        for idx, item in enumerate(prompts):
+        async def generate_single_image(idx, item):
             image_url = ""
             image_error = ""
-            logger.info(f"Generating image {idx+1}/6")
+            logger.info(f"[{project_id}] Starting generation for image {idx+1}/6")
             
             # Retry loop: 3 attempts
             for attempt in range(1, 4):
@@ -784,17 +783,23 @@ class BandManager:
                 prompt=item.prompt,
                 category=item.category
             )
-            if image_url:
+            return idx, image_url, image_error
+
+        # Run all image generations concurrently in parallel
+        tasks = [generate_single_image(i, prompts[i]) for i in range(len(prompts))]
+        results = await asyncio.gather(*tasks)
+        
+        for idx, img_url, img_err in results:
+            image_urls[idx] = img_url
+            image_errors[idx] = img_err
+            if img_url:
                 generated_count += 1
-            image_urls.append(image_url)
-            image_errors.append(image_error)
-            logger.info(f"Image URL: {image_url}")
-            logger.info(f"Saved {len(image_urls)} images")
+            logger.info(f"[{project_id}] Saved image {idx+1}/6: {img_url[:60]}...")
             db.update_project_art_status(project_id, "generating", generated_count, 6)
                 
         status = "completed" if generated_count == 6 else ("partial" if generated_count else "failed")
         db.update_project_art_status(project_id, status, generated_count, 6)
-        logger.info(f"[{project_id}] Async art generation complete. Status: {status} ({generated_count}/6).")
+        logger.info(f"[{project_id}] Art generation complete. Status: {status} ({generated_count}/6).")
         
         project.art_gallery = image_urls
         
