@@ -3113,6 +3113,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             } else {
                 showToast("Atlas ID not found for download.", "error");
+            }
         });
     }
     window.showAtlasOutputPage = showAtlasOutputPage;
