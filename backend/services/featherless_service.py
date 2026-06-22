@@ -29,7 +29,7 @@ class FeatherlessService:
         self._client = AsyncOpenAI(
             api_key=settings.featherless_api_key,
             base_url=settings.featherless_base_url,
-            timeout=180.0,
+            timeout=25.0,
         )
         self._default_model = settings.featherless_model
         self._default_temperature = settings.default_temperature
@@ -63,11 +63,13 @@ class FeatherlessService:
             messages=messages,
             temperature=temperature or self._default_temperature,
             max_tokens=max_tokens or self._default_max_tokens,
-            timeout=180.0,
+            timeout=25.0,
         )
 
         content = response.choices[0].message.content or ""
         logger.debug(f"Featherless response length: {len(content)} chars")
+        if not content.strip():
+            raise RuntimeError("Featherless AI returned empty content.")
         return content
 
     async def generate_structured(
