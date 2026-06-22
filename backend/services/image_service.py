@@ -46,7 +46,7 @@ class ImageService:
         self._base_url = settings.aiml_base_url
         self._model = settings.aiml_image_model
         self._images_dir = settings.images_dir
-        self._endpoint = f"{self._base_url.rstrip('/')}/images/generations/"
+        self._endpoint = f"{self._base_url.rstrip('/')}/images/generations"
         self._api_key_source = os.getenv("AIML_API_KEY_SOURCE", "<missing>")
 
         logger.info(

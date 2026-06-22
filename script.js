@@ -2815,7 +2815,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (data.job?.status === "completed") {
-                break;
+                return data.atlas;
             }
 
             await new Promise(resolve =>

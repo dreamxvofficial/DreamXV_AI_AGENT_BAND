@@ -1171,14 +1171,11 @@ async def get_atlas(
                     "error": "Atlas plan not found"
                 }
 
-            job = (
-                atlas.get("task_breakdown", {})
-                     .get("atlas_job", {})
-            )
+            job = _job_state(atlas)
 
             return {
                 "success": True,
-                "atlas": atlas,
+                "atlas": _atlas_view(atlas),
                 "job": {
                     "status": job.get(
                         "status",
