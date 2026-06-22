@@ -107,6 +107,11 @@ window.addEventListener("resize", () => {
 document.addEventListener("contextmenu", e => {
     e.preventDefault();
 });
+if (video) {
+    video.addEventListener("contextmenu", e => {
+        e.preventDefault();
+    });
+}
 
 /* ==========================================
    AUTOPLAY FALLBACK FOR USER INTERACTION
@@ -389,6 +394,7 @@ function initApp() {
         currentStep = 1;
         updateQuizUI();
     }
+    window.startOnboarding = startOnboarding;
 
     const nicknameInput = document.getElementById("onboard-nickname");
     if (nicknameInput) {

@@ -108,6 +108,11 @@ window.addEventListener("resize", () => {
 document.addEventListener("contextmenu", e => {
     e.preventDefault();
 });
+if (video) {
+    video.addEventListener("contextmenu", e => {
+        e.preventDefault();
+    });
+}
 
 /* ==========================================
    AUTOPLAY FALLBACK FOR USER INTERACTION

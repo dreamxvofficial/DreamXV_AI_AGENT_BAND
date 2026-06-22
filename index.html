@@ -44,6 +44,7 @@
             className="loading-video"
             disablePictureInPicture
             controlsList="nodownload nofullscreen noremoteplayback"
+            oncontextmenu="return false;"
             onerror="console.error('Video load failed:', event)"
             onError={(e) => console.error(e)}>
             <source
